@@ -1,3 +1,4 @@
 [submodule "OpenFrontIO"]
 	path = OpenFrontIO
 	url = git@github.com:openfrontio/OpenFrontIO
+	branch = 433964461ad4e46fb6d36aaaba4cbaf3806e8bdb
