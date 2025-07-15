@@ -1,0 +1,57 @@
+{"map":"Africa","max":100,"teams":3}
+{"map":"Africa","max":100,"teams":null}
+{"map":"Africa","max":50,"teams":null}
+{"map":"Asia","max":30,"teams":null}
+{"map":"Asia","max":60,"teams":null}
+{"map":"Australia","max":40,"teams":null}
+{"map":"Australia","max":45,"teams":5}
+{"map":"Australia","max":50,"teams":null}
+{"map":"Baikal","max":60,"teams":4}
+{"map":"Between Two Seas","max":30,"teams":null}
+{"map":"Between Two Seas","max":40,"teams":2}
+{"map":"Between Two Seas","max":40,"teams":3}
+{"map":"Between Two Seas","max":40,"teams":null}
+{"map":"Black Sea","max":40,"teams":null}
+{"map":"Britannia","max":30,"teams":null}
+{"map":"Britannia","max":40,"teams":null}
+{"map":"Britannia","max":45,"teams":3}
+{"map":"Britannia","max":50,"teams":2}
+{"map":"Deglaciated Antarctica","max":30,"teams":null}
+{"map":"Deglaciated Antarctica","max":40,"teams":null}
+{"map":"Deglaciated Antarctica","max":50,"teams":2}
+{"map":"Europe Classic","max":50,"teams":null}
+{"map":"Europe Classic","max":80,"teams":null}
+{"map":"Europe","max":30,"teams":null}
+{"map":"Europe","max":44,"teams":2}
+{"map":"Europe","max":50,"teams":null}
+{"map":"Europe","max":80,"teams":2}
+{"map":"Europe","max":80,"teams":null}
+{"map":"Faroe Islands","max":40,"teams":null}
+{"map":"Gateway to the Atlantic","max":40,"teams":null}
+{"map":"Gateway to the Atlantic","max":60,"teams":null}
+{"map":"Gateway to the Atlantic","max":80,"teams":6}
+{"map":"Halkidiki","max":30,"teams":null}
+{"map":"Halkidiki","max":50,"teams":null}
+{"map":"Iceland","max":30,"teams":null}
+{"map":"Iceland","max":40,"teams":null}
+{"map":"Iceland","max":50,"teams":6}
+{"map":"Iceland","max":50,"teams":null}
+{"map":"Japan","max":40,"teams":null}
+{"map":"Japan","max":50,"teams":null}
+{"map":"Mars","max":30,"teams":null}
+{"map":"Mars","max":50,"teams":4}
+{"map":"Mena","max":50,"teams":null}
+{"map":"Mena","max":60,"teams":5}
+{"map":"North America","max":50,"teams":null}
+{"map":"North America","max":80,"teams":null}
+{"map":"Pangaea","max":20,"teams":null}
+{"map":"Pangaea","max":40,"teams":5}
+{"map":"Pangaea","max":40,"teams":null}
+{"map":"South America","max":40,"teams":null}
+{"map":"South America","max":70,"teams":6}
+{"map":"South America","max":70,"teams":null}
+{"map":"World","max":120,"teams":4}
+{"map":"World","max":150,"teams":null}
+{"map":"World","max":74,"teams":2}
+{"map":"World","max":75,"teams":5}
+{"map":"World","max":80,"teams":null}
