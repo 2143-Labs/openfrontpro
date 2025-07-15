@@ -1,0 +1,3 @@
+[submodule "OpenFrontIO"]
+	path = OpenFrontIO
+	url = git@github.com:openfrontio/OpenFrontIO
