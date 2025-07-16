@@ -14,6 +14,7 @@
             pkgs.nodePackages.pnpm
             pkgs.nodePackages.typescript
             pkgs.nodePackages.typescript-language-server
+	    pkgs.nodejs_20
           ];
         };
       }

@@ -1,23 +1,26 @@
 {
-  "name": "typescript-pnpm-template",
+  "name": "openfronter",
   "version": "1.0.0",
-  "description": "",
+  "description": "An OpenFront.io match parser and data analytics engine.",
   "main": "index.ts",
   "scripts": {
-    "start": "webpack serve --open"
+    "start": "node --loader ts-node/esm --experimental-specifier-resolution=node src/index.ts"
   },
   "keywords": [],
-  "author": "",
+  "author": "John2143",
   "license": "ISC",
   "dependencies": {
-    "lodash": "^4.17.21",
-    "typescript": "^5.4.3"
+    "@eslint/compat": "^1.2.7",
+    "@eslint/js": "^9.21.0",
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.11",
+    "@types/ws": "^8.5.11",
+    "chai": "^5.1.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.26.0"
   },
   "devDependencies": {
-    "@types/lodash": "^4.17.0",
-    "ts-loader": "^9.5.1",
-    "webpack": "^5.91.0",
-    "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^5.0.4"
+    "zod": "^3.25.28"
   }
 }
