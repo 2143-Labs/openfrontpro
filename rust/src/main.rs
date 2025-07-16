@@ -1,6 +1,7 @@
 use std::{net::SocketAddr, path::Path};
 
 use aide::{axum::ApiRouter, openapi::{Info, OpenApi}, redoc::Redoc};
+use anyhow::Context;
 use axum::{response::Response, Extension, Json};
 use clap::Parser;
 
@@ -31,6 +32,92 @@ struct Config {
     #[clap(long, env, default_value = "info")]
     pub rust_log: String,
 
+}
+
+// Example Response
+//
+// {"lobbies":[{"gameID":"8vpnPq5G","numClients":29,"gameConfig":{"gameMap":"Faroe Islands","gameType":"Public","difficulty":"Medium","disableNPCs":false,"infiniteGold":false,"infiniteTroops":false,"instantBuild":false,"gameMode":"Free For All","bots":400,"disabledUnits":[],"maxPlayers":40},"msUntilStart":13941}]}
+// {"lobbies":[{"gameID":"U91rErJL","numClients":0,"gameConfig":{"gameMap":"Australia","gameType":"Public","difficulty":"Medium","disableNPCs":false,"infiniteGold":false,"infiniteTroops":false,"instantBuild":false,"gameMode":"Free For All","bots":400,"disabledUnits":[],"maxPlayers":50},"msUntilStart":59901}]}
+// {"lobbies":[{"gameID":"PQaySEuD","numClients":33,"gameConfig":{"gameMap":"Gateway to the Atlantic","gameType":"Public","difficulty":"Medium","disableNPCs":true,"infiniteGold":false,"infiniteTroops":false,"instantBuild":false,"gameMode":"Team","bots":400,"disabledUnits":[],"maxPlayers":80,"playerTeams":4},"msUntilStart":45184}]}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+struct PublicLobbiesResponse {
+    lobbies: Vec<Lobby>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Lobby {
+    #[serde(rename = "gameID")]
+    game_id: String,
+    num_clients: u32,
+    game_config: GameConfig,
+    ms_until_start: u64,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GameConfig {
+    game_map: String,
+    game_type: String,
+    difficulty: String,
+    #[serde(rename = "disableNPCs")]
+    disable_npcs: bool,
+    infinite_gold: bool,
+    infinite_troops: bool,
+    instant_build: bool,
+    game_mode: String,
+    bots: u32,
+    disabled_units: Vec<String>,
+    max_players: u32,
+    player_teams: Option<u32>,
+}
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn should_parse_lobby() {
+        let jsons = [
+            r#"{"lobbies":[{"gameID":"mieEQtXo","numClients":1,"gameConfig":{"gameMap":"World","gameType":"Public","difficulty":"Medium","disableNPCs":false,"infiniteGold":false,"infiniteTroops":false,"instantBuild":false,"gameMode":"Free For All","bots":400,"disabledUnits":[],"maxPlayers":50},"msUntilStart":57198}]}"#,
+            r#"{"lobbies":[{"gameID":"Q7GMHhAv","numClients":16,"gameConfig":{"gameMap":"Africa","gameType":"Public","difficulty":"Medium","disableNPCs":false,"infiniteGold":false,"infiniteTroops":false,"instantBuild":false,"gameMode":"Free For All","bots":400,"disabledUnits":[],"maxPlayers":80},"msUntilStart":31378}]}"#,
+        ];
+
+        for json in jsons {
+            let response: PublicLobbiesResponse = serde_json::from_str(json).unwrap();
+            assert!(!response.lobbies.is_empty(), "Lobby list should not be empty");
+            assert!(response.lobbies[0].ms_until_start > 0, "ms_until_start should be greater than 0");
+            assert!(!response.lobbies[0].game_config.game_map.is_empty(), "game_map should not be empty");
+        }
+    }
+}
+
+
+async fn get_new_games() -> anyhow::Result<Vec<Lobby>> {
+    let new_games = reqwest::get("https://openfront.io/api/public_lobbies")
+        .await?
+        .json::<PublicLobbiesResponse>()
+        .await?;
+
+    Ok(new_games.lobbies)
+}
+
+async fn look_for_new_games() -> anyhow::Result<()> {
+    loop {
+        let new_games = get_new_games().await?;
+        let first = new_games.first().context("No new games found...")?;
+
+        // Wait for either half the time until the game game to check again, or just wait for the
+        // next game.
+        let next_time = (first.ms_until_start / 2).max(first.ms_until_start + 500);
+
+        tracing::info!("Lobby {} {} has {}/{} players. Starts in {}ms", first.game_id, first.game_config.game_map, first.num_clients, first.game_config.max_players, first.ms_until_start);
+        tracing::info!("Next check in {}ms", next_time);
+        tokio::time::sleep(tokio::time::Duration::from_millis(next_time)).await;
+
+    }
 }
 
 #[tokio::main]
@@ -88,6 +175,15 @@ async fn main() -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", config.port)).await?;
 
     tracing::info!("Listening on http://{}", listener.local_addr()?);
+
+    tokio::spawn(async move {
+        loop {
+            if let Err(e) = look_for_new_games().await {
+                tracing::error!("Error looking for new games: {}", e);
+                tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+            }
+        }
+    });
 
     axum::serve(
         listener,
