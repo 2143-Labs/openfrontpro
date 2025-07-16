@@ -2,14 +2,17 @@
   "name": "openfronter",
   "version": "1.0.0",
   "description": "An OpenFront.io match parser and data analytics engine.",
-  "main": "index.ts",
+  "main": "src/index.ts",
   "scripts": {
-    "start": "node --loader ts-node/esm --experimental-specifier-resolution=node src/index.ts"
+    "start": "node --loader ts-node/esm --experimental-specifier-resolution=node src/as.ts",
+    "build": "tsc",
+    "build:watch": "tsc --watch"
   },
   "keywords": [],
   "author": "John2143",
   "license": "ISC",
   "dependencies": {
+    "openfront-client": "file:./OpenFrontIO/",
     "@eslint/compat": "^1.2.7",
     "@eslint/js": "^9.21.0",
     "@types/node": "^22.10.2",

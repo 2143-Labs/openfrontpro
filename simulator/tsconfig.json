@@ -7,6 +7,7 @@
     // Modules
     "module": "ESNext",
     "rootDir": ".",
+    "outDir": "dist",
     "moduleResolution": "node",
 
     // Emit
@@ -24,10 +25,6 @@
   },
   "include": [
     "src/**/*",
-    "resources/**/*",
-    "generated/**/*",
-    "tests/**/*",
-    "src/scripts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": []
 }
