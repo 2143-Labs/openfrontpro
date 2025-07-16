@@ -1,57 +1,273 @@
+{"map":"Africa","max":100,"teams":2}
 {"map":"Africa","max":100,"teams":3}
+{"map":"Africa","max":100,"teams":4}
+{"map":"Africa","max":100,"teams":5}
+{"map":"Africa","max":100,"teams":6}
 {"map":"Africa","max":100,"teams":null}
 {"map":"Africa","max":50,"teams":null}
+{"map":"Africa","max":72,"teams":4}
+{"map":"Africa","max":72,"teams":6}
+{"map":"Africa","max":74,"teams":2}
+{"map":"Africa","max":75,"teams":3}
+{"map":"Africa","max":75,"teams":5}
+{"map":"Africa","max":80,"teams":null}
 {"map":"Asia","max":30,"teams":null}
+{"map":"Asia","max":42,"teams":6}
+{"map":"Asia","max":44,"teams":2}
+{"map":"Asia","max":44,"teams":4}
+{"map":"Asia","max":45,"teams":3}
+{"map":"Asia","max":45,"teams":5}
+{"map":"Asia","max":50,"teams":null}
+{"map":"Asia","max":60,"teams":2}
+{"map":"Asia","max":60,"teams":3}
+{"map":"Asia","max":60,"teams":4}
+{"map":"Asia","max":60,"teams":5}
+{"map":"Asia","max":60,"teams":6}
 {"map":"Asia","max":60,"teams":null}
+{"map":"Australia","max":30,"teams":null}
 {"map":"Australia","max":40,"teams":null}
+{"map":"Australia","max":42,"teams":6}
+{"map":"Australia","max":44,"teams":2}
+{"map":"Australia","max":45,"teams":3}
 {"map":"Australia","max":45,"teams":5}
+{"map":"Australia","max":50,"teams":2}
+{"map":"Australia","max":50,"teams":3}
+{"map":"Australia","max":50,"teams":4}
+{"map":"Australia","max":50,"teams":5}
+{"map":"Australia","max":50,"teams":6}
 {"map":"Australia","max":50,"teams":null}
+{"map":"Baikal","max":40,"teams":null}
+{"map":"Baikal","max":50,"teams":null}
+{"map":"Baikal","max":60,"teams":2}
+{"map":"Baikal","max":60,"teams":3}
 {"map":"Baikal","max":60,"teams":4}
+{"map":"Baikal","max":60,"teams":5}
+{"map":"Baikal","max":60,"teams":6}
+{"map":"Baikal","max":60,"teams":null}
 {"map":"Between Two Seas","max":30,"teams":null}
 {"map":"Between Two Seas","max":40,"teams":2}
 {"map":"Between Two Seas","max":40,"teams":3}
+{"map":"Between Two Seas","max":40,"teams":4}
+{"map":"Between Two Seas","max":40,"teams":5}
+{"map":"Between Two Seas","max":40,"teams":6}
 {"map":"Between Two Seas","max":40,"teams":null}
+{"map":"Black Sea","max":30,"teams":null}
+{"map":"Black Sea","max":40,"teams":2}
+{"map":"Black Sea","max":40,"teams":3}
+{"map":"Black Sea","max":40,"teams":4}
+{"map":"Black Sea","max":40,"teams":5}
+{"map":"Black Sea","max":40,"teams":6}
 {"map":"Black Sea","max":40,"teams":null}
 {"map":"Britannia","max":30,"teams":null}
 {"map":"Britannia","max":40,"teams":null}
+{"map":"Britannia","max":42,"teams":6}
+{"map":"Britannia","max":44,"teams":2}
+{"map":"Britannia","max":44,"teams":4}
 {"map":"Britannia","max":45,"teams":3}
+{"map":"Britannia","max":45,"teams":5}
 {"map":"Britannia","max":50,"teams":2}
+{"map":"Britannia","max":50,"teams":3}
+{"map":"Britannia","max":50,"teams":4}
+{"map":"Britannia","max":50,"teams":5}
+{"map":"Britannia","max":50,"teams":6}
+{"map":"Britannia","max":50,"teams":null}
 {"map":"Deglaciated Antarctica","max":30,"teams":null}
 {"map":"Deglaciated Antarctica","max":40,"teams":null}
+{"map":"Deglaciated Antarctica","max":42,"teams":6}
+{"map":"Deglaciated Antarctica","max":44,"teams":4}
+{"map":"Deglaciated Antarctica","max":45,"teams":3}
+{"map":"Deglaciated Antarctica","max":45,"teams":5}
 {"map":"Deglaciated Antarctica","max":50,"teams":2}
+{"map":"Deglaciated Antarctica","max":50,"teams":3}
+{"map":"Deglaciated Antarctica","max":50,"teams":4}
+{"map":"Deglaciated Antarctica","max":50,"teams":5}
+{"map":"Deglaciated Antarctica","max":50,"teams":6}
+{"map":"Deglaciated Antarctica","max":50,"teams":null}
+{"map":"Europe Classic","max":30,"teams":null}
+{"map":"Europe Classic","max":42,"teams":6}
+{"map":"Europe Classic","max":44,"teams":2}
+{"map":"Europe Classic","max":45,"teams":5}
 {"map":"Europe Classic","max":50,"teams":null}
+{"map":"Europe Classic","max":72,"teams":4}
+{"map":"Europe Classic","max":72,"teams":6}
+{"map":"Europe Classic","max":74,"teams":2}
+{"map":"Europe Classic","max":75,"teams":3}
+{"map":"Europe Classic","max":80,"teams":2}
+{"map":"Europe Classic","max":80,"teams":3}
+{"map":"Europe Classic","max":80,"teams":4}
+{"map":"Europe Classic","max":80,"teams":6}
 {"map":"Europe Classic","max":80,"teams":null}
 {"map":"Europe","max":30,"teams":null}
+{"map":"Europe","max":42,"teams":6}
 {"map":"Europe","max":44,"teams":2}
+{"map":"Europe","max":44,"teams":4}
+{"map":"Europe","max":45,"teams":3}
+{"map":"Europe","max":45,"teams":5}
 {"map":"Europe","max":50,"teams":null}
+{"map":"Europe","max":72,"teams":4}
+{"map":"Europe","max":72,"teams":6}
+{"map":"Europe","max":74,"teams":2}
+{"map":"Europe","max":75,"teams":3}
 {"map":"Europe","max":80,"teams":2}
+{"map":"Europe","max":80,"teams":3}
+{"map":"Europe","max":80,"teams":4}
+{"map":"Europe","max":80,"teams":5}
+{"map":"Europe","max":80,"teams":6}
 {"map":"Europe","max":80,"teams":null}
+{"map":"Falkland Islands","max":30,"teams":null}
+{"map":"Falkland Islands","max":42,"teams":6}
+{"map":"Falkland Islands","max":44,"teams":2}
+{"map":"Falkland Islands","max":44,"teams":4}
+{"map":"Falkland Islands","max":45,"teams":3}
+{"map":"Falkland Islands","max":45,"teams":5}
+{"map":"Falkland Islands","max":50,"teams":null}
+{"map":"Falkland Islands","max":72,"teams":4}
+{"map":"Falkland Islands","max":72,"teams":6}
+{"map":"Falkland Islands","max":74,"teams":2}
+{"map":"Falkland Islands","max":75,"teams":3}
+{"map":"Falkland Islands","max":80,"teams":2}
+{"map":"Falkland Islands","max":80,"teams":3}
+{"map":"Falkland Islands","max":80,"teams":4}
+{"map":"Falkland Islands","max":80,"teams":5}
+{"map":"Falkland Islands","max":80,"teams":6}
+{"map":"Falkland Islands","max":80,"teams":null}
+{"map":"Faroe Islands","max":30,"teams":null}
 {"map":"Faroe Islands","max":40,"teams":null}
+{"map":"Faroe Islands","max":44,"teams":2}
+{"map":"Faroe Islands","max":44,"teams":4}
+{"map":"Faroe Islands","max":45,"teams":3}
+{"map":"Faroe Islands","max":45,"teams":5}
+{"map":"Faroe Islands","max":50,"teams":2}
+{"map":"Faroe Islands","max":50,"teams":3}
+{"map":"Faroe Islands","max":50,"teams":4}
+{"map":"Faroe Islands","max":50,"teams":5}
+{"map":"Faroe Islands","max":50,"teams":6}
+{"map":"Faroe Islands","max":50,"teams":null}
 {"map":"Gateway to the Atlantic","max":40,"teams":null}
+{"map":"Gateway to the Atlantic","max":60,"teams":2}
+{"map":"Gateway to the Atlantic","max":60,"teams":3}
+{"map":"Gateway to the Atlantic","max":60,"teams":5}
+{"map":"Gateway to the Atlantic","max":60,"teams":6}
 {"map":"Gateway to the Atlantic","max":60,"teams":null}
+{"map":"Gateway to the Atlantic","max":80,"teams":2}
+{"map":"Gateway to the Atlantic","max":80,"teams":3}
+{"map":"Gateway to the Atlantic","max":80,"teams":4}
+{"map":"Gateway to the Atlantic","max":80,"teams":5}
 {"map":"Gateway to the Atlantic","max":80,"teams":6}
+{"map":"Gateway to the Atlantic","max":80,"teams":null}
 {"map":"Halkidiki","max":30,"teams":null}
+{"map":"Halkidiki","max":40,"teams":null}
+{"map":"Halkidiki","max":42,"teams":6}
+{"map":"Halkidiki","max":44,"teams":4}
+{"map":"Halkidiki","max":45,"teams":3}
+{"map":"Halkidiki","max":45,"teams":5}
+{"map":"Halkidiki","max":50,"teams":2}
+{"map":"Halkidiki","max":50,"teams":3}
+{"map":"Halkidiki","max":50,"teams":4}
+{"map":"Halkidiki","max":50,"teams":5}
+{"map":"Halkidiki","max":50,"teams":6}
 {"map":"Halkidiki","max":50,"teams":null}
 {"map":"Iceland","max":30,"teams":null}
 {"map":"Iceland","max":40,"teams":null}
+{"map":"Iceland","max":42,"teams":6}
+{"map":"Iceland","max":44,"teams":2}
+{"map":"Iceland","max":44,"teams":4}
+{"map":"Iceland","max":45,"teams":5}
+{"map":"Iceland","max":50,"teams":2}
+{"map":"Iceland","max":50,"teams":3}
+{"map":"Iceland","max":50,"teams":4}
+{"map":"Iceland","max":50,"teams":5}
 {"map":"Iceland","max":50,"teams":6}
 {"map":"Iceland","max":50,"teams":null}
+{"map":"Japan","max":30,"teams":null}
 {"map":"Japan","max":40,"teams":null}
+{"map":"Japan","max":42,"teams":6}
+{"map":"Japan","max":44,"teams":2}
+{"map":"Japan","max":44,"teams":4}
+{"map":"Japan","max":45,"teams":3}
+{"map":"Japan","max":50,"teams":2}
+{"map":"Japan","max":50,"teams":3}
+{"map":"Japan","max":50,"teams":4}
+{"map":"Japan","max":50,"teams":5}
+{"map":"Japan","max":50,"teams":6}
 {"map":"Japan","max":50,"teams":null}
 {"map":"Mars","max":30,"teams":null}
+{"map":"Mars","max":40,"teams":null}
+{"map":"Mars","max":42,"teams":6}
+{"map":"Mars","max":44,"teams":2}
+{"map":"Mars","max":45,"teams":3}
+{"map":"Mars","max":45,"teams":5}
+{"map":"Mars","max":50,"teams":2}
+{"map":"Mars","max":50,"teams":3}
 {"map":"Mars","max":50,"teams":4}
+{"map":"Mars","max":50,"teams":5}
+{"map":"Mars","max":50,"teams":6}
+{"map":"Mars","max":50,"teams":null}
+{"map":"Mena","max":30,"teams":null}
+{"map":"Mena","max":42,"teams":6}
+{"map":"Mena","max":44,"teams":2}
+{"map":"Mena","max":44,"teams":4}
+{"map":"Mena","max":45,"teams":3}
+{"map":"Mena","max":45,"teams":5}
 {"map":"Mena","max":50,"teams":null}
+{"map":"Mena","max":60,"teams":2}
+{"map":"Mena","max":60,"teams":3}
+{"map":"Mena","max":60,"teams":4}
 {"map":"Mena","max":60,"teams":5}
+{"map":"Mena","max":60,"teams":6}
+{"map":"Mena","max":60,"teams":null}
 {"map":"North America","max":50,"teams":null}
+{"map":"North America","max":60,"teams":null}
+{"map":"North America","max":72,"teams":4}
+{"map":"North America","max":72,"teams":6}
+{"map":"North America","max":74,"teams":2}
+{"map":"North America","max":75,"teams":3}
+{"map":"North America","max":75,"teams":5}
+{"map":"North America","max":80,"teams":2}
+{"map":"North America","max":80,"teams":3}
+{"map":"North America","max":80,"teams":4}
+{"map":"North America","max":80,"teams":5}
+{"map":"North America","max":80,"teams":6}
 {"map":"North America","max":80,"teams":null}
 {"map":"Pangaea","max":20,"teams":null}
+{"map":"Pangaea","max":28,"teams":4}
+{"map":"Pangaea","max":30,"teams":3}
+{"map":"Pangaea","max":30,"teams":5}
+{"map":"Pangaea","max":30,"teams":null}
+{"map":"Pangaea","max":40,"teams":2}
+{"map":"Pangaea","max":40,"teams":3}
+{"map":"Pangaea","max":40,"teams":4}
 {"map":"Pangaea","max":40,"teams":5}
+{"map":"Pangaea","max":40,"teams":6}
 {"map":"Pangaea","max":40,"teams":null}
 {"map":"South America","max":40,"teams":null}
+{"map":"South America","max":50,"teams":null}
+{"map":"South America","max":60,"teams":2}
+{"map":"South America","max":60,"teams":3}
+{"map":"South America","max":60,"teams":4}
+{"map":"South America","max":60,"teams":5}
+{"map":"South America","max":60,"teams":6}
+{"map":"South America","max":70,"teams":2}
+{"map":"South America","max":70,"teams":3}
+{"map":"South America","max":70,"teams":4}
+{"map":"South America","max":70,"teams":5}
 {"map":"South America","max":70,"teams":6}
 {"map":"South America","max":70,"teams":null}
+{"map":"World","max":120,"teams":2}
+{"map":"World","max":120,"teams":3}
 {"map":"World","max":120,"teams":4}
+{"map":"World","max":120,"teams":5}
+{"map":"World","max":120,"teams":6}
+{"map":"World","max":150,"teams":2}
+{"map":"World","max":150,"teams":3}
+{"map":"World","max":150,"teams":4}
+{"map":"World","max":150,"teams":5}
+{"map":"World","max":150,"teams":6}
 {"map":"World","max":150,"teams":null}
+{"map":"World","max":50,"teams":null}
+{"map":"World","max":72,"teams":4}
+{"map":"World","max":72,"teams":6}
 {"map":"World","max":74,"teams":2}
+{"map":"World","max":75,"teams":3}
 {"map":"World","max":75,"teams":5}
 {"map":"World","max":80,"teams":null}

@@ -4,14 +4,15 @@ use aide::{axum::ApiRouter, openapi::{Info, OpenApi}, redoc::Redoc};
 use anyhow::Context;
 use axum::{response::Response, Extension, Json};
 use clap::Parser;
+use schemars::JsonSchema;
+use sqlx::PgPool;
 
 async fn serve_file(file_path: &Path) -> anyhow::Result<Response> {
     let file_contents = tokio::fs::read(file_path).await?;
 
-    let response = axum::response::Response::builder()
+    let response = Response::builder()
         .header("Content-Type", "application/octet-stream")
         .body(axum::body::Body::from(file_contents))?;
-
 
     Ok(response)
 }
@@ -32,6 +33,8 @@ struct Config {
     #[clap(long, env, default_value = "info")]
     pub rust_log: String,
 
+    #[clap(long, env, default_value = "postgres://postgres@localhost:5432/openfrontpro")]
+    pub database_url: String
 }
 
 // Example Response
@@ -50,7 +53,7 @@ struct PublicLobbiesResponse {
 struct Lobby {
     #[serde(rename = "gameID")]
     game_id: String,
-    num_clients: u32,
+    num_clients: i32,
     game_config: GameConfig,
     ms_until_start: u64,
 }
@@ -67,10 +70,10 @@ struct GameConfig {
     infinite_troops: bool,
     instant_build: bool,
     game_mode: String,
-    bots: u32,
+    bots: i32,
     disabled_units: Vec<String>,
-    max_players: u32,
-    player_teams: Option<u32>,
+    max_players: i32,
+    player_teams: Option<i32>,
 }
 
 
@@ -104,25 +107,102 @@ async fn get_new_games() -> anyhow::Result<Vec<Lobby>> {
     Ok(new_games.lobbies)
 }
 
-async fn look_for_new_games() -> anyhow::Result<()> {
+/// This is put into the database for every lobby we see
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, sqlx::FromRow, JsonSchema)]
+struct LobbyDBEntry {
+    game_id: String,
+    teams: Option<i32>,
+    max_players: i32,
+    game_map: String,
+    approx_num_players: i32,
+    /// Last seen timestamp in seconds
+    first_seen_unix_sec: i64,
+    /// Last seen timestamp in seconds
+    last_seen_unix_sec: i64,
+}
+
+async fn look_for_new_games(database: PgPool) -> anyhow::Result<()> {
+    let mut expected_to_be_new_game_next_check = true;
+    let mut last_game_id = String::new();
     loop {
         let new_games = get_new_games().await?;
         let first = new_games.first().context("No new games found...")?;
 
-        // Wait for either half the time until the game game to check again, or just wait for the
-        // next game.
-        let next_time = (first.ms_until_start / 2).max(first.ms_until_start + 500);
+        let now_unix_sec = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .context("System time before UNIX EPOCH")?
+            .as_secs();
+
+        if first.game_id != last_game_id {
+            tracing::info!(expected_to_be_new_game_next_check, "New game found: {}", first.game_id);
+            if !expected_to_be_new_game_next_check {
+                // We got a new game earlier than expected. The last one must have been full.
+                // TODO update previous game column in the database to indicate reached max players
+                sqlx::query!(
+                    "UPDATE lobbies SET approx_num_players = max_players WHERE game_id = $1",
+                    last_game_id
+                ).execute(&database).await?;
+            }
+            last_game_id = first.game_id.clone();
+        }
+
+        // TODO insert new LobbyDBEntry into the database
+        sqlx::query!(
+            "INSERT INTO
+                lobbies (game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec)
+            VALUES
+                ($1, $2, $3, $4, $5, $6, $6)
+            ON CONFLICT (game_id)
+            DO UPDATE
+                SET approx_num_players = $5
+                , last_seen_unix_sec = $6
+            ",
+            first.game_id,
+            first.game_config.player_teams,
+            first.game_config.max_players,
+            first.game_config.game_map,
+            first.num_clients,
+            now_unix_sec as i64
+        ).execute(&database).await?;
+
+        let num_players_left = first.game_config.max_players - first.num_clients;
+
+        // Wait between 3 and 15 seconds before checking again.
+        let next_time = (first.ms_until_start).min(15500).min(num_players_left as u64 * 500).max(3500) - 500;
+
+        expected_to_be_new_game_next_check = next_time > first.ms_until_start;
 
         tracing::info!("Lobby {} {} has {}/{} players. Starts in {}ms", first.game_id, first.game_config.game_map, first.num_clients, first.game_config.max_players, first.ms_until_start);
         tracing::info!("Next check in {}ms", next_time);
         tokio::time::sleep(tokio::time::Duration::from_millis(next_time)).await;
-
     }
+}
+
+async fn lobbies_handler(
+    Extension(database): Extension<PgPool>,
+) -> Result<Json<Vec<LobbyDBEntry>>, Response> {
+    let res = sqlx::query_as!(
+        LobbyDBEntry,
+        "SELECT game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec FROM lobbies ORDER BY last_seen_unix_sec DESC LIMIT 1000 "
+    )
+    .fetch_all(&database)
+    .await.map_err(|e| {
+        axum::response::Response::builder()
+            .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+            .body(axum::body::Body::from(format!("Database query failed: {}", e)))
+            .expect("Failed to build response for error message")
+    })?;
+
+    Ok(Json(res))
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config = Config::parse();
+
+    let database = PgPool::connect(&config.database_url)
+        .await
+        .context("Failed to connect to the database")?;
 
     tracing_subscriber::fmt()
         //.with_max_level(tracing::Level::INFO)
@@ -141,6 +221,7 @@ async fn main() -> anyhow::Result<()> {
 
     let routes = ApiRouter::new()
         .api_route("/", aide::axum::routing::get(|| async { "Hello, World!" }))
+        .route("/lobbies", axum::routing::get(lobbies_handler))
         .route("/robots.txt", axum::routing::get(|| async { "User-agent: *\nDisallow: /" }))
         .route("/openapi.json", axum::routing::get(open_api_json))
         .route("/redoc", Redoc::new("/openapi.json").axum_route());
@@ -158,6 +239,7 @@ async fn main() -> anyhow::Result<()> {
     let fin = routes
         .finish_api(&mut openapi)
         .layer(Extension(openapi.clone()))
+        .layer(Extension(database.clone()))
         //.layer(NormalizePathLayer::trim_trailing_slash())
         .layer(cors)
         .fallback_service(axum::routing::get_service(
@@ -178,7 +260,7 @@ async fn main() -> anyhow::Result<()> {
 
     tokio::spawn(async move {
         loop {
-            if let Err(e) = look_for_new_games().await {
+            if let Err(e) = look_for_new_games(database.clone()).await {
                 tracing::error!("Error looking for new games: {}", e);
                 tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
             }
