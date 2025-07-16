@@ -225,8 +225,8 @@ async fn check_if_game_finished(game_id: &str) -> anyhow::Result<(serde_json::Va
 
     if finished.get("gitCommit").is_some() {
         // Game is finished!
-        tracing::info!("Game {} is finished.", game_id);
         let winning_id = finished["info"]["winner"][1].as_str();
+        tracing::info!(winning_id, game_id, "Game is finished.");
 
         for player in finished["info"]["players"].as_array().unwrap() {
             if player["clientID"].as_str() == winning_id {
@@ -260,6 +260,7 @@ async fn look_for_finished_games(database: PgPool) -> anyhow::Result<()> {
 
             if !finished {
                 tracing::info!("Game {} is still unfinished.", game_id);
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                 continue;
             }
 
@@ -279,11 +280,15 @@ async fn look_for_finished_games(database: PgPool) -> anyhow::Result<()> {
             .execute(&mut *txn)
             .await?;
 
-            tracing::info!("Game {} is finished. Adding results to db.", game_id);
             txn.commit().await?;
+
+            let dur_secs = result_json["info"]["duration"].as_i64().unwrap_or(0);
+            let num_turns = result_json["info"]["num_turns"].as_i64().unwrap_or(0);
+            tracing::info!(dur_secs, num_turns, "Game {} is finished. Adding results to db.", game_id);
+
         }
 
-        tokio::time::sleep(tokio::time::Duration::from_secs(120)).await;
+        tokio::time::sleep(tokio::time::Duration::from_secs(60 * 5)).await;
     }
 }
 
@@ -355,7 +360,7 @@ struct FinshedGameDBEntry {
 async fn game_handler(
     Extension(database): Extension<PgPool>,
     Path(game_id): Path<String>,
-) -> Result<Json<FinshedGameDBEntry>, Response> {
+) -> Result<Json<serde_json::Value>, Response> {
     let lobby = sqlx::query_as!(
         FinshedGameDBEntry,
         "SELECT game_id, result_json FROM finished_games WHERE game_id = $1",
@@ -370,7 +375,7 @@ async fn game_handler(
             .expect("Failed to build response for error message")
     })?;
 
-    Ok(Json(lobby))
+    Ok(Json(lobby.result_json))
 }
 
 #[tokio::main]
@@ -403,7 +408,7 @@ async fn main() -> anyhow::Result<()> {
     let routes = ApiRouter::new()
         .api_route("/", aide::axum::routing::get(|| async { "Hello, World!" }))
         .route("/lobbies", axum::routing::get(lobbies_handler))
-        .route("/lobbies/:game_id", axum::routing::get(game_handler))
+        .route("/games/{game_id}", axum::routing::get(game_handler))
         //.route(
         //"/robots.txt",
         //axum::routing::get(|| async { "User-agent: *\nDisallow: /" }),
