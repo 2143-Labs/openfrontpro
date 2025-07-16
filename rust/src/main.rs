@@ -187,7 +187,7 @@ async fn look_for_new_games(database: PgPool) -> anyhow::Result<()> {
         // Wait between 3 and 15 seconds before checking again.
         let next_time = (first.ms_until_start)
             .min(15500)
-            .min(num_players_left as u64 * 500)
+            .min(num_players_left as u64 * 1000)
             .max(3500)
             - 500;
 
@@ -254,10 +254,10 @@ async fn main() -> anyhow::Result<()> {
     let routes = ApiRouter::new()
         .api_route("/", aide::axum::routing::get(|| async { "Hello, World!" }))
         .route("/lobbies", axum::routing::get(lobbies_handler))
-        .route(
-            "/robots.txt",
-            axum::routing::get(|| async { "User-agent: *\nDisallow: /" }),
-        )
+        //.route(
+            //"/robots.txt",
+            //axum::routing::get(|| async { "User-agent: *\nDisallow: /" }),
+        //)
         .route("/openapi.json", axum::routing::get(open_api_json))
         .route("/redoc", Redoc::new("/openapi.json").axum_route());
 
