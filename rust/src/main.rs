@@ -1,8 +1,12 @@
 use std::{net::SocketAddr, path::Path};
 
-use aide::{axum::ApiRouter, openapi::{Info, OpenApi}, redoc::Redoc};
+use aide::{
+    axum::ApiRouter,
+    openapi::{Info, OpenApi},
+    redoc::Redoc,
+};
 use anyhow::Context;
-use axum::{response::Response, Extension, Json};
+use axum::{Extension, Json, response::Response};
 use clap::Parser;
 use schemars::JsonSchema;
 use sqlx::PgPool;
@@ -17,9 +21,7 @@ async fn serve_file(file_path: &Path) -> anyhow::Result<Response> {
     Ok(response)
 }
 
-pub async fn open_api_json(
-    Extension(api): Extension<OpenApi>,
-) -> impl aide::axum::IntoApiResponse {
+pub async fn open_api_json(Extension(api): Extension<OpenApi>) -> impl aide::axum::IntoApiResponse {
     dbg!(&api);
     Json(api)
 }
@@ -33,8 +35,12 @@ struct Config {
     #[clap(long, env, default_value = "info")]
     pub rust_log: String,
 
-    #[clap(long, env, default_value = "postgres://postgres@localhost:5432/openfrontpro")]
-    pub database_url: String
+    #[clap(
+        long,
+        env,
+        default_value = "postgres://postgres@localhost:5432/openfrontpro"
+    )]
+    pub database_url: String,
 }
 
 // Example Response
@@ -76,7 +82,6 @@ struct GameConfig {
     player_teams: Option<i32>,
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -90,13 +95,21 @@ mod test {
 
         for json in jsons {
             let response: PublicLobbiesResponse = serde_json::from_str(json).unwrap();
-            assert!(!response.lobbies.is_empty(), "Lobby list should not be empty");
-            assert!(response.lobbies[0].ms_until_start > 0, "ms_until_start should be greater than 0");
-            assert!(!response.lobbies[0].game_config.game_map.is_empty(), "game_map should not be empty");
+            assert!(
+                !response.lobbies.is_empty(),
+                "Lobby list should not be empty"
+            );
+            assert!(
+                response.lobbies[0].ms_until_start > 0,
+                "ms_until_start should be greater than 0"
+            );
+            assert!(
+                !response.lobbies[0].game_config.game_map.is_empty(),
+                "game_map should not be empty"
+            );
         }
     }
 }
-
 
 async fn get_new_games() -> anyhow::Result<Vec<Lobby>> {
     let new_games = reqwest::get("https://openfront.io/api/public_lobbies")
@@ -134,19 +147,23 @@ async fn look_for_new_games(database: PgPool) -> anyhow::Result<()> {
             .as_secs();
 
         if first.game_id != last_game_id {
-            tracing::info!(expected_to_be_new_game_next_check, "New game found: {}", first.game_id);
+            tracing::info!(
+                expected_to_be_new_game_next_check,
+                "New game found: {}",
+                first.game_id
+            );
             if !expected_to_be_new_game_next_check {
                 // We got a new game earlier than expected. The last one must have been full.
-                // TODO update previous game column in the database to indicate reached max players
                 sqlx::query!(
                     "UPDATE lobbies SET approx_num_players = max_players WHERE game_id = $1",
                     last_game_id
-                ).execute(&database).await?;
+                )
+                .execute(&database)
+                .await?;
             }
             last_game_id = first.game_id.clone();
         }
 
-        // TODO insert new LobbyDBEntry into the database
         sqlx::query!(
             "INSERT INTO
                 lobbies (game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec)
@@ -168,11 +185,22 @@ async fn look_for_new_games(database: PgPool) -> anyhow::Result<()> {
         let num_players_left = first.game_config.max_players - first.num_clients;
 
         // Wait between 3 and 15 seconds before checking again.
-        let next_time = (first.ms_until_start).min(15500).min(num_players_left as u64 * 500).max(3500) - 500;
+        let next_time = (first.ms_until_start)
+            .min(15500)
+            .min(num_players_left as u64 * 500)
+            .max(3500)
+            - 500;
 
         expected_to_be_new_game_next_check = next_time > first.ms_until_start;
 
-        tracing::info!("Lobby {} {} has {}/{} players. Starts in {}ms", first.game_id, first.game_config.game_map, first.num_clients, first.game_config.max_players, first.ms_until_start);
+        tracing::info!(
+            "Lobby {} {} has {}/{} players. Starts in {}ms",
+            first.game_id,
+            first.game_config.game_map,
+            first.num_clients,
+            first.game_config.max_players,
+            first.ms_until_start
+        );
         tracing::info!("Next check in {}ms", next_time);
         tokio::time::sleep(tokio::time::Duration::from_millis(next_time)).await;
     }
@@ -214,15 +242,22 @@ async fn main() -> anyhow::Result<()> {
 
     let cors = tower_http::cors::CorsLayer::new()
         .allow_origin(tower_http::cors::Any)
-        .allow_methods(vec![axum::http::Method::GET, axum::http::Method::POST, axum::http::Method::PUT, 
-                          axum::http::Method::DELETE, axum::http::Method::OPTIONS])
+        .allow_methods(vec![
+            axum::http::Method::GET,
+            axum::http::Method::POST,
+            axum::http::Method::PUT,
+            axum::http::Method::DELETE,
+            axum::http::Method::OPTIONS,
+        ])
         .allow_headers(tower_http::cors::Any);
-
 
     let routes = ApiRouter::new()
         .api_route("/", aide::axum::routing::get(|| async { "Hello, World!" }))
         .route("/lobbies", axum::routing::get(lobbies_handler))
-        .route("/robots.txt", axum::routing::get(|| async { "User-agent: *\nDisallow: /" }))
+        .route(
+            "/robots.txt",
+            axum::routing::get(|| async { "User-agent: *\nDisallow: /" }),
+        )
         .route("/openapi.json", axum::routing::get(open_api_json))
         .route("/redoc", Redoc::new("/openapi.json").axum_route());
 
@@ -230,7 +265,9 @@ async fn main() -> anyhow::Result<()> {
         info: Info {
             title: "openfront.pro".to_string(),
             version: "1.0.0".to_string(),
-            description: Some("This API can be used to access elo data, match data, and more".to_string()),
+            description: Some(
+                "This API can be used to access elo data, match data, and more".to_string(),
+            ),
             ..Default::default()
         },
         ..Default::default()
@@ -245,14 +282,14 @@ async fn main() -> anyhow::Result<()> {
         .fallback_service(axum::routing::get_service(
             tower_http::services::ServeDir::new("frontend")
                 .append_index_html_on_directories(true)
-                .not_found_service(axum::routing::get(|| async { serve_file(&Path::new("frontend/index.html")).await.unwrap() })),
+                .not_found_service(axum::routing::get(|| async {
+                    serve_file(&Path::new("frontend/index.html")).await.unwrap()
+                })),
         ));
 
-
-
     //sqlx::migrate!("./migrations")
-        //.run(&database)
-        //.await?;
+    //.run(&database)
+    //.await?;
 
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", config.port)).await?;
 
@@ -270,7 +307,8 @@ async fn main() -> anyhow::Result<()> {
     axum::serve(
         listener,
         fin.into_make_service_with_connect_info::<SocketAddr>(),
-    ).await?;
+    )
+    .await?;
 
     anyhow::bail!("Server stopped unexpectedly");
 }
