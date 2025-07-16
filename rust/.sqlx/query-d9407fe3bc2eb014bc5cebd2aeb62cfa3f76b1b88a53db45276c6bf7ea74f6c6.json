@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT game_id, result_json FROM finished_games WHERE game_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "game_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "result_json",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "d9407fe3bc2eb014bc5cebd2aeb62cfa3f76b1b88a53db45276c6bf7ea74f6c6"
+}

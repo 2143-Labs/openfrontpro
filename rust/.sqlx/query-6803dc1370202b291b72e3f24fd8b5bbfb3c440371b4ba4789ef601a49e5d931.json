@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE lobbies SET completed = true WHERE game_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6803dc1370202b291b72e3f24fd8b5bbfb3c440371b4ba4789ef601a49e5d931"
+}

@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, path::Path};
+use std::net::SocketAddr;
 
 use aide::{
     axum::ApiRouter,
@@ -6,12 +6,16 @@ use aide::{
     redoc::Redoc,
 };
 use anyhow::Context;
-use axum::{Extension, Json, response::Response};
+use axum::{
+    Extension, Json,
+    extract::{Path, Query},
+    response::Response,
+};
 use clap::Parser;
 use schemars::JsonSchema;
 use sqlx::PgPool;
 
-async fn serve_file(file_path: &Path) -> anyhow::Result<Response> {
+async fn serve_file(file_path: &std::path::Path) -> anyhow::Result<Response> {
     let file_contents = tokio::fs::read(file_path).await?;
 
     let response = Response::builder()
@@ -132,6 +136,7 @@ struct LobbyDBEntry {
     first_seen_unix_sec: i64,
     /// Last seen timestamp in seconds
     last_seen_unix_sec: i64,
+    completed: bool,
 }
 
 async fn look_for_new_games(database: PgPool) -> anyhow::Result<()> {
@@ -206,22 +211,166 @@ async fn look_for_new_games(database: PgPool) -> anyhow::Result<()> {
     }
 }
 
+async fn check_if_game_finished(game_id: &str) -> anyhow::Result<(serde_json::Value, bool)> {
+    let finished = reqwest::get(format!("https://api.openfront.io/game/{}", game_id))
+        .await?
+        .json::<serde_json::Value>()
+        .await?;
+
+    if finished.get("error").is_some() {
+        if finished["error"] == "Not found" {
+            return Ok((finished, false));
+        }
+    }
+
+    if finished.get("gitCommit").is_some() {
+        // Game is finished!
+        tracing::info!("Game {} is finished.", game_id);
+        let winning_id = finished["info"]["winner"][1].as_str();
+
+        for player in finished["info"]["players"].as_array().unwrap() {
+            if player["clientID"].as_str() == winning_id {
+                tracing::info!("Winning player: {}", player["username"]);
+            }
+        }
+
+        return Ok((finished, true));
+    }
+
+    tracing::error!("Game {} is in an unknown other state.", game_id);
+
+    anyhow::bail!("Game {} is in an unknown state: {:?}", game_id, finished);
+}
+
+async fn look_for_finished_games(database: PgPool) -> anyhow::Result<()> {
+    loop {
+        let unfinished_games = sqlx::query!(
+            "SELECT game_id FROM lobbies WHERE completed = false AND last_seen_unix_sec < extract(epoch from (NOW() - INTERVAL '10 minutes'))"
+        ).fetch_all(&database).await?;
+
+        tracing::info!(
+            "Found {} unfinished games, checking if they are finished...",
+            unfinished_games.len()
+        );
+
+        for game in unfinished_games {
+            let game_id = &game.game_id;
+            let (result_json, finished) = check_if_game_finished(game_id).await?;
+            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
+            if !finished {
+                tracing::info!("Game {} is still unfinished.", game_id);
+                continue;
+            }
+
+            let mut txn = database.begin().await?;
+            sqlx::query!(
+                "UPDATE lobbies SET completed = true WHERE game_id = $1",
+                game_id
+            )
+            .execute(&mut *txn)
+            .await?;
+
+            sqlx::query!(
+                "INSERT INTO finished_games (game_id, result_json) VALUES ($1, $2)",
+                game_id,
+                result_json
+            )
+            .execute(&mut *txn)
+            .await?;
+
+            tracing::info!("Game {} is finished. Adding results to db.", game_id);
+            txn.commit().await?;
+        }
+
+        tokio::time::sleep(tokio::time::Duration::from_secs(120)).await;
+    }
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
+struct LobbyQueryParams {
+    completed: Option<bool>,
+    game_map: Option<String>,
+}
+
 async fn lobbies_handler(
     Extension(database): Extension<PgPool>,
+    Query(params): Query<LobbyQueryParams>,
 ) -> Result<Json<Vec<LobbyDBEntry>>, Response> {
-    let res = sqlx::query_as!(
-        LobbyDBEntry,
-        "SELECT game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec FROM lobbies ORDER BY last_seen_unix_sec DESC LIMIT 1000 "
+    let mut querybuilder = sqlx::query_builder::QueryBuilder::new(
+        "SELECT game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec, completed FROM lobbies",
+    );
+
+    let mut _has_where = false;
+
+    if let Some(completed) = params.completed {
+        if _has_where {
+            querybuilder.push(" AND ");
+        } else {
+            querybuilder.push(" WHERE ");
+        }
+        _has_where = true;
+
+        querybuilder.push(" WHERE completed = ");
+        querybuilder.push_bind(completed);
+    }
+
+    if let Some(ref game_map) = params.game_map {
+        if _has_where {
+            querybuilder.push(" AND ");
+        } else {
+            querybuilder.push(" WHERE ");
+        }
+        _has_where = true;
+
+        querybuilder.push("game_map = ");
+        querybuilder.push_bind(game_map);
+    }
+
+    querybuilder.push(" ORDER BY last_seen_unix_sec DESC");
+
+    let res: Vec<LobbyDBEntry> = querybuilder
+        .build_query_as()
+        .fetch_all(&database)
+        .await
+        .map_err(|e| {
+            axum::response::Response::builder()
+                .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+                .body(axum::body::Body::from(format!(
+                    "Database query failed: {}",
+                    e
+                )))
+                .expect("Failed to build response for error message")
+        })?;
+
+    Ok(Json(res))
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
+struct FinshedGameDBEntry {
+    game_id: String,
+    result_json: serde_json::Value,
+}
+
+async fn game_handler(
+    Extension(database): Extension<PgPool>,
+    Path(game_id): Path<String>,
+) -> Result<Json<FinshedGameDBEntry>, Response> {
+    let lobby = sqlx::query_as!(
+        FinshedGameDBEntry,
+        "SELECT game_id, result_json FROM finished_games WHERE game_id = $1",
+        game_id
     )
-    .fetch_all(&database)
-    .await.map_err(|e| {
+    .fetch_one(&database)
+    .await
+    .map_err(|e| {
         axum::response::Response::builder()
-            .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
-            .body(axum::body::Body::from(format!("Database query failed: {}", e)))
+            .status(axum::http::StatusCode::NOT_FOUND)
+            .body(axum::body::Body::from(format!("Lobby not found: {}", e)))
             .expect("Failed to build response for error message")
     })?;
 
-    Ok(Json(res))
+    Ok(Json(lobby))
 }
 
 #[tokio::main]
@@ -254,9 +403,10 @@ async fn main() -> anyhow::Result<()> {
     let routes = ApiRouter::new()
         .api_route("/", aide::axum::routing::get(|| async { "Hello, World!" }))
         .route("/lobbies", axum::routing::get(lobbies_handler))
+        .route("/lobbies/:game_id", axum::routing::get(game_handler))
         //.route(
-            //"/robots.txt",
-            //axum::routing::get(|| async { "User-agent: *\nDisallow: /" }),
+        //"/robots.txt",
+        //axum::routing::get(|| async { "User-agent: *\nDisallow: /" }),
         //)
         .route("/openapi.json", axum::routing::get(open_api_json))
         .route("/redoc", Redoc::new("/openapi.json").axum_route());
@@ -283,7 +433,9 @@ async fn main() -> anyhow::Result<()> {
             tower_http::services::ServeDir::new("frontend")
                 .append_index_html_on_directories(true)
                 .not_found_service(axum::routing::get(|| async {
-                    serve_file(&Path::new("frontend/index.html")).await.unwrap()
+                    serve_file(&std::path::Path::new("frontend/index.html"))
+                        .await
+                        .unwrap()
                 })),
         ));
 
@@ -295,10 +447,21 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("Listening on http://{}", listener.local_addr()?);
 
+    let db = database.clone();
     tokio::spawn(async move {
         loop {
-            if let Err(e) = look_for_new_games(database.clone()).await {
+            if let Err(e) = look_for_new_games(db.clone()).await {
                 tracing::error!("Error looking for new games: {}", e);
+                tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+            }
+        }
+    });
+
+    let db = database.clone();
+    tokio::spawn(async move {
+        loop {
+            if let Err(e) = look_for_finished_games(db.clone()).await {
+                tracing::error!("Error looking for finished games: {}", e);
                 tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
             }
         }
