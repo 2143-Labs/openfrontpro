@@ -38,7 +38,7 @@
           config = {
             ExposedPorts = { "3000/tcp" = { }; };
             EntryPoint = [ "${packages.openfrontpro}/bin/openfrontpro" ];
-            Cmd = [ "openfrontpro" ];
+            #Cmd = [ "openfrontpro" ];
           };
         };
       }
