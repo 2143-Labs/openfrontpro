@@ -1,0 +1,70 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM lobbies WHERE game_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "game_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "teams",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "max_players",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "game_map",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "approx_num_players",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "first_seen_unix_sec",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "last_seen_unix_sec",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "completed",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 8,
+        "name": "lobby_config_json",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "dac40d5f80bcb32c137f5ef921730704f1c4e74d0dc628f22f1865def3b170a3"
+}
