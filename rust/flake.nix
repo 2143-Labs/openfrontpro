@@ -25,11 +25,16 @@
 
         packages.container = pkgs.dockerTools.buildLayeredImage {
           name = "openfrontpro";
-          #copyToRoot = with pkgs; [
-            #dockerTools.caCertificates # for https
-            #dockerTools.binSh
-            #dockerTools.fakeNss # for nginx
-          #];
+          contents = [
+            packages.openfrontpro
+            pkgs.cacert
+            pkgs.bashInteractive
+            pkgs.coreutils
+            pkgs.curl
+            #pkgs.glibcLocales
+            #pkgs.openssl
+            #pkgs.zlib
+          ];
           config = {
             ExposedPorts = { "3000/tcp" = { }; };
             EntryPoint = [ "${packages.openfrontpro}/bin/openfrontpro" ];
