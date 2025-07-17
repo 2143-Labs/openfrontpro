@@ -344,11 +344,34 @@ struct LobbyQueryParams {
     completed: Option<bool>,
     game_map: Option<String>,
 }
+async fn lobbies_id_handler(
+    Extension(database): Extension<PgPool>,
+    Query(params): Query<LobbyQueryParams>,
+    Path(id): Path<String>,
+) -> Result<Json<LobbyDBEntry>, Response> {
+    let d = sqlx::query_as!(
+        LobbyDBEntry,
+        "SELECT * FROM lobbies WHERE game_id = $1",
+        id
+    );
+
+    let lobby = d
+        .fetch_one(&database)
+        .await
+        .map_err(|e| {
+            axum::response::Response::builder()
+                .status(axum::http::StatusCode::NOT_FOUND)
+                .body(axum::body::Body::from(format!("Lobby not found: {}", e)))
+                .expect("Failed to build response for error message")
+        })?;
+
+    Ok(Json(lobby))
+}
 
 async fn lobbies_handler(
     Extension(database): Extension<PgPool>,
     Query(params): Query<LobbyQueryParams>,
-) -> Result<Json<Vec<LobbyDBEntry>>, Response> {
+) -> Result<Json<Vec<LobbyDBEntryNoConfig>>, Response> {
     let mut querybuilder = sqlx::query_builder::QueryBuilder::new(
         "SELECT game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec, completed FROM lobbies",
     );
@@ -463,7 +486,8 @@ async fn main() -> anyhow::Result<()> {
     let routes = ApiRouter::new()
         .api_route("/", aide::axum::routing::get(|| async { "Hello, World!" }))
         .route("/lobbies", axum::routing::get(lobbies_handler))
-        .route("/games/{game_id}", axum::routing::get(game_handler))
+        .route("/lobbies/{id}", axum::routing::get(lobbies_id_handler))
+        .api_route("/games/{game_id}", aide::axum::routing::get(game_handler))
         //.route(
         //"/robots.txt",
         //axum::routing::get(|| async { "User-agent: *\nDisallow: /" }),
