@@ -17,6 +17,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: cachix/install-nix-action@v26
+      - name: Setup Nix Cache
+        uses: cachix/cachix-action@v10
+        with:
+          name: john2143
+          authToken: ${{ secrets.CACHIX_TOKEN }}
+
       - name: Building package
         run: nix build ./rust#container
       - name: Install skopeo
