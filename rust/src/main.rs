@@ -155,6 +155,21 @@ struct LobbyDBEntry {
     lobby_config_json: serde_json::Value,
 }
 
+/// This is put into the database for every lobby we see
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, sqlx::FromRow, JsonSchema)]
+struct LobbyDBEntryNoConfig {
+    game_id: String,
+    teams: Option<i32>,
+    max_players: i32,
+    game_map: String,
+    approx_num_players: i32,
+    /// Last seen timestamp in seconds
+    first_seen_unix_sec: i64,
+    /// Last seen timestamp in seconds
+    last_seen_unix_sec: i64,
+    completed: bool,
+}
+
 impl LobbyDBEntry {
     pub fn lobby_config(&self) -> GameConfig {
         serde_json::from_value(self.lobby_config_json.clone())
@@ -335,7 +350,7 @@ async fn lobbies_handler(
     Query(params): Query<LobbyQueryParams>,
 ) -> Result<Json<Vec<LobbyDBEntry>>, Response> {
     let mut querybuilder = sqlx::query_builder::QueryBuilder::new(
-        "SELECT lobby_config_json, game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec, completed FROM lobbies",
+        "SELECT game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec, completed FROM lobbies",
     );
 
     let mut _has_where = false;
@@ -366,7 +381,7 @@ async fn lobbies_handler(
 
     querybuilder.push(" ORDER BY last_seen_unix_sec DESC");
 
-    let res: Vec<LobbyDBEntry> = querybuilder
+    let res: Vec<LobbyDBEntryNoConfig> = querybuilder
         .build_query_as()
         .fetch_all(&database)
         .await
