@@ -9,7 +9,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   registry: ghcr.io/john2143
-  repo: john2143.com
+  repo: openfronter
 
 jobs:
   build:
@@ -34,4 +34,4 @@ jobs:
           RESULT=$(readlink -f ./result)
           echo "Result path: $RESULT"
           skopeo inspect docker-archive://$RESULT
-          skopeo copy docker-archive://$RESULT ${{ env.registry }}/${{ env.repo }}:latest
+          skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.repo }}:openfronter-rs-latest
