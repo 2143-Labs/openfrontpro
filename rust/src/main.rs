@@ -52,6 +52,9 @@ struct Config {
 
     #[clap(long, env)]
     pub cookie: Option<String>,
+
+    #[clap(long, env, default_value = "https://openfront.io/api/public_lobbies")]
+    pub openfront_lobby_url: String,
 }
 
 // Example Response
@@ -123,7 +126,7 @@ mod test {
 }
 
 async fn get_new_games(cfg: &Config) -> anyhow::Result<Vec<Lobby>> {
-    let mut base = reqwest::Client::new().get("https://openfront.io/api/public_lobbies");
+    let mut base = reqwest::Client::new().get(&cfg.openfront_lobby_url);
     if let Some(ref useragent) = cfg.useragent {
         base = base.header(reqwest::header::USER_AGENT, useragent);
     }
