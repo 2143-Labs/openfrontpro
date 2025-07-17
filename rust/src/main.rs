@@ -415,6 +415,10 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("Failed to connect to the database")?;
 
+    sqlx::migrate!("./migrations")
+        .run(&database)
+        .await?;
+
     tracing_subscriber::fmt()
         //.with_max_level(tracing::Level::INFO)
         .with_env_filter(&config.rust_log)
@@ -472,10 +476,6 @@ async fn main() -> anyhow::Result<()> {
                         .unwrap()
                 })),
         ));
-
-    //sqlx::migrate!("./migrations")
-    //.run(&database)
-    //.await?;
 
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", config.port)).await?;
 
