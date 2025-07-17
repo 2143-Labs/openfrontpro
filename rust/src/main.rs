@@ -422,6 +422,8 @@ async fn main() -> anyhow::Result<()> {
         .run(&database)
         .await?;
 
+    tracing::info!("Migrations applied successfully");
+
     tracing_subscriber::fmt()
         //.with_max_level(tracing::Level::INFO)
         .with_env_filter(&config.rust_log)
