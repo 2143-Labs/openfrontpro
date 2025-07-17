@@ -343,6 +343,11 @@ async fn look_for_finished_games(database: PgPool) -> anyhow::Result<()> {
 struct LobbyQueryParams {
     completed: Option<bool>,
     game_map: Option<String>,
+    /// Unix timestamp in seconds
+    after: Option<i64>,
+    /// Unix timestamp in seconds
+    before: Option<i64>,
+
 }
 async fn lobbies_id_handler(
     Extension(database): Extension<PgPool>,
@@ -390,6 +395,30 @@ async fn lobbies_handler(
         querybuilder.push_bind(completed);
     }
 
+    if let Some(ref before) = params.before {
+        if _has_where {
+            querybuilder.push(" AND ");
+        } else {
+            querybuilder.push(" WHERE ");
+        }
+        _has_where = true;
+
+        querybuilder.push("last_seen_unix_sec < ");
+        querybuilder.push_bind(before);
+    }
+
+    if let Some(ref after) = params.after {
+        if _has_where {
+            querybuilder.push(" AND ");
+        } else {
+            querybuilder.push(" WHERE ");
+        }
+        _has_where = true;
+
+        querybuilder.push("first_seen_unix_sec > ");
+        querybuilder.push_bind(after);
+    }
+
     if let Some(ref game_map) = params.game_map {
         if _has_where {
             querybuilder.push(" AND ");
@@ -402,7 +431,7 @@ async fn lobbies_handler(
         querybuilder.push_bind(game_map);
     }
 
-    querybuilder.push(" ORDER BY last_seen_unix_sec DESC");
+    querybuilder.push(" ORDER BY last_seen_unix_sec DESC LIMIT 100");
 
     let res: Vec<LobbyDBEntryNoConfig> = querybuilder
         .build_query_as()
