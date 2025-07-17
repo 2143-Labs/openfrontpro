@@ -55,6 +55,9 @@ struct Config {
 
     #[clap(long, env, default_value = "https://blue.openfront.io/api/public_lobbies")]
     pub openfront_lobby_url: String,
+
+    #[clap(long, env)]
+    pub frontend_folder: String,
 }
 
 // Example Response
@@ -536,6 +539,8 @@ async fn main() -> anyhow::Result<()> {
         ..Default::default()
     };
 
+    let missing_html = format!("{}/404.html", config.frontend_folder);
+
     let fin = routes
         .finish_api(&mut openapi)
         .layer(Extension(openapi.clone()))
@@ -543,10 +548,10 @@ async fn main() -> anyhow::Result<()> {
         //.layer(NormalizePathLayer::trim_trailing_slash())
         .layer(cors)
         .fallback_service(axum::routing::get_service(
-            tower_http::services::ServeDir::new("frontend")
+            tower_http::services::ServeDir::new(&*config.frontend_folder)
                 .append_index_html_on_directories(true)
-                .not_found_service(axum::routing::get(|| async {
-                    serve_file(&std::path::Path::new("frontend/index.html"))
+                .not_found_service(axum::routing::get(|| async move {
+                    serve_file(&std::path::Path::new(&missing_html))
                         .await
                         .unwrap()
                 })),
