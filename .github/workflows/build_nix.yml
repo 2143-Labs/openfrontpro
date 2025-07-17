@@ -33,5 +33,12 @@ jobs:
           ls -la ./result
           RESULT=$(readlink -f ./result)
           echo "Result path: $RESULT"
-          skopeo inspect docker-archive://$RESULT
-          skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.repo }}:openfronter-rs-latest
+          IMAGE_TAG=$(date +%Y%m%d_%H%M)
+          skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.repo }}:openfronter-rs-${IMAGE_TAG}
+          # if not pull request, then also push as latest
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.repo }}:openfronter-rs-branch-${{ github.head_ref }}
+          else
+            skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.repo }}:openfronter-rs-latest
+          fi
+
