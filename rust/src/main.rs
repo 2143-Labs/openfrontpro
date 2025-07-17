@@ -1,3 +1,4 @@
+#![allow(unused)]
 use std::net::SocketAddr;
 
 use aide::{
@@ -45,6 +46,12 @@ struct Config {
         default_value = "postgres://postgres@localhost:5432/openfrontpro"
     )]
     pub database_url: String,
+
+    #[clap(long, env)]
+    pub useragent: Option<String>,
+
+    #[clap(long, env)]
+    pub cookie: Option<String>,
 }
 
 // Example Response
@@ -115,11 +122,16 @@ mod test {
     }
 }
 
-async fn get_new_games() -> anyhow::Result<Vec<Lobby>> {
-    let new_games = reqwest::get("https://openfront.io/api/public_lobbies")
-        .await?
-        .json::<PublicLobbiesResponse>()
-        .await?;
+async fn get_new_games(cfg: &Config) -> anyhow::Result<Vec<Lobby>> {
+    let mut base = reqwest::Client::new().get("https://openfront.io/api/public_lobbies");
+    if let Some(ref useragent) = cfg.useragent {
+        base = base.header(reqwest::header::USER_AGENT, useragent);
+    }
+    if let Some(ref cookie) = cfg.cookie {
+        base = base.header(reqwest::header::COOKIE, cookie);
+    }
+
+    let new_games = base.send().await?.json::<PublicLobbiesResponse>().await?;
 
     Ok(new_games.lobbies)
 }
@@ -142,7 +154,8 @@ struct LobbyDBEntry {
 
 impl LobbyDBEntry {
     pub fn lobby_config(&self) -> GameConfig {
-        serde_json::from_value(self.lobby_config_json.clone()).expect("Invalid lobby config JSON in database")
+        serde_json::from_value(self.lobby_config_json.clone())
+            .expect("Invalid lobby config JSON in database")
     }
 }
 
@@ -153,11 +166,11 @@ fn now_unix_sec() -> i64 {
         .as_secs() as i64
 }
 
-async fn look_for_new_games(database: PgPool) -> anyhow::Result<()> {
+async fn look_for_new_games(database: PgPool, cfg: &Config) -> anyhow::Result<()> {
     let mut expected_to_be_new_game_next_check = true;
     let mut last_game_id = String::new();
     loop {
-        let new_games = get_new_games().await?;
+        let new_games = get_new_games(cfg).await?;
         let first = new_games.first().context("No new games found...")?;
 
         if first.game_id != last_game_id {
@@ -294,8 +307,12 @@ async fn look_for_finished_games(database: PgPool) -> anyhow::Result<()> {
 
             let dur_secs = result_json["info"]["duration"].as_i64().unwrap_or(0);
             let num_turns = result_json["info"]["num_turns"].as_i64().unwrap_or(0);
-            tracing::info!(dur_secs, num_turns, "Game {} is finished. Adding results to db.", game_id);
-
+            tracing::info!(
+                dur_secs,
+                num_turns,
+                "Game {} is finished. Adding results to db.",
+                game_id
+            );
         }
 
         tokio::time::sleep(tokio::time::Duration::from_secs(60 * 5)).await;
@@ -392,6 +409,7 @@ async fn game_handler(
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config = Config::parse();
+    let config = std::sync::Arc::new(config);
 
     let database = PgPool::connect(&config.database_url)
         .await
@@ -399,7 +417,7 @@ async fn main() -> anyhow::Result<()> {
 
     tracing_subscriber::fmt()
         //.with_max_level(tracing::Level::INFO)
-        .with_env_filter(config.rust_log)
+        .with_env_filter(&config.rust_log)
         .with_target(false)
         // disabling time is handy because CloudWatch will add the ingestion time.
         .without_time()
@@ -464,10 +482,11 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("Listening on http://{}", listener.local_addr()?);
 
     let db = database.clone();
+    let cfg = config.clone();
     tokio::spawn(async move {
         let mut backoff = 0;
         loop {
-            if let Err(e) = look_for_new_games(db.clone()).await {
+            if let Err(e) = look_for_new_games(db.clone(), &cfg).await {
                 tracing::error!("Error looking for new games: {}", e);
                 tokio::time::sleep(tokio::time::Duration::from_secs(5 + backoff.min(11) * 5)).await;
                 backoff += 1;
