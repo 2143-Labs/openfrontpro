@@ -16,10 +16,12 @@ CREATE TABLE IF NOT EXISTS lobbies (
     approx_num_players INTEGER NOT NULL,
     first_seen_unix_sec bigint NOT NULL,
     last_seen_unix_sec bigint NOT NULL,
-    completed BOOLEAN NOT NULL DEFAULT FALSE
+    completed BOOLEAN NOT NULL DEFAULT FALSE,
+    lobby_config_json JSONB NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS finished_games (
     game_id TEXT PRIMARY KEY,
-    result_json JSONB NOT NULL
+    result_json JSONB NOT NULL,
+    inserted_at_unix_sec bigint NOT NULL DEFAULT extract(epoch from NOW())
 );

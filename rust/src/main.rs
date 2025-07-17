@@ -58,7 +58,7 @@ struct PublicLobbiesResponse {
     lobbies: Vec<Lobby>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Lobby {
     #[serde(rename = "gameID")]
@@ -68,7 +68,7 @@ struct Lobby {
     ms_until_start: u64,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, sqlx::FromRow, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct GameConfig {
     game_map: String,
@@ -137,6 +137,20 @@ struct LobbyDBEntry {
     /// Last seen timestamp in seconds
     last_seen_unix_sec: i64,
     completed: bool,
+    lobby_config_json: serde_json::Value,
+}
+
+impl LobbyDBEntry {
+    pub fn lobby_config(&self) -> GameConfig {
+        serde_json::from_value(self.lobby_config_json.clone()).expect("Invalid lobby config JSON in database")
+    }
+}
+
+fn now_unix_sec() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("System time before UNIX EPOCH")
+        .as_secs() as i64
 }
 
 async fn look_for_new_games(database: PgPool) -> anyhow::Result<()> {
@@ -145,11 +159,6 @@ async fn look_for_new_games(database: PgPool) -> anyhow::Result<()> {
     loop {
         let new_games = get_new_games().await?;
         let first = new_games.first().context("No new games found...")?;
-
-        let now_unix_sec = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .context("System time before UNIX EPOCH")?
-            .as_secs();
 
         if first.game_id != last_game_id {
             tracing::info!(
@@ -171,9 +180,9 @@ async fn look_for_new_games(database: PgPool) -> anyhow::Result<()> {
 
         sqlx::query!(
             "INSERT INTO
-                lobbies (game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec)
+                lobbies (game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec, lobby_config_json)
             VALUES
-                ($1, $2, $3, $4, $5, $6, $6)
+                ($1, $2, $3, $4, $5, $6, $6, $7)
             ON CONFLICT (game_id)
             DO UPDATE
                 SET approx_num_players = $5
@@ -184,10 +193,11 @@ async fn look_for_new_games(database: PgPool) -> anyhow::Result<()> {
             first.game_config.max_players,
             first.game_config.game_map,
             first.num_clients,
-            now_unix_sec as i64
+            now_unix_sec(),
+            serde_json::to_value(&first.game_config).unwrap()
         ).execute(&database).await?;
 
-        let num_players_left = first.game_config.max_players - first.num_clients;
+        let num_players_left = (first.game_config.max_players - first.num_clients).max(0);
 
         // Wait between 3 and 15 seconds before checking again.
         let next_time = (first.ms_until_start)
@@ -303,7 +313,7 @@ async fn lobbies_handler(
     Query(params): Query<LobbyQueryParams>,
 ) -> Result<Json<Vec<LobbyDBEntry>>, Response> {
     let mut querybuilder = sqlx::query_builder::QueryBuilder::new(
-        "SELECT game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec, completed FROM lobbies",
+        "SELECT lobby_config_json, game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec, completed FROM lobbies",
     );
 
     let mut _has_where = false;
@@ -316,7 +326,7 @@ async fn lobbies_handler(
         }
         _has_where = true;
 
-        querybuilder.push(" WHERE completed = ");
+        querybuilder.push(" completed = ");
         querybuilder.push_bind(completed);
     }
 
@@ -355,6 +365,7 @@ async fn lobbies_handler(
 struct FinshedGameDBEntry {
     game_id: String,
     result_json: serde_json::Value,
+    inserted_at_unix_sec: i64,
 }
 
 async fn game_handler(
@@ -363,7 +374,7 @@ async fn game_handler(
 ) -> Result<Json<serde_json::Value>, Response> {
     let lobby = sqlx::query_as!(
         FinshedGameDBEntry,
-        "SELECT game_id, result_json FROM finished_games WHERE game_id = $1",
+        "SELECT game_id, result_json, inserted_at_unix_sec FROM finished_games WHERE game_id = $1",
         game_id
     )
     .fetch_one(&database)
@@ -454,20 +465,28 @@ async fn main() -> anyhow::Result<()> {
 
     let db = database.clone();
     tokio::spawn(async move {
+        let mut backoff = 0;
         loop {
             if let Err(e) = look_for_new_games(db.clone()).await {
                 tracing::error!("Error looking for new games: {}", e);
-                tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                tokio::time::sleep(tokio::time::Duration::from_secs(5 + backoff.min(11) * 5)).await;
+                backoff += 1;
+            } else {
+                backoff = 0;
             }
         }
     });
 
     let db = database.clone();
     tokio::spawn(async move {
+        let mut backoff = 0;
         loop {
             if let Err(e) = look_for_finished_games(db.clone()).await {
                 tracing::error!("Error looking for finished games: {}", e);
-                tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                tokio::time::sleep(tokio::time::Duration::from_secs(5 + backoff.min(11) * 5)).await;
+                backoff += 1;
+            } else {
+                backoff = 0;
             }
         }
     });
