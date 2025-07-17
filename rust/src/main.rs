@@ -53,7 +53,7 @@ struct Config {
     #[clap(long, env)]
     pub cookie: Option<String>,
 
-    #[clap(long, env, default_value = "https://openfront.io/api/public_lobbies")]
+    #[clap(long, env, default_value = "https://blue.openfront.io/api/public_lobbies")]
     pub openfront_lobby_url: String,
 }
 
@@ -225,14 +225,16 @@ async fn look_for_new_games(database: PgPool, cfg: &Config) -> anyhow::Result<()
         expected_to_be_new_game_next_check = next_time > first.ms_until_start;
 
         tracing::info!(
-            "Lobby {} {} has {}/{} players. Starts in {}ms",
+            "Lobby {} {} ({}) has {}/{} players. Starts in {}ms. Next check in {}ms.",
             first.game_id,
             first.game_config.game_map,
+            first.game_config.player_teams.map(|x| format!("{x} teams")).unwrap_or_else(|| "FFA".to_string()),
             first.num_clients,
             first.game_config.max_players,
-            first.ms_until_start
+            first.ms_until_start,
+            next_time
+
         );
-        tracing::info!("Next check in {}ms", next_time);
         tokio::time::sleep(tokio::time::Duration::from_millis(next_time)).await;
     }
 }
