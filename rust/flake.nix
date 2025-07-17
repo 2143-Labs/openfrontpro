@@ -11,11 +11,25 @@
         pkgs = import nixpkgs { inherit system; };
         naersk-lib = pkgs.callPackage naersk { };
       in
-      {
+      rec {
         defaultPackage = naersk-lib.buildPackage ./.;
         devShell = with pkgs; mkShell {
           buildInputs = [ cargo rustc rustfmt pre-commit rustPackages.clippy rust-analyzer sqlx-cli bacon];
           RUST_SRC_PATH = rustPlatform.rustLibSrc;
+        };
+
+        packages.openfrontpro = naersk-lib.buildPackage {
+          src = ./.;
+          pname = "openfrontpro";
+        };
+
+        packages.container = pkgs.dockerTools.buildLayeredImage {
+          name = "openfrontpro";
+          config = {
+            ExposedPorts = { "3000/tcp" = { }; };
+            EntryPoint = [ "${packages.openfrontpro}/bin/openfrontpro" ];
+            Cmd = [ "openfrontpro" ];
+          };
         };
       }
     );
