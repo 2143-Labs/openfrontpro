@@ -513,7 +513,7 @@ async fn main() -> anyhow::Result<()> {
         .allow_headers(tower_http::cors::Any);
 
     let routes = ApiRouter::new()
-        .api_route("/", aide::axum::routing::get(|| async { "Hello, World!" }))
+        .route("/health", axum::routing::get(|| async { "ok!" }))
         .route("/lobbies", axum::routing::get(lobbies_handler))
         .route("/lobbies/{id}", axum::routing::get(lobbies_id_handler))
         .api_route("/games/{game_id}", aide::axum::routing::get(game_handler))
