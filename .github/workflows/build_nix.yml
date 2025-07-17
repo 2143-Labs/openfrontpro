@@ -26,13 +26,12 @@ jobs:
       - name: Building package
         run: nix build ./rust#container
       - name: Install skopeo
-        run: sudo apt-get install -y skopeo fish
+        run: sudo apt-get install -y skopeo
       - name: Push with skopeo
-        shell: fish
         run: |
           skopeo login --username ${{ github.actor }} --password "${{ secrets.PAT_PACKAGES }}" ghcr.io
           ls -la ./result
-          set -x RESULT (readlink -f ./result)
+          RESULT=$(readlink -f ./result)
           echo "Result path: $RESULT"
           skopeo inspect docker-archive://$RESULT
           skopeo copy docker-archive://$RESULT ${{ env.registry }}/${{ env.repo }}:latest
