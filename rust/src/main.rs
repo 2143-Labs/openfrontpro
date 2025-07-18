@@ -291,7 +291,14 @@ async fn check_if_game_finished(game_id: &str) -> anyhow::Result<(serde_json::Va
 async fn look_for_finished_games(database: PgPool) -> anyhow::Result<()> {
     loop {
         let unfinished_games = sqlx::query!(
-            "SELECT game_id FROM lobbies WHERE completed = false AND last_seen_unix_sec < extract(epoch from (NOW() - INTERVAL '10 minutes'))"
+            "SELECT
+                game_id
+            FROM lobbies
+            WHERE
+                completed = false
+                AND last_seen_unix_sec < extract(epoch from (NOW() - INTERVAL '15 minutes'))
+                AND last_seen_unix_sec > extract(epoch from (NOW() - INTERVAL '2 hours'))
+            "
         ).fetch_all(&database).await?;
 
         tracing::info!(
@@ -481,7 +488,7 @@ async fn game_handler(
     Ok(Json(lobby.result_json))
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread", worker_threads = 16)]
 async fn main() -> anyhow::Result<()> {
     let config = Config::parse();
     let config = std::sync::Arc::new(config);
