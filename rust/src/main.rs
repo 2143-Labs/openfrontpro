@@ -297,7 +297,7 @@ async fn look_for_finished_games(database: PgPool) -> anyhow::Result<()> {
             WHERE
                 completed = false
                 AND last_seen_unix_sec < extract(epoch from (NOW() - INTERVAL '15 minutes'))
-                AND last_seen_unix_sec > extract(epoch from (NOW() - INTERVAL '2 hours'))
+                -- AND last_seen_unix_sec > extract(epoch from (NOW() - INTERVAL '2 hours'))
             "
         ).fetch_all(&database).await?;
 

@@ -1,0 +1,2678 @@
+{
+  "info": {
+    "end": 1752817958930,
+    "start": 1752817301597,
+    "config": {
+      "bots": 400,
+      "gameMap": "Iceland",
+      "gameMode": "Free For All",
+      "gameType": "Public",
+      "difficulty": "Medium",
+      "maxPlayers": 40,
+      "disableNPCs": false,
+      "infiniteGold": false,
+      "instantBuild": false,
+      "disabledUnits": [
+        "Train",
+        "Factory"
+      ],
+      "infiniteTroops": false
+    },
+    "gameID": "tToAEsbX",
+    "winner": [
+      "player",
+      "7B35GWaD"
+    ],
+    "players": [
+      {
+        "stats": {
+          "gold": [
+            "747",
+            "11833588"
+          ],
+          "boats": {
+            "trade": [
+              "312"
+            ],
+            "trans": [
+              "2",
+              "2"
+            ]
+          },
+          "units": {
+            "city": [
+              "19",
+              "0",
+              "18"
+            ],
+            "port": [
+              "5",
+              "0",
+              "11",
+              "1"
+            ],
+            "saml": [
+              "1"
+            ],
+            "silo": [
+              "0",
+              "0",
+              "5"
+            ],
+            "wshp": [
+              "3"
+            ]
+          },
+          "attacks": [
+            "24806946",
+            "5317117",
+            "11616244"
+          ]
+        },
+        "clientID": "7B35GWaD",
+        "username": "Anon842"
+      }
+    ],
+    "duration": 657,
+    "num_turns": 6562
+  },
+  "turns": [
+    {
+      "intents": [
+        {
+          "type": "troop_ratio",
+          "ratio": 0.95,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 61
+    },
+    {
+      "intents": [
+        {
+          "x": 782,
+          "y": 913,
+          "flag": "",
+          "name": "Anon842",
+          "type": "spawn",
+          "clientID": "7B35GWaD",
+          "playerType": "HUMAN"
+        }
+      ],
+      "turnNumber": 120
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 6488.6,
+          "clientID": "7B35GWaD",
+          "targetID": null
+        }
+      ],
+      "turnNumber": 330
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 4363.8,
+          "clientID": "7B35GWaD",
+          "targetID": null
+        }
+      ],
+      "turnNumber": 374
+    },
+    {
+      "intents": [
+        {
+          "type": "troop_ratio",
+          "ratio": 0.97,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 384
+    },
+    {
+      "intents": [
+        {
+          "type": "troop_ratio",
+          "ratio": 0.98,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 385
+    },
+    {
+      "intents": [
+        {
+          "type": "troop_ratio",
+          "ratio": 1,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 386
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 5079.1,
+          "clientID": "7B35GWaD",
+          "targetID": null
+        }
+      ],
+      "turnNumber": 395
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 5912.200000000001,
+          "clientID": "7B35GWaD",
+          "targetID": null
+        }
+      ],
+      "turnNumber": 418
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 6300.6,
+          "clientID": "7B35GWaD",
+          "targetID": null
+        }
+      ],
+      "turnNumber": 435
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 6331,
+          "clientID": "7B35GWaD",
+          "targetID": null
+        }
+      ],
+      "turnNumber": 446
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 6312.200000000001,
+          "clientID": "7B35GWaD",
+          "targetID": null
+        }
+      ],
+      "turnNumber": 456
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 6432.5,
+          "clientID": "7B35GWaD",
+          "targetID": null
+        }
+      ],
+      "turnNumber": 467
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 6554.1,
+          "clientID": "7B35GWaD",
+          "targetID": null
+        }
+      ],
+      "turnNumber": 479
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 8244.800000000001,
+          "clientID": "7B35GWaD",
+          "targetID": null
+        }
+      ],
+      "turnNumber": 514
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 11235.8,
+          "clientID": "7B35GWaD",
+          "targetID": null
+        }
+      ],
+      "turnNumber": 561
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 16432,
+          "clientID": "7B35GWaD",
+          "targetID": "2dfi4cqe"
+        }
+      ],
+      "turnNumber": 624
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 17012.4,
+          "clientID": "7B35GWaD",
+          "targetID": "2dfi4cqe"
+        }
+      ],
+      "turnNumber": 647
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 17468.5,
+          "clientID": "7B35GWaD",
+          "targetID": "2dfi4cqe"
+        }
+      ],
+      "turnNumber": 670
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 17904.5,
+          "clientID": "7B35GWaD",
+          "targetID": "2dfi4cqe"
+        }
+      ],
+      "turnNumber": 693
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 49208.600000000006,
+          "clientID": "7B35GWaD",
+          "targetID": "2dfi4cqe"
+        }
+      ],
+      "turnNumber": 785
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 49552.4,
+          "clientID": "7B35GWaD",
+          "targetID": "2dfi4cqe"
+        }
+      ],
+      "turnNumber": 787
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 52942,
+          "clientID": "7B35GWaD",
+          "targetID": "avg0k6o2"
+        }
+      ],
+      "turnNumber": 888
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 53367.4,
+          "clientID": "7B35GWaD",
+          "targetID": "avg0k6o2"
+        }
+      ],
+      "turnNumber": 890
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 45804,
+          "clientID": "7B35GWaD",
+          "targetID": "avg0k6o2"
+        }
+      ],
+      "turnNumber": 950
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 48664.4,
+          "clientID": "7B35GWaD",
+          "targetID": "avg0k6o2"
+        }
+      ],
+      "turnNumber": 1004
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 70281,
+          "clientID": "7B35GWaD",
+          "targetID": "mek9wgmh"
+        }
+      ],
+      "turnNumber": 1118
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 70663.6,
+          "clientID": "7B35GWaD",
+          "targetID": "mek9wgmh"
+        }
+      ],
+      "turnNumber": 1119
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 45414,
+          "clientID": "7B35GWaD",
+          "targetID": "mek9wgmh"
+        }
+      ],
+      "turnNumber": 1132
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 80115,
+          "clientID": "7B35GWaD",
+          "targetID": "fdpl0tcq"
+        }
+      ],
+      "turnNumber": 1184
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 64481.8,
+          "clientID": "7B35GWaD",
+          "targetID": "fdpl0tcq"
+        }
+      ],
+      "turnNumber": 1186
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 54092.600000000006,
+          "clientID": "7B35GWaD",
+          "targetID": "fdpl0tcq"
+        }
+      ],
+      "turnNumber": 1197
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 55554.600000000006,
+          "clientID": "7B35GWaD",
+          "targetID": "z7ivztrf"
+        }
+      ],
+      "turnNumber": 1242
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 47181,
+          "clientID": "7B35GWaD",
+          "targetID": "z7ivztrf"
+        }
+      ],
+      "turnNumber": 1252
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 60799.4,
+          "clientID": "7B35GWaD",
+          "targetID": "z7ivztrf"
+        }
+      ],
+      "turnNumber": 1270
+    },
+    {
+      "intents": [
+        {
+          "x": 785,
+          "y": 924,
+          "type": "build_unit",
+          "unit": "City",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 1382
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 93777,
+          "clientID": "7B35GWaD",
+          "targetID": "n8tv1ljy"
+        }
+      ],
+      "turnNumber": 1392
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 94333.6,
+          "clientID": "7B35GWaD",
+          "targetID": "n8tv1ljy"
+        }
+      ],
+      "turnNumber": 1393
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 71231.6,
+          "clientID": "7B35GWaD",
+          "targetID": "q4m81sf1"
+        }
+      ],
+      "turnNumber": 1435
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 59145.2,
+          "clientID": "7B35GWaD",
+          "targetID": "q4m81sf1"
+        }
+      ],
+      "turnNumber": 1442
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 94953.4,
+          "clientID": "7B35GWaD",
+          "targetID": "zeqkadex"
+        }
+      ],
+      "turnNumber": 1504
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 95747.4,
+          "clientID": "7B35GWaD",
+          "targetID": "zeqkadex"
+        }
+      ],
+      "turnNumber": 1505
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 83860.40000000001,
+          "clientID": "7B35GWaD",
+          "targetID": "q4m81sf1"
+        }
+      ],
+      "turnNumber": 1573
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 79882.8,
+          "clientID": "7B35GWaD",
+          "targetID": "01ikhivt"
+        }
+      ],
+      "turnNumber": 1606
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 90000.40000000001,
+          "clientID": "7B35GWaD",
+          "targetID": "d9hzvcn4"
+        }
+      ],
+      "turnNumber": 1631
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 90432.6,
+          "clientID": "7B35GWaD",
+          "targetID": "d9hzvcn4"
+        }
+      ],
+      "turnNumber": 1633
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 128148.8,
+          "clientID": "7B35GWaD",
+          "targetID": "h7iqsdxs"
+        }
+      ],
+      "turnNumber": 1723
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 137417.2,
+          "clientID": "7B35GWaD",
+          "targetID": "opzoodzb"
+        }
+      ],
+      "turnNumber": 1745
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 138294.80000000002,
+          "clientID": "7B35GWaD",
+          "targetID": "opzoodzb"
+        }
+      ],
+      "turnNumber": 1746
+    },
+    {
+      "intents": [
+        {
+          "x": 787,
+          "y": 861,
+          "type": "build_unit",
+          "unit": "City",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 1782
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 110148,
+          "clientID": "7B35GWaD",
+          "targetID": "opzoodzb"
+        }
+      ],
+      "turnNumber": 1806
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 194987.6,
+          "clientID": "7B35GWaD",
+          "targetID": "cp9hk8qv"
+        }
+      ],
+      "turnNumber": 1907
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 195906.4,
+          "clientID": "7B35GWaD",
+          "targetID": "cp9hk8qv"
+        }
+      ],
+      "turnNumber": 1909
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 145469.80000000002,
+          "clientID": "7B35GWaD",
+          "targetID": "mtnhi4u1"
+        }
+      ],
+      "turnNumber": 1963
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 146505.4,
+          "clientID": "7B35GWaD",
+          "targetID": "mtnhi4u1"
+        }
+      ],
+      "turnNumber": 1965
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 93893.8,
+          "clientID": "7B35GWaD",
+          "targetID": "0gpki56d"
+        }
+      ],
+      "turnNumber": 1976
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 94364.8,
+          "clientID": "7B35GWaD",
+          "targetID": "0gpki56d"
+        }
+      ],
+      "turnNumber": 1978
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 70719.2,
+          "clientID": "7B35GWaD",
+          "targetID": "ey5cszde"
+        }
+      ],
+      "turnNumber": 2012
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 57884,
+          "clientID": "7B35GWaD",
+          "targetID": "ey5cszde"
+        }
+      ],
+      "turnNumber": 2014
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 152986.80000000002,
+          "clientID": "7B35GWaD",
+          "targetID": "wyimswx3"
+        }
+      ],
+      "turnNumber": 2054
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 153524.4,
+          "clientID": "7B35GWaD",
+          "targetID": "wyimswx3"
+        }
+      ],
+      "turnNumber": 2056
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 108187.6,
+          "clientID": "7B35GWaD",
+          "targetID": "nyj20848"
+        }
+      ],
+      "turnNumber": 2087
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 187677.8,
+          "clientID": "7B35GWaD",
+          "targetID": "ay8t7fm3"
+        }
+      ],
+      "turnNumber": 2131
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 188670.4,
+          "clientID": "7B35GWaD",
+          "targetID": "ay8t7fm3"
+        }
+      ],
+      "turnNumber": 2133
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 165073.40000000002,
+          "clientID": "7B35GWaD",
+          "targetID": "wyimswx3"
+        }
+      ],
+      "turnNumber": 2160
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 165602.40000000002,
+          "clientID": "7B35GWaD",
+          "targetID": "wyimswx3"
+        }
+      ],
+      "turnNumber": 2162
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 133632.80000000002,
+          "clientID": "7B35GWaD",
+          "targetID": "wyimswx3"
+        }
+      ],
+      "turnNumber": 2164
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 87900.6,
+          "clientID": "7B35GWaD",
+          "targetID": "ay8t7fm3"
+        }
+      ],
+      "turnNumber": 2194
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 104511.2,
+          "clientID": "7B35GWaD",
+          "targetID": "ijcilkc9"
+        }
+      ],
+      "turnNumber": 2263
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 191099.4,
+          "clientID": "7B35GWaD",
+          "targetID": "ay8t7fm3"
+        }
+      ],
+      "turnNumber": 2319
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 158769.2,
+          "clientID": "7B35GWaD",
+          "targetID": "c2h9fbaz"
+        }
+      ],
+      "turnNumber": 2328
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 159360.40000000002,
+          "clientID": "7B35GWaD",
+          "targetID": "c2h9fbaz"
+        }
+      ],
+      "turnNumber": 2330
+    },
+    {
+      "intents": [
+        {
+          "x": 690,
+          "y": 1188,
+          "type": "build_unit",
+          "unit": "Port",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 2382
+    },
+    {
+      "intents": [
+        {
+          "x": 711,
+          "y": 1201,
+          "type": "build_unit",
+          "unit": "Port",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 2405
+    },
+    {
+      "intents": [
+        {
+          "x": 761,
+          "y": 1041,
+          "type": "build_unit",
+          "unit": "City",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 2423
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 258222.4,
+          "clientID": "7B35GWaD",
+          "targetID": "kppe6ba5"
+        }
+      ],
+      "turnNumber": 2438
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 263643.60000000003,
+          "clientID": "7B35GWaD",
+          "targetID": "kppe6ba5"
+        }
+      ],
+      "turnNumber": 2441
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 224452.2,
+          "clientID": "7B35GWaD",
+          "targetID": "chjvcnwu"
+        }
+      ],
+      "turnNumber": 2462
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 253111,
+          "clientID": "7B35GWaD",
+          "targetID": "d9e88stg"
+        }
+      ],
+      "turnNumber": 2510
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 266112.2,
+          "clientID": "7B35GWaD",
+          "targetID": "g5jqadpt"
+        }
+      ],
+      "turnNumber": 2545
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 230614.2,
+          "clientID": "7B35GWaD",
+          "targetID": "ast9oa96"
+        }
+      ],
+      "turnNumber": 2573
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 185733.4,
+          "clientID": "7B35GWaD",
+          "targetID": "ast9oa96"
+        }
+      ],
+      "turnNumber": 2575
+    },
+    {
+      "intents": [
+        {
+          "type": "allianceRequest",
+          "clientID": "7B35GWaD",
+          "recipient": "g5jqadpt"
+        }
+      ],
+      "turnNumber": 2603
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 326787.60000000003,
+          "clientID": "7B35GWaD",
+          "targetID": "689lt6h3"
+        }
+      ],
+      "turnNumber": 2673
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 327878.80000000005,
+          "clientID": "7B35GWaD",
+          "targetID": "689lt6h3"
+        }
+      ],
+      "turnNumber": 2674
+    },
+    {
+      "intents": [
+        {
+          "x": 735,
+          "y": 1224,
+          "type": "build_unit",
+          "unit": "Port",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 2722
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 347880.4,
+          "clientID": "7B35GWaD",
+          "targetID": "zhnbn9a8"
+        }
+      ],
+      "turnNumber": 2767
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 316915,
+          "clientID": "7B35GWaD",
+          "targetID": "fax6nu3h"
+        }
+      ],
+      "turnNumber": 2827
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 317535.4,
+          "clientID": "7B35GWaD",
+          "targetID": "fax6nu3h"
+        }
+      ],
+      "turnNumber": 2828
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 191969.6,
+          "clientID": "7B35GWaD",
+          "targetID": "fax6nu3h"
+        }
+      ],
+      "turnNumber": 2830
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 214522.4,
+          "clientID": "7B35GWaD",
+          "targetID": "fax6nu3h"
+        }
+      ],
+      "turnNumber": 2845
+    },
+    {
+      "intents": [
+        {
+          "x": 740,
+          "y": 1096,
+          "type": "build_unit",
+          "unit": "City",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 2870
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 280965.8,
+          "clientID": "7B35GWaD",
+          "targetID": "wlloassb"
+        }
+      ],
+      "turnNumber": 2965
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 237858.2,
+          "clientID": "7B35GWaD",
+          "targetID": "5vqb2pl2"
+        }
+      ],
+      "turnNumber": 2981
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 226427,
+          "clientID": "7B35GWaD",
+          "targetID": "r421vtuz"
+        }
+      ],
+      "turnNumber": 3022
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 234009.6,
+          "clientID": "7B35GWaD",
+          "targetID": "ys2qehyo"
+        }
+      ],
+      "turnNumber": 3072
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 215706.2,
+          "clientID": "7B35GWaD",
+          "targetID": "cmzrlwqn"
+        }
+      ],
+      "turnNumber": 3105
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 239173.6,
+          "clientID": "7B35GWaD",
+          "targetID": "mcaycd89"
+        }
+      ],
+      "turnNumber": 3148
+    },
+    {
+      "intents": [
+        {
+          "x": 760,
+          "y": 1250,
+          "type": "build_unit",
+          "unit": "Port",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 3174
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 231855.4,
+          "clientID": "7B35GWaD",
+          "targetID": "ys2qehyo"
+        }
+      ],
+      "turnNumber": 3194
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 254711.2,
+          "clientID": "7B35GWaD",
+          "targetID": "oiect5yl"
+        }
+      ],
+      "turnNumber": 3225
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 225119,
+          "clientID": "7B35GWaD",
+          "targetID": "cmzrlwqn"
+        }
+      ],
+      "turnNumber": 3249
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 204446,
+          "clientID": "7B35GWaD",
+          "targetID": "cpit2fp1"
+        }
+      ],
+      "turnNumber": 3279
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 168393.80000000002,
+          "clientID": "7B35GWaD",
+          "targetID": "wlloassb"
+        }
+      ],
+      "turnNumber": 3285
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 375178.4,
+          "clientID": "7B35GWaD",
+          "targetID": "wvq0nrwt"
+        }
+      ],
+      "turnNumber": 3447
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 341498,
+          "clientID": "7B35GWaD",
+          "targetID": "yxedgnz7"
+        }
+      ],
+      "turnNumber": 3490
+    },
+    {
+      "intents": [
+        {
+          "x": 896,
+          "y": 924,
+          "type": "build_unit",
+          "unit": "SAM Launcher",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 3553
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 448487.6,
+          "clientID": "7B35GWaD",
+          "targetID": "8wgnxr2j"
+        }
+      ],
+      "turnNumber": 3581
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 367527.4,
+          "clientID": "7B35GWaD",
+          "targetID": "3f4x2uff"
+        }
+      ],
+      "turnNumber": 3590
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 313729.2,
+          "clientID": "7B35GWaD",
+          "targetID": "g5jqadpt"
+        }
+      ],
+      "turnNumber": 3619
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 258055.2,
+          "clientID": "7B35GWaD",
+          "targetID": "g5jqadpt"
+        }
+      ],
+      "turnNumber": 3627
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 321123.2,
+          "clientID": "7B35GWaD",
+          "targetID": "bnjr33mt"
+        }
+      ],
+      "turnNumber": 3699
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 409938.6,
+          "clientID": "7B35GWaD",
+          "targetID": "g5jqadpt"
+        }
+      ],
+      "turnNumber": 3772
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 410839.4,
+          "clientID": "7B35GWaD",
+          "targetID": "g5jqadpt"
+        }
+      ],
+      "turnNumber": 3773
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 340601.4,
+          "clientID": "7B35GWaD",
+          "targetID": "cpit2fp1"
+        }
+      ],
+      "turnNumber": 3871
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 373067.6,
+          "clientID": "7B35GWaD",
+          "targetID": "l07ieq9j"
+        }
+      ],
+      "turnNumber": 3908
+    },
+    {
+      "intents": [
+        {
+          "type": "allianceRequest",
+          "clientID": "7B35GWaD",
+          "recipient": "voyvsvw4"
+        }
+      ],
+      "turnNumber": 3929
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 173036.30000000002,
+          "clientID": "7B35GWaD",
+          "targetID": "hmprnolg"
+        }
+      ],
+      "turnNumber": 3956
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 159289.80000000002,
+          "clientID": "7B35GWaD",
+          "targetID": "8231v8kt"
+        }
+      ],
+      "turnNumber": 3962
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 149421.30000000002,
+          "clientID": "7B35GWaD",
+          "targetID": "m4bx9f8d"
+        }
+      ],
+      "turnNumber": 3974
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 139993.6,
+          "clientID": "7B35GWaD",
+          "targetID": "t5gpqtlm"
+        }
+      ],
+      "turnNumber": 3985
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 130954.5,
+          "clientID": "7B35GWaD",
+          "targetID": "ivwh650s"
+        }
+      ],
+      "turnNumber": 3995
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 130404.6,
+          "clientID": "7B35GWaD",
+          "targetID": "qzd0qx6b"
+        }
+      ],
+      "turnNumber": 4012
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 134378.6,
+          "clientID": "7B35GWaD",
+          "targetID": "guln2bqj"
+        }
+      ],
+      "turnNumber": 4027
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 129385.6,
+          "clientID": "7B35GWaD",
+          "targetID": "qzd0qx6b"
+        }
+      ],
+      "turnNumber": 4043
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 119395.4,
+          "clientID": "7B35GWaD",
+          "targetID": "m4bx9f8d"
+        }
+      ],
+      "turnNumber": 4050
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 154955.4,
+          "clientID": "7B35GWaD",
+          "targetID": "hmprnolg"
+        }
+      ],
+      "turnNumber": 4067
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 142047.2,
+          "clientID": "7B35GWaD",
+          "targetID": "r45yjgfa"
+        }
+      ],
+      "turnNumber": 4072
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 132910.30000000002,
+          "clientID": "7B35GWaD",
+          "targetID": "4eu8nroz"
+        }
+      ],
+      "turnNumber": 4082
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 125103.2,
+          "clientID": "7B35GWaD",
+          "targetID": "wj2fflm6"
+        }
+      ],
+      "turnNumber": 4093
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 126822.2,
+          "clientID": "7B35GWaD",
+          "targetID": "m4bx9f8d"
+        }
+      ],
+      "turnNumber": 4108
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 147740.9,
+          "clientID": "7B35GWaD",
+          "targetID": "qzd0qx6b"
+        }
+      ],
+      "turnNumber": 4153
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 136056.30000000002,
+          "clientID": "7B35GWaD",
+          "targetID": "a3lrg6q7"
+        }
+      ],
+      "turnNumber": 4159
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 130548.9,
+          "clientID": "7B35GWaD",
+          "targetID": "ti3y6d75"
+        }
+      ],
+      "turnNumber": 4175
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 142309.5,
+          "clientID": "7B35GWaD",
+          "targetID": "wj2fflm6"
+        }
+      ],
+      "turnNumber": 4197
+    },
+    {
+      "intents": [
+        {
+          "x": 934,
+          "y": 777,
+          "type": "build_unit",
+          "unit": "City",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 4225
+    },
+    {
+      "intents": [
+        {
+          "x": 822,
+          "y": 751,
+          "type": "build_unit",
+          "unit": "City",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 4240
+    },
+    {
+      "intents": [
+        {
+          "x": 943,
+          "y": 696,
+          "type": "build_unit",
+          "unit": "City",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 4253
+    },
+    {
+      "intents": [
+        {
+          "x": 950,
+          "y": 849,
+          "type": "build_unit",
+          "unit": "City",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 4267
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 178606.2,
+          "clientID": "7B35GWaD",
+          "targetID": "uu7imkxt"
+        }
+      ],
+      "turnNumber": 4280
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 167461,
+          "clientID": "7B35GWaD",
+          "targetID": "ha1tt8oq"
+        }
+      ],
+      "turnNumber": 4292
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 192351.6,
+          "clientID": "7B35GWaD",
+          "targetID": "uu7imkxt"
+        }
+      ],
+      "turnNumber": 4340
+    },
+    {
+      "intents": [
+        {
+          "type": "allianceRequestReply",
+          "accept": true,
+          "clientID": "7B35GWaD",
+          "requestor": "3f0st0i0"
+        }
+      ],
+      "turnNumber": 4406
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 219692,
+          "clientID": "7B35GWaD",
+          "targetID": "wj2fflm6"
+        }
+      ],
+      "turnNumber": 4414
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 199004,
+          "clientID": "7B35GWaD",
+          "targetID": "wj2fflm6"
+        }
+      ],
+      "turnNumber": 4416
+    },
+    {
+      "intents": [
+        {
+          "x": 788,
+          "y": 1260,
+          "type": "build_unit",
+          "unit": "Port",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 4560
+    },
+    {
+      "intents": [
+        {
+          "x": 706,
+          "y": 930,
+          "type": "build_unit",
+          "unit": "City",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 4580
+    },
+    {
+      "intents": [
+        {
+          "x": 687,
+          "y": 847,
+          "type": "build_unit",
+          "unit": "City",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 4596
+    },
+    {
+      "intents": [
+        {
+          "x": 707,
+          "y": 999,
+          "type": "build_unit",
+          "unit": "City",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 4665
+    },
+    {
+      "intents": [
+        {
+          "x": 826,
+          "y": 985,
+          "type": "build_unit",
+          "unit": "City",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 4677
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 759761.46,
+          "clientID": "7B35GWaD",
+          "targetID": "b5gn2xmz"
+        }
+      ],
+      "turnNumber": 4737
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 625219.9199999999,
+          "clientID": "7B35GWaD",
+          "targetID": "b5gn2xmz"
+        }
+      ],
+      "turnNumber": 4739
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 515212.1999999999,
+          "clientID": "7B35GWaD",
+          "targetID": "b5gn2xmz"
+        }
+      ],
+      "turnNumber": 4741
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 516528.54,
+          "clientID": "7B35GWaD",
+          "targetID": "b5gn2xmz"
+        }
+      ],
+      "turnNumber": 4743
+    },
+    {
+      "intents": [
+        {
+          "x": 860,
+          "y": 822,
+          "type": "build_unit",
+          "unit": "City",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 4924
+    },
+    {
+      "intents": [
+        {
+          "x": 1027,
+          "y": 766,
+          "type": "build_unit",
+          "unit": "City",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 4941
+    },
+    {
+      "intents": [
+        {
+          "x": 893,
+          "y": 921,
+          "type": "build_unit",
+          "unit": "City",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 4964
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 493,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 5002
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 493,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 5029
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 493,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 5046
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 493,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 5062
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 493,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 5078
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 493,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 5091
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 493,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 5109
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "SAM Launcher",
+          "unitId": 298,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 5165
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 2014589.92,
+          "clientID": "7B35GWaD",
+          "targetID": "g5jqadpt"
+        }
+      ],
+      "turnNumber": 5261
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 447879.12,
+          "clientID": "7B35GWaD",
+          "targetID": "g5jqadpt"
+        }
+      ],
+      "turnNumber": 5299
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 1049060.16,
+          "clientID": "7B35GWaD",
+          "targetID": "g5jqadpt"
+        }
+      ],
+      "turnNumber": 5358
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 1051117.2,
+          "clientID": "7B35GWaD",
+          "targetID": "g5jqadpt"
+        }
+      ],
+      "turnNumber": 5360
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 822088.44,
+          "clientID": "7B35GWaD",
+          "targetID": "g5jqadpt"
+        }
+      ],
+      "turnNumber": 5431
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 1102857.3,
+          "clientID": "7B35GWaD",
+          "targetID": "5qnqjfv8"
+        }
+      ],
+      "turnNumber": 5584
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 1107354.42,
+          "clientID": "7B35GWaD",
+          "targetID": "5qnqjfv8"
+        }
+      ],
+      "turnNumber": 5586
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 828049.6799999999,
+          "clientID": "7B35GWaD",
+          "targetID": "5qnqjfv8"
+        }
+      ],
+      "turnNumber": 5639
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 683513.28,
+          "clientID": "7B35GWaD",
+          "targetID": "5qnqjfv8"
+        }
+      ],
+      "turnNumber": 5641
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 843221.88,
+          "clientID": "7B35GWaD",
+          "targetID": "7s2jf354"
+        }
+      ],
+      "turnNumber": 5723
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 845532.9,
+          "clientID": "7B35GWaD",
+          "targetID": "7s2jf354"
+        }
+      ],
+      "turnNumber": 5725
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 682604.28,
+          "clientID": "7B35GWaD",
+          "targetID": "7s2jf354"
+        }
+      ],
+      "turnNumber": 5793
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 686962.26,
+          "clientID": "7B35GWaD",
+          "targetID": "7s2jf354"
+        }
+      ],
+      "turnNumber": 5794
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 566276.94,
+          "clientID": "7B35GWaD",
+          "targetID": "7s2jf354"
+        }
+      ],
+      "turnNumber": 5796
+    },
+    {
+      "intents": [
+        {
+          "type": "attack",
+          "troops": 446391.36,
+          "clientID": "7B35GWaD",
+          "targetID": "7s2jf354"
+        }
+      ],
+      "turnNumber": 5797
+    },
+    {
+      "intents": [
+        {
+          "x": 674,
+          "y": 370,
+          "type": "build_unit",
+          "unit": "Warship",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 5916
+    },
+    {
+      "intents": [
+        {
+          "x": 682,
+          "y": 372,
+          "type": "build_unit",
+          "unit": "Warship",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 5926
+    },
+    {
+      "intents": [
+        {
+          "x": 665,
+          "y": 413,
+          "type": "build_unit",
+          "unit": "Warship",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 5940
+    },
+    {
+      "intents": [
+        {
+          "x": 910,
+          "y": 920,
+          "type": "build_unit",
+          "unit": "City",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6064
+    },
+    {
+      "intents": [
+        {
+          "x": 909,
+          "y": 921,
+          "type": "build_unit",
+          "unit": "City",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6068
+    },
+    {
+      "intents": [
+        {
+          "x": 909,
+          "y": 921,
+          "type": "build_unit",
+          "unit": "City",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6071
+    },
+    {
+      "intents": [
+        {
+          "x": 909,
+          "y": 921,
+          "type": "build_unit",
+          "unit": "City",
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6074
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6095
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6098
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6102
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6104
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6108
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6111
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6114
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6117
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6120
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6124
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6126
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6129
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6132
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6135
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6138
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6141
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6144
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6147
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6150
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6153
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6156
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6159
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6162
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6165
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6168
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6171
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6174
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6178
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6181
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6184
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6187
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6190
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6193
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6200
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6203
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6206
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6209
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6212
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6215
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6218
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6222
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6225
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6228
+    },
+    {
+      "intents": [
+        {
+          "type": "upgrade_structure",
+          "unit": "City",
+          "unitId": 776,
+          "clientID": "7B35GWaD"
+        }
+      ],
+      "turnNumber": 6231
+    },
+    {
+      "intents": [
+        {
+          "dst": 872589,
+          "src": 866744,
+          "type": "boat",
+          "troops": 1848837.24,
+          "clientID": "7B35GWaD",
+          "targetID": "egfjoy0w"
+        }
+      ],
+      "turnNumber": 6338
+    },
+    {
+      "intents": [
+        {
+          "dst": 868592,
+          "src": 866744,
+          "type": "boat",
+          "troops": 1733159.88,
+          "clientID": "7B35GWaD",
+          "targetID": "egfjoy0w"
+        }
+      ],
+      "turnNumber": 6397
+    }
+  ],
+  "domain": "openfront.io",
+  "version": "v0.0.2",
+  "gitCommit": "a221fee92146caaefdee8a287e341a18da11716b",
+  "subdomain": "green"
+}
+

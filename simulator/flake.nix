@@ -14,6 +14,8 @@
             pkgs.nodePackages.pnpm
             pkgs.nodePackages.typescript
             pkgs.nodePackages.typescript-language-server
+            pkgs.nodePackages.eslint
+            pkgs.nodePackages.prettier
             pkgs.nodejs_24
           ];
         };

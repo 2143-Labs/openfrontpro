@@ -9,7 +9,7 @@
 -- }
 
 CREATE TABLE IF NOT EXISTS lobbies (
-    game_id TEXT PRIMARY KEY,
+    game_id CHAR(8) PRIMARY KEY,
     teams INTEGER,
     max_players INTEGER NOT NULL,
     game_map TEXT NOT NULL,
@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS lobbies (
 );
 
 CREATE TABLE IF NOT EXISTS finished_games (
-    game_id TEXT PRIMARY KEY,
+    game_id CHAR(8) PRIMARY KEY,
     result_json JSONB NOT NULL,
-    inserted_at_unix_sec bigint NOT NULL DEFAULT extract(epoch from NOW())
+    inserted_at_unix_sec bigint NOT NULL DEFAULT extract(epoch from NOW()),
+    FOREIGN KEY (game_id) REFERENCES lobbies(game_id) ON DELETE CASCADE
 );
