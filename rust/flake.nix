@@ -16,7 +16,7 @@
         naersk-lib = pkgs.callPackage naersk { };
       in
       rec {
-        defaultPackage = packages.container;
+        defaultPackage = packages.bundle;
         devShell = with pkgs; mkShell {
           buildInputs = [ cargo rustc rustfmt pre-commit rustPackages.clippy rust-analyzer sqlx-cli bacon];
           RUST_SRC_PATH = rustPlatform.rustLibSrc;
@@ -28,6 +28,29 @@
         };
 
         packages.openfront-frontend = frontend.outputs.packages.${system}.frontend;
+
+        # This exists to act like the docker image, except only as a nix executable.
+        # It only has two inputs, packages.openfrontpro and packages.openfront-frontend.
+        packages.bundle = pkgs.stdenv.mkDerivation {
+          name = "openfrontpro";
+            inherit (packages.openfrontpro) version src;
+            buildInputs = [
+                packages.openfrontpro
+                packages.openfront-frontend
+                pkgs.cacert
+                pkgs.bashInteractive
+                pkgs.coreutils
+                pkgs.curl
+            ];
+            nativeBuildInputs = [ pkgs.makeWrapper ];
+            installPhase = ''
+              mkdir -p $out/bin
+              cp ${packages.openfrontpro}/bin/openfrontpro $out/bin/
+              wrapProgram $out/bin/openfrontpro \
+                --set FRONTEND_FOLDER ${packages.openfront-frontend} \
+                --set RUST_LOG info
+            '';
+        };
 
         packages.container = pkgs.dockerTools.buildLayeredImage {
           name = "openfrontpro";

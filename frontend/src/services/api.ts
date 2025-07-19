@@ -10,7 +10,7 @@ export const fetchLobbies = async (params: FetchLobbiesParams = {}): Promise<Lob
   const { completed, after, mapName } = params;
   
   // Build URL with query parameters
-  const url = new URL('https://openfront.pro/api/v1/lobbies');
+  const url = new URL('/api/v1/lobbies');
   
   if (completed !== null && completed !== undefined) {
     url.searchParams.append('completed', completed.toString());
@@ -35,14 +35,14 @@ export const fetchLobbies = async (params: FetchLobbiesParams = {}): Promise<Lob
 };
 
 export const markGameForAnalysis = async (gameId: string) => {
-  const res = await fetch(`https://openfront.pro/api/v1/game/${gameId}/analyze`, { method: 'POST' });
+  const res = await fetch(`/api/v1/game/${gameId}/analyze`, { method: 'POST' });
   if (!res.ok) {
     throw new Error(`HTTP error! status: ${res.status}`);
   }
 };
 
 export const unmarkGameForAnalysis = async (gameId: string) => {
-  const res = await fetch(`https://openfront.pro/api/v1/game/${gameId}/analyze`, { method: 'DELETE' });
+  const res = await fetch(`/api/v1/game/${gameId}/analyze`, { method: 'DELETE' });
   if (!res.ok) {
     throw new Error(`HTTP error! status: ${res.status}`);
   }
