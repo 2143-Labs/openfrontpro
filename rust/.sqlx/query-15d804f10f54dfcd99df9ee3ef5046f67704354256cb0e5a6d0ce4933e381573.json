@@ -50,11 +50,6 @@
       },
       {
         "ordinal": 9,
-        "name": "player_teams",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 10,
         "name": "analysis_complete!",
         "type_info": "Bool"
       }
@@ -66,7 +61,6 @@
     },
     "nullable": [
       false,
-      true,
       false,
       false,
       false,
@@ -74,7 +68,7 @@
       false,
       false,
       false,
-      true,
+      false,
       null
     ]
   },

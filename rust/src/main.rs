@@ -1,5 +1,5 @@
 #![allow(unused)]
-use std::net::SocketAddr;
+use std::{fmt::Display, net::SocketAddr, str::FromStr};
 
 mod oauth;
 
@@ -82,6 +82,103 @@ struct PublicLobbiesResponse {
     lobbies: Vec<Lobby>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, JsonSchema)]
+#[serde(tag = "group")]
+enum PlayerTeams {
+    FFA,
+    Teams {
+        num_teams: u8
+    },
+    Parties {
+        party_size: u8
+    },
+}
+// PlayerTeams fromStr:
+impl PlayerTeams {
+    fn from_str_or_int(s: &StringOrInt) -> Option<Self> {
+        if let StringOrInt::String(f) = &s {
+            return match f.as_ref() {
+                "Duos" => Some(PlayerTeams::Parties { party_size: 2 }),
+                "Trios" => Some(PlayerTeams::Parties { party_size: 3 }),
+                "Quads" => Some(PlayerTeams::Parties { party_size: 4 }),
+                _ => None
+            };
+        } else if let StringOrInt::Int(i) = s {
+            return Some(PlayerTeams::Teams { num_teams: *i as u8 });
+        }
+
+        None
+    }
+}
+
+
+struct PlayerTeamsVisitor;
+
+impl<'de> serde::de::Visitor<'de> for PlayerTeamsVisitor {
+    type Value = PlayerTeams;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("an integer representing the number of teams or parties")
+    }
+
+    fn visit_i32<E>(self, value: i32) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(PlayerTeams::from(value))
+    }
+}
+
+impl<'d> serde::Deserialize<'d> for PlayerTeams {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'d>,
+    {
+        deserializer.deserialize_i32(PlayerTeamsVisitor)
+    }
+}
+
+impl From<i32> for PlayerTeams {
+    fn from(num_teams: i32) -> Self {
+        if num_teams == 0 {
+            PlayerTeams::FFA
+        } else if num_teams < 0 {
+            PlayerTeams::Parties { party_size: -num_teams as u8 }
+        } else {
+            PlayerTeams::Teams { num_teams: num_teams as u8 }
+        }
+    }
+}
+
+impl From<PlayerTeams> for i32 {
+    fn from(teams: PlayerTeams) -> Self {
+        match teams {
+            PlayerTeams::FFA => 0,
+            PlayerTeams::Teams { num_teams } => num_teams as _,
+            PlayerTeams::Parties { party_size } => -(party_size as i32),
+        }
+    }
+}
+
+impl sqlx::Decode<'_, sqlx::Postgres> for PlayerTeams {
+    fn decode(
+        value: sqlx::postgres::PgValueRef<'_>,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let s: i32 = sqlx::decode::Decode::<sqlx::Postgres>::decode(value)?;
+        Ok(PlayerTeams::from(s))
+    }
+}
+
+impl Display for PlayerTeams {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PlayerTeams::FFA => write!(f, "FFA"),
+            PlayerTeams::Teams { num_teams } => write!(f, "{} Teams", num_teams),
+            PlayerTeams::Parties { party_size } => write!(f, "Parties of {}", party_size),
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Lobby {
@@ -90,6 +187,22 @@ struct Lobby {
     num_clients: i32,
     game_config: GameConfig,
     ms_until_start: u64,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
+#[serde(untagged)]
+enum StringOrInt {
+    String(String),
+    Int(i32),
+}
+
+impl ToString for StringOrInt {
+    fn to_string(&self) -> String {
+        match self {
+            StringOrInt::String(s) => s.clone(),
+            StringOrInt::Int(i) => i.to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, sqlx::FromRow, JsonSchema)]
@@ -107,7 +220,7 @@ struct GameConfig {
     bots: i32,
     disabled_units: Vec<String>,
     max_players: i32,
-    player_teams: Option<i32>,
+    player_teams: Option<StringOrInt>,
 }
 
 #[cfg(test)]
@@ -200,7 +313,7 @@ async fn get_new_games(cfg: &Config) -> anyhow::Result<Vec<Lobby>> {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, sqlx::FromRow, JsonSchema)]
 struct LobbyDBEntry {
     game_id: String,
-    teams: Option<i32>,
+    teams: PlayerTeams,
     max_players: i32,
     game_map: String,
     approx_num_players: i32,
@@ -209,7 +322,6 @@ struct LobbyDBEntry {
     /// Last seen timestamp in seconds
     last_seen_unix_sec: i64,
     completed: bool,
-    player_teams: Option<String>,
     lobby_config_json: serde_json::Value,
     analysis_complete: bool
 }
@@ -218,7 +330,7 @@ struct LobbyDBEntry {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, sqlx::FromRow, JsonSchema)]
 struct LobbyDBEntryNoConfig {
     game_id: String,
-    teams: Option<i32>,
+    teams: PlayerTeams,
     max_players: i32,
     game_map: String,
     approx_num_players: i32,
@@ -230,10 +342,41 @@ struct LobbyDBEntryNoConfig {
     analysis_complete: bool,
 }
 
+impl<'a> sqlx::FromRow<'a, sqlx::postgres::PgRow> for LobbyDBEntryNoConfig {
+    fn from_row(row: &'a sqlx::postgres::PgRow) -> Result<Self, sqlx_core::Error> {
+        use sqlx::Row;
+        let teams_val: i32 = row.try_get("teams")?;
+        let teams = PlayerTeams::from(teams_val);
+
+        Ok(LobbyDBEntryNoConfig {
+            game_id: row.try_get("game_id")?,
+            teams,
+            max_players: row.try_get("max_players")?,
+            game_map: row.try_get("game_map")?,
+            approx_num_players: row.try_get("approx_num_players")?,
+            first_seen_unix_sec: row.try_get("first_seen_unix_sec")?,
+            last_seen_unix_sec: row.try_get("last_seen_unix_sec")?,
+            completed: row.try_get("completed")?,
+            analysis_complete: row.try_get("analysis_complete!")?,
+        })
+    }
+}
+
+
 impl LobbyDBEntry {
     pub fn lobby_config(&self) -> GameConfig {
         serde_json::from_value(self.lobby_config_json.clone())
             .expect("Invalid lobby config JSON in database")
+    }
+}
+
+impl GameConfig {
+    pub fn player_teams(&self) -> PlayerTeams {
+        if let Some(ref teams) = self.player_teams {
+            PlayerTeams::from_str_or_int(teams).unwrap()
+        } else {
+            PlayerTeams::FFA
+        }
     }
 }
 
@@ -269,6 +412,8 @@ async fn look_for_new_games(database: PgPool, cfg: &Config) -> anyhow::Result<()
             last_game_id = first.game_id.clone();
         }
 
+        let player_teams_as_int: i32 = first.game_config.player_teams().into();
+
         sqlx::query!(
             "INSERT INTO
                 lobbies (game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec, lobby_config_json)
@@ -280,7 +425,7 @@ async fn look_for_new_games(database: PgPool, cfg: &Config) -> anyhow::Result<()
                 , last_seen_unix_sec = $6
             ",
             first.game_id,
-            first.game_config.player_teams,
+            player_teams_as_int,
             first.game_config.max_players,
             first.game_config.game_map,
             first.num_clients,
@@ -303,7 +448,7 @@ async fn look_for_new_games(database: PgPool, cfg: &Config) -> anyhow::Result<()
             "Lobby {} {} ({}) has {}/{} players. Starts in {}ms. Next check in {}ms.",
             first.game_id,
             first.game_config.game_map,
-            first.game_config.player_teams.map(|x| format!("{x} teams")).unwrap_or_else(|| "FFA".to_string()),
+            first.game_config.player_teams(),
             first.num_clients,
             first.game_config.max_players,
             first.ms_until_start,
@@ -456,10 +601,9 @@ async fn lobbies_handler(
         SELECT
             lo.game_id, lo.teams, lo.max_players, lo.game_map, lo.approx_num_players,
             lo.first_seen_unix_sec, lo.last_seen_unix_sec, lo.completed,
-            lo.player_teams
             (co.inserted_at_unix_sec IS NOT NULL) AS "analysis_complete!"
         FROM
-            lobbies lo
+            public.lobbies lo
             LEFT JOIN analysis_1.completed_analysis co
             ON lo.game_id = co.game_id
         "#,

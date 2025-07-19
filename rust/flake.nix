@@ -16,7 +16,7 @@
         naersk-lib = pkgs.callPackage naersk { };
       in
       rec {
-        defaultPackage = packages.openfrontpro;
+        defaultPackage = packages.container;
         devShell = with pkgs; mkShell {
           buildInputs = [ cargo rustc rustfmt pre-commit rustPackages.clippy rust-analyzer sqlx-cli bacon];
           RUST_SRC_PATH = rustPlatform.rustLibSrc;
