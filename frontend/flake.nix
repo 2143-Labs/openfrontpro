@@ -8,16 +8,41 @@
     inputs.flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = (import (inputs.nixpkgs) { inherit system; });
-      in {
+      in rec {
         devShell = pkgs.mkShell {
-          buildInputs=[
+          buildInputs = [
+            pkgs.nodejs_24
             pkgs.nodePackages.pnpm
+            pkgs.vite
             pkgs.nodePackages.typescript
             pkgs.nodePackages.typescript-language-server
-            pkgs.nodePackages.tailwindcss
             pkgs.nodePackages.eslint
-            pkgs.nodejs_24
           ];
+        };
+
+        defaultPackage = packages.frontend;
+        packages.frontend = pkgs.stdenv.mkDerivation {
+            pname = "openfront-frontend";
+            version = "0.1.0";
+            src = ./.;
+
+            buildInputs = with pkgs; [
+              nodejs_24
+              nodePackages.pnpm
+              pkgs.vite
+            ];
+
+            buildPhase = ''
+              export HOME=$TMPDIR
+              pnpm config set store-dir $TMPDIR/.pnpm-store
+              pnpm install
+              pnpm run build
+            '';
+
+            installPhase = ''
+              mkdir -p $out
+              cp -r dist/* $out/
+            '';
         };
       }
     );

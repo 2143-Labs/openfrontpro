@@ -1,6 +1,8 @@
 #![allow(unused)]
 use std::net::SocketAddr;
 
+mod oauth;
+
 use aide::{
     axum::ApiRouter,
     openapi::{Info, OpenApi},
@@ -53,11 +55,20 @@ struct Config {
     #[clap(long, env)]
     pub cookie: Option<String>,
 
-    #[clap(long, env, default_value = "https://blue.openfront.io/api/public_lobbies")]
+    #[clap(long, env, default_value = "https://openfront.io/api/public_lobbies")]
     pub openfront_lobby_url: String,
 
-    #[clap(long, env)]
+    #[clap(long, env, default_value = "./frontend")]
     pub frontend_folder: String,
+
+    #[clap(long, env)]
+    pub discord_client_id: Option<String>,
+
+    #[clap(long, env)]
+    pub discord_client_secret: Option<String>,
+
+    #[clap(long, env, default_value = "http://localhost:3000/auth/discord/callback")]
+    pub discord_redirect_uri: String,
 }
 
 // Example Response
