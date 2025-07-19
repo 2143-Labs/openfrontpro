@@ -97,11 +97,11 @@
         ]
       },
       "locked": {
-        "path": "../frontend/",
+        "path": "frontend",
         "type": "path"
       },
       "original": {
-        "path": "../frontend/",
+        "path": "frontend",
         "type": "path"
       },
       "parent": []

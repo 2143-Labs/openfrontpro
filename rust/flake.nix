@@ -4,7 +4,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     utils.url = "github:numtide/flake-utils";
     frontend = {
-      url = "path:../frontend/";
+      url = ./frontend;
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
