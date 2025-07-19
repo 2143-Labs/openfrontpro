@@ -53,7 +53,7 @@ struct Config {
     #[clap(long, env)]
     pub cookie: Option<String>,
 
-    #[clap(long, env, default_value = "https://blue.openfront.io/api/public_lobbies")]
+    #[clap(long, env, default_value = "https://openfront.io/api/public_lobbies")]
     pub openfront_lobby_url: String,
 
     #[clap(long, env)]
