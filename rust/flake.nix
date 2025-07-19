@@ -3,9 +3,11 @@
     naersk.url = "github:nix-community/naersk/master";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     utils.url = "github:numtide/flake-utils";
+    frontend.url = "../frontend";
+    frontend.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, utils, naersk }:
+  outputs = { self, nixpkgs, utils, naersk, frontend }:
     utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
@@ -23,16 +25,7 @@
           pname = "openfrontpro";
         };
 
-        packages.openfront-frontend = pkgs.stdenv.mkDerivation {
-          pname = "openfront-frontend";
-          version = "0.1.0";
-          src = ./.;
-          buildInputs = [  ];
-          installPhase = ''
-            mkdir -p $out/frontend
-            cp -r frontend/* $out/frontend
-          '';
-        };
+        packages.openfront-frontend = frontend.outputs.packages.${system}.frontend;
 
         packages.container = pkgs.dockerTools.buildLayeredImage {
           name = "openfrontpro";
@@ -53,7 +46,7 @@
             EntryPoint = [ "${packages.openfrontpro}/bin/openfrontpro" ];
             Env = [
               "RUST_LOG=info"
-              "FRONTEND_FOLDER=${packages.openfront-frontend}/frontend"
+              "FRONTEND_FOLDER=${packages.openfront-frontend}"
             ];
             #Cmd = [ "openfrontpro" ];
           };

@@ -166,6 +166,7 @@ struct LobbyDBEntry {
     /// Last seen timestamp in seconds
     last_seen_unix_sec: i64,
     completed: bool,
+    player_teams: Option<String>,
     lobby_config_json: serde_json::Value,
 }
 
@@ -499,6 +500,87 @@ async fn game_handler(
     Ok(Json(lobby.result_json))
 }
 
+//CREATE TABLE public.analysis_queue (
+    //game_id CHAR(8) NOT NULL,
+    //requesting_user_id CHAR(10),
+    //requested_unix_sec BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()),
+    //started_unix_sec BIGINT,
+    //status analysis_queue_status NOT NULL DEFAULT 'Pending',
+    //FOREIGN KEY (requesting_user_id) REFERENCES social.registered_users(id) ON DELETE CASCADE
+//);
+//
+//CREATE TYPE analysis_queue_status AS ENUM (
+    //'Pending',
+    //'Running',
+    //'Completed',
+    //'Failed',
+    //'Stalled',
+    //'Cancelled',
+    //'CompletedAlready'
+//);
+//
+// On analyze call: insert
+// On delete call, set status to cancelled
+// On analyze call, if already in queue for your user, return 409 Conflict
+//
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema, sqlx::Type)]
+#[sqlx(type_name = "analysis_queue_status")]
+enum AnalysisQueueStatus {
+    Pending,
+    Running,
+    Completed,
+    Failed,
+    Stalled,
+    Cancelled,
+    CompletedAlready,
+}
+
+async fn game_analyze_handler(
+    Extension(database): Extension<PgPool>,
+    Path(game_id): Path<String>,
+) -> Result<(), Response> {
+    //Insert into analysis_queue
+    let res = sqlx::query!(
+        "INSERT INTO analysis_queue (game_id)
+         VALUES ($1)
+         ON CONFLICT (game_id) DO NOTHING",
+        game_id,
+    ).execute(&database).await;
+
+    match res {
+        Ok(_) => {
+            Ok(())
+        },
+        Err(e) => Err(axum::response::Response::builder()
+            .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+            .body(axum::body::Body::from(format!("Failed to queue analysis: {}", e)))
+            .expect("Failed to build response for error message")),
+    }
+}
+
+async fn game_analyze_handler_delete(
+    Extension(database): Extension<PgPool>,
+    Path(game_id): Path<String>,
+) -> Result<(), Response> {
+    // Set status to cancelled
+    let res = sqlx::query!(
+        "UPDATE analysis_queue SET status = 'Cancelled' WHERE game_id = $1",
+        game_id,
+    ).execute(&database).await;
+
+    match res {
+        Ok(_) => Ok(()),
+        Err(e) => Err(axum::response::Response::builder()
+            .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+            .body(axum::body::Body::from(format!("Failed to cancel analysis: {}", e)))
+            .expect("Failed to build response for error message")),
+    }
+}
+
+
+
+
 #[tokio::main(flavor = "multi_thread", worker_threads = 16)]
 async fn main() -> anyhow::Result<()> {
     let config = Config::parse();
@@ -533,15 +615,17 @@ async fn main() -> anyhow::Result<()> {
         ])
         .allow_headers(tower_http::cors::Any);
 
-    let routes = ApiRouter::new()
-        .route("/health", axum::routing::get(|| async { "ok!" }))
+    let api_routes = ApiRouter::new()
         .route("/lobbies", axum::routing::get(lobbies_handler))
         .route("/lobbies/{id}", axum::routing::get(lobbies_id_handler))
         .api_route("/games/{game_id}", aide::axum::routing::get(game_handler))
-        //.route(
-        //"/robots.txt",
-        //axum::routing::get(|| async { "User-agent: *\nDisallow: /" }),
-        //)
+        .route("/games/{game_id}/analyze", axum::routing::get(game_analyze_handler).delete(game_analyze_handler_delete));
+        //.route("/games/{game_id}/analyze", axum::routing::get(game_analyze_handler).delete(game_analyze_handler_delete))
+
+
+    let routes = ApiRouter::new()
+        .route("/health", axum::routing::get(|| async { "ok!" }))
+        .nest("/api/v1/", api_routes)
         .route("/openapi.json", axum::routing::get(open_api_json))
         .route("/redoc", Redoc::new("/openapi.json").axum_route());
 

@@ -47,6 +47,11 @@
         "ordinal": 8,
         "name": "lobby_config_json",
         "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 9,
+        "name": "player_teams",
+        "type_info": "Text"
       }
     ],
     "parameters": {
@@ -63,7 +68,8 @@
       false,
       false,
       false,
-      false
+      false,
+      true
     ]
   },
   "hash": "dac40d5f80bcb32c137f5ef921730704f1c4e74d0dc628f22f1865def3b170a3"

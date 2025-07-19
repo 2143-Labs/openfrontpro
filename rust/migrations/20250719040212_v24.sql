@@ -1,6 +1,6 @@
 -- Add migration script here
 -- Alter lobbies: Add new column playerTeams
-ALTER TABLE lobbies ADD COLUMN playerTeams TEXT DEFAULT NULL;
+ALTER TABLE lobbies ADD COLUMN player_teams TEXT DEFAULT NULL;
 
 CREATE TABLE analysis_1.spawn_locations (
     game_id CHAR(8) NOT NULL,
