@@ -25,8 +25,8 @@ jobs:
 
       - name: Building package
         run: |
-          nix flake lock ./rust/frontend
-          nix flake lock ./rust
+          #nix flake lock ./rust/frontend
+          #nix flake lock ./rust
           nix build ./rust/frontend#bundle
           #nix build ./rust#container
       - name: Install skopeo
