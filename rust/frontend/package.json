@@ -16,7 +16,7 @@
     "preview": "vite preview",
     "start": "vite",
     "serve": "vite preview",
-    "generate-nix": "bun2nix"
+    "generate-nix": "bun2nix > bun.nix"
   },
   "keywords": ["frontend", "vite", "bun", "react"],
   "author": "OpenFronter Team",
