@@ -27,7 +27,8 @@ jobs:
         run: |
           nix flake lock ./rust/frontend
           nix flake lock ./rust
-          nix build --impure --debug ./rust#container
+          nix build ./rust/frontend
+          nix build ./rust#container
       - name: Install skopeo
         run: sudo apt-get install -y skopeo
       - name: Push with skopeo
