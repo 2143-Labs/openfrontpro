@@ -168,6 +168,7 @@ struct LobbyDBEntry {
     completed: bool,
     player_teams: Option<String>,
     lobby_config_json: serde_json::Value,
+    analysis_complete: bool
 }
 
 /// This is put into the database for every lobby we see
@@ -183,6 +184,7 @@ struct LobbyDBEntryNoConfig {
     /// Last seen timestamp in seconds
     last_seen_unix_sec: i64,
     completed: bool,
+    analysis_complete: bool,
 }
 
 impl LobbyDBEntry {
@@ -378,7 +380,14 @@ async fn lobbies_id_handler(
 ) -> Result<Json<LobbyDBEntry>, Response> {
     let d = sqlx::query_as!(
         LobbyDBEntry,
-        "SELECT * FROM lobbies WHERE game_id = $1",
+        r#"SELECT
+            lo.*,
+            (co.inserted_at_unix_sec IS NOT NULL) AS "analysis_complete!"
+        FROM
+            lobbies lo
+            LEFT JOIN analysis_1.completed_analysis co
+            ON lo.game_id = co.game_id
+        WHERE lo.game_id = $1"#,
         id
     );
 
@@ -400,7 +409,17 @@ async fn lobbies_handler(
     Query(params): Query<LobbyQueryParams>,
 ) -> Result<Json<Vec<LobbyDBEntryNoConfig>>, Response> {
     let mut querybuilder = sqlx::query_builder::QueryBuilder::new(
-        "SELECT game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec, completed FROM lobbies",
+        r#"
+        SELECT
+            lo.game_id, lo.teams, lo.max_players, lo.game_map, lo.approx_num_players,
+            lo.first_seen_unix_sec, lo.last_seen_unix_sec, lo.completed,
+            lo.player_teams
+            (co.inserted_at_unix_sec IS NOT NULL) AS "analysis_complete!"
+        FROM
+            lobbies lo
+            LEFT JOIN analysis_1.completed_analysis co
+            ON lo.game_id = co.game_id
+        "#,
     );
 
     let mut _has_where = false;
