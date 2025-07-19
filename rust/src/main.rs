@@ -139,6 +139,49 @@ mod test {
     }
 }
 
+use std::future::Future;
+
+use serde::de::DeserializeOwned;
+
+pub trait ReqwestErrorHandlingExtension
+where
+    Self: Sized + Send,
+{
+    fn anyhow_error_text(self) -> impl Future<Output = anyhow::Result<String>> + Send;
+
+    fn anyhow_error_json<T: DeserializeOwned>(
+        self,
+    ) -> impl Future<Output = anyhow::Result<T>> + Send {
+        async move {
+            let text = self.anyhow_error_text().await?;
+            Ok(serde_json::from_str(&text)?)
+        }
+    }
+}
+
+impl ReqwestErrorHandlingExtension for reqwest::Response {
+    async fn anyhow_error_text(self) -> anyhow::Result<String> {
+        let status = self.status();
+        let url = self.url().to_string();
+        let mut text = self.text().await?;
+
+        if !status.is_success() {
+            if let Ok(t) = serde_json::from_str::<serde_json::Value>(&text) {
+                text = serde_json::to_string_pretty(&t).unwrap();
+            }
+            tracing::error!(text);
+            anyhow::bail!(
+                "API Call failed {:?} with code {}: {}",
+                url,
+                status.as_u16(),
+                text
+            );
+        }
+
+        Ok(text)
+    }
+}
+
 async fn get_new_games(cfg: &Config) -> anyhow::Result<Vec<Lobby>> {
     let mut base = reqwest::Client::new().get(&cfg.openfront_lobby_url);
     if let Some(ref useragent) = cfg.useragent {
@@ -148,7 +191,7 @@ async fn get_new_games(cfg: &Config) -> anyhow::Result<Vec<Lobby>> {
         base = base.header(reqwest::header::COOKIE, cookie);
     }
 
-    let new_games = base.send().await?.json::<PublicLobbiesResponse>().await?;
+    let new_games = base.send().await?.anyhow_error_json::<PublicLobbiesResponse>().await?;
 
     Ok(new_games.lobbies)
 }
