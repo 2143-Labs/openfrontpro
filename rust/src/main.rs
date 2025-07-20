@@ -236,8 +236,8 @@ async fn main() -> anyhow::Result<()> {
             .expect("Failed to build 404 response")
     }
 
-    // Assume this exists in the frontend at this path. TODO Maybe just serve the SPA?
-    let missing_html = format!("{}/404.html", config.frontend_folder);
+    // just serve the SPA?
+    let missing_html = format!("{}/index.html", config.frontend_folder);
 
     let fin = routes
         .finish_api(&mut openapi)

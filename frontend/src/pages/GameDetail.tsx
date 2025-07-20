@@ -19,7 +19,7 @@ const GameDetail: React.FC = () => {
         setLoading(true);
         setError(null);
         
-        const response = await fetch(`/api/v1/game/${gameID}`);
+        const response = await fetch(`/api/v1/games/${gameID}`);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch game details: ${response.status}`);

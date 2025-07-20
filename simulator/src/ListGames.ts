@@ -213,13 +213,20 @@ async function simgame(gameId: string, record: GameRecord, p: Pool) {
     server_config,
   );
 
+  // This is a mutable object that we pass to every call to handle_game_update
+  // Used to store data that we care about between turns, but doesn't make the analysis
+  let extra_data: ExtraData = {
+    players_died_on_turn: {},
+    players_disconnected_on_turn: {},
+  };
+
   // -1 means unlimited. Game ends at 0;
   let simulation_turns_left = -1;
   const runner = new GameRunner(
     game,
     new Executor(game, gameId, "openfrontpro"),
     async (gu) => {
-      let has_won = await handle_game_update(gu, p, record);
+      let has_won = await handle_game_update(gu, p, record, extra_data);
       if (simulation_turns_left === -1 && has_won) {
         simulation_turns_left = 5;
       }
@@ -314,11 +321,18 @@ async function analyze_intents(
     }
 }
 
+type ExtraData = {
+    players_died_on_turn: Record<string, number>;
+    players_disconnected_on_turn: Record<string, number>;
+}
+
+
 /// Function to handle game updates. Returns true if the game is finished.
 async function handle_game_update(
   gu: GameUpdateViewData | ErrorUpdate,
   p: Pool,
   record: GameRecord,
+  extra_data: ExtraData,
 ): Promise<boolean> {
   let game_is_won = false;
   let gameId = record.info.gameID;
@@ -404,6 +418,16 @@ async function handle_game_update(
         let isAliveBit = update.isAlive ? 1 : 0;
         let isConnectedBit = !update.isDisconnected ? 1 : 0;
         let player_status = isAliveBit | (isConnectedBit << 1);
+
+        let disconnected_at = extra_data.players_disconnected_on_turn[update.id];
+        if(disconnected_at) {
+            if(disconnected_at + 15 < gu.tick) {
+                // Player has been disconnected for more than 15 ticks, don't save them to db.
+                continue;
+            }
+        } else if(gu.tick > 301, update.isDisconnected && !disconnected_at) {
+            extra_data.players_disconnected_on_turn[update.id] = gu.tick;
+        }
 
         // On tick 300, insert the player data
         if (gu.tick === 300) {
@@ -636,7 +660,9 @@ try {
             LIMIT 1
         )
         UPDATE analysis_queue aq
-        SET status = 'Running'
+        SET
+            status = 'Running',
+            started_unix_sec = EXTRACT(EPOCH FROM NOW())
         FROM my_job
         WHERE aq.game_id = my_job.game_id
         RETURNING my_job.game_id, my_job.result_json
@@ -655,6 +681,17 @@ try {
         console.log(
           `Analysis for game ${game.game_id} completed in ${time_taken} ms. Game winner:`,
               record.info.winner
+        );
+
+        // Update analysis_queue table with the game_id and status 'Completed'
+        await p.query(
+          `
+          UPDATE analysis_queue
+          SET
+              status = 'Completed'
+          WHERE game_id = $1
+          `,
+          [game.game_id],
         );
       }
 
