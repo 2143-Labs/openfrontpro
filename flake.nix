@@ -53,7 +53,7 @@
         packages.container = pkgs.dockerTools.buildLayeredImage {
           name = "openfrontpro";
           contents = [
-            frontend.outputs.packages.${system}.default
+            #frontend.outputs.packages.${system}.default
             rust.outputs.packages.${system}.default
             pkgs.cacert
             pkgs.bashInteractive
@@ -69,7 +69,7 @@
             EntryPoint = [ "${rust.outputs.packages.${system}.default}/bin/openfrontpro" ];
             Env = [
               "RUST_LOG=info"
-              "FRONTEND_FOLDER=${frontend.outputs.packages.${system}.default}"
+              #"FRONTEND_FOLDER=${frontend.outputs.packages.${system}.default}"
             ];
             #Cmd = [ "openfrontpro" ];
           };
