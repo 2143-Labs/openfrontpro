@@ -58,6 +58,9 @@ struct Config {
     #[clap(long, env, default_value = "https://openfront.io/api/public_lobbies")]
     pub openfront_lobby_url: String,
 
+    #[clap(long, env, default_value = "https://api.openfront.io")]
+    pub openfront_api_url: String,
+
     #[clap(long, env, default_value = "./frontend")]
     pub frontend_folder: String,
 
@@ -300,21 +303,8 @@ impl ReqwestErrorHandlingExtension for reqwest::Response {
     }
 }
 
-async fn get_new_games(cfg: &Config) -> anyhow::Result<Vec<Lobby>> {
-    let mut base = reqwest::Client::new().get(&cfg.openfront_lobby_url);
-    if let Some(ref useragent) = cfg.useragent {
-        base = base.header(reqwest::header::USER_AGENT, useragent);
-    }
-    if let Some(ref cookie) = cfg.cookie {
-        base = base.header(reqwest::header::COOKIE, cookie);
-    }
-
-    let new_games = base
-        .send()
-        .await?
-        .anyhow_error_json::<PublicLobbiesResponse>()
-        .await?;
-
+async fn get_new_games(ofapi: &impl OpenFrontAPI, cfg: &Config) -> anyhow::Result<Vec<Lobby>> {
+    let new_games = ofapi.get_lobbies().await?;
     Ok(new_games.lobbies)
 }
 
@@ -395,11 +385,11 @@ fn now_unix_sec() -> i64 {
         .as_secs() as i64
 }
 
-async fn look_for_new_games(database: PgPool, cfg: &Config) -> anyhow::Result<()> {
+async fn look_for_new_games(ofapi: &impl OpenFrontAPI, database: PgPool, cfg: &Config) -> anyhow::Result<()> {
     let mut expected_to_be_new_game_next_check = true;
     let mut last_game_id = String::new();
     loop {
-        let new_games = get_new_games(cfg).await?;
+        let new_games = get_new_games(ofapi, cfg).await?;
         let first = new_games.first().context("No new games found...")?;
 
         if first.game_id != last_game_id {
@@ -473,11 +463,8 @@ enum GameStatus {
     NotFound,
 }
 
-async fn check_if_game_finished(game_id: &str) -> anyhow::Result<GameStatus> {
-    let finished = reqwest::get(format!("https://api.openfront.io/game/{}", game_id))
-        .await?
-        .json::<serde_json::Value>()
-        .await?;
+async fn check_if_game_finished(ofapi: &impl OpenFrontAPI, game_id: &str) -> anyhow::Result<GameStatus> {
+    let finished = ofapi.get_game_json(game_id).await?;
 
     if finished.get("error").is_some() {
         if finished["error"] == "Not found" {
@@ -551,7 +538,54 @@ async fn save_finished_game(
     Ok(())
 }
 
-async fn look_for_finished_games(database: PgPool) -> anyhow::Result<()> {
+trait OpenFrontAPI: Clone + Send + Sync {
+    fn get_game_json(&self, game_id: &str) -> impl Future<Output = anyhow::Result<serde_json::Value>> + Send;
+    fn get_lobbies(&self) -> impl Future<Output = anyhow::Result<PublicLobbiesResponse>> + Send;
+}
+
+impl OpenFrontAPI for Config {
+    async fn get_game_json(&self, game_id: &str) -> anyhow::Result<serde_json::Value> {
+        let url = format!("{}/game/{}", self.openfront_api_url, game_id);
+
+        let finished = reqwest::get(url)
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
+
+        Ok(finished)
+    }
+
+    async fn get_lobbies(&self) -> anyhow::Result<PublicLobbiesResponse> {
+        let mut base = reqwest::Client::new().get(&self.openfront_lobby_url);
+        if let Some(ref useragent) = self.useragent {
+            base = base.header(reqwest::header::USER_AGENT, useragent);
+        }
+        if let Some(ref cookie) = self.cookie {
+            base = base.header(reqwest::header::COOKIE, cookie);
+        }
+
+        let new_games = base
+            .send()
+            .await?
+            .anyhow_error_json::<PublicLobbiesResponse>()
+            .await?;
+
+        Ok(new_games)
+    }
+}
+
+impl OpenFrontAPI for std::sync::Arc<Config> {
+    fn get_game_json(&self, game_id: &str) -> impl Future<Output = anyhow::Result<serde_json::Value>> + Send {
+        self.as_ref().get_game_json(game_id)
+    }
+
+    fn get_lobbies(&self) -> impl Future<Output = anyhow::Result<PublicLobbiesResponse>> + Send {
+        self.as_ref().get_lobbies()
+    }
+}
+
+
+async fn look_for_finished_games(ofapi: &impl OpenFrontAPI, database: PgPool) -> anyhow::Result<()> {
     loop {
         let unfinished_games = sqlx::query!(
             "SELECT
@@ -573,7 +607,7 @@ async fn look_for_finished_games(database: PgPool) -> anyhow::Result<()> {
 
         for game in unfinished_games {
             let game_id = &game.game_id;
-            let finish_status = check_if_game_finished(game_id).await?;
+            let finish_status = check_if_game_finished(ofapi, game_id).await?;
             save_finished_game(database.clone(), finish_status, game_id).await?;
         }
 
@@ -609,6 +643,7 @@ async fn look_for_finished_games(database: PgPool) -> anyhow::Result<()> {
 /// );
 
 async fn look_for_new_games_in_analysis_queue(
+    ofapi: &impl OpenFrontAPI,
     database: PgPool,
     cfg: &Config,
 ) -> anyhow::Result<()> {
@@ -639,7 +674,7 @@ async fn look_for_new_games_in_analysis_queue(
             continue;
         };
 
-        let result_maybe = check_if_game_finished(&game.game_id).await?;
+        let result_maybe = check_if_game_finished(ofapi, &game.game_id).await?;
         save_finished_game(database.clone(), result_maybe.clone(), &game.game_id).await?;
 
         // Update the analysis queue:
@@ -810,30 +845,6 @@ async fn game_handler(
     Ok(Json(lobby.result_json))
 }
 
-//CREATE TABLE public.analysis_queue (
-//game_id CHAR(8) NOT NULL,
-//requesting_user_id CHAR(10),
-//requested_unix_sec BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()),
-//started_unix_sec BIGINT,
-//status analysis_queue_status NOT NULL DEFAULT 'Pending',
-//FOREIGN KEY (requesting_user_id) REFERENCES social.registered_users(id) ON DELETE CASCADE
-//);
-//
-//CREATE TYPE analysis_queue_status AS ENUM (
-//'Pending',
-//'Running',
-//'Completed',
-//'Failed',
-//'Stalled',
-//'Cancelled',
-//'CompletedAlready'
-//);
-//
-// On analyze call: insert
-// On delete call, set status to cancelled
-// On analyze call, if already in queue for your user, return 409 Conflict
-//
-
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema, sqlx::Type)]
 #[sqlx(type_name = "analysis_queue_status")]
 enum AnalysisQueueStatus {
@@ -979,12 +990,14 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("Listening on http://{}", listener.local_addr()?);
 
+
     let db = database.clone();
     let cfg = config.clone();
+    let ofapi = config.clone();
     tokio::spawn(async move {
         let mut backoff = 0;
         loop {
-            if let Err(e) = look_for_new_games(db.clone(), &cfg).await {
+            if let Err(e) = look_for_new_games(&ofapi, db.clone(), &cfg).await {
                 tracing::error!("Error looking for new games: {}", e);
                 tokio::time::sleep(tokio::time::Duration::from_secs(5 + backoff.min(11) * 5)).await;
                 backoff += 1;
@@ -995,10 +1008,12 @@ async fn main() -> anyhow::Result<()> {
     });
 
     let db = database.clone();
+    let cfg = config.clone();
+    let ofapi = config.clone();
     tokio::spawn(async move {
         let mut backoff = 0;
         loop {
-            if let Err(e) = look_for_finished_games(db.clone()).await {
+            if let Err(e) = look_for_finished_games(&ofapi, db.clone()).await {
                 tracing::error!("Error looking for finished games: {}", e);
                 tokio::time::sleep(tokio::time::Duration::from_secs(5 + backoff.min(11) * 5)).await;
                 backoff += 1;
@@ -1010,10 +1025,11 @@ async fn main() -> anyhow::Result<()> {
 
     let db = database.clone();
     let cfg = config.clone();
+    let ofapi = config.clone();
     tokio::spawn(async move {
         let mut backoff = 0;
         loop {
-            if let Err(e) = look_for_new_games_in_analysis_queue(db.clone(), &cfg).await {
+            if let Err(e) = look_for_new_games_in_analysis_queue(&ofapi, db.clone(), &cfg).await {
                 tracing::error!("Error looking for new games: {}", e);
                 tokio::time::sleep(tokio::time::Duration::from_secs(5 + backoff.min(11) * 5)).await;
                 backoff += 1;
@@ -1031,8 +1047,6 @@ async fn main() -> anyhow::Result<()> {
 
     anyhow::bail!("Server stopped unexpectedly");
 }
-
-
 
 #[cfg(test)]
 mod test2 {
