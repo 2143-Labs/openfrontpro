@@ -5,104 +5,9 @@ use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Row, postgres::PgRow};
 use std::fmt::Display;
 
-/// Enum representing different player team configurations in a game
-#[derive(Debug, Clone, serde::Serialize, JsonSchema)]
-#[serde(tag = "group")]
-pub enum PlayerTeams {
-    Ffa,
-    Teams { num_teams: u8 },
-    Parties { party_size: u8 },
-}
+use crate::database::player_teams::PlayerTeams;
 
-impl PlayerTeams {
-    pub fn from_str_or_int(s: &StringOrInt) -> Option<Self> {
-        if let StringOrInt::String(f) = &s {
-            return match f.as_ref() {
-                "Duos" => Some(PlayerTeams::Parties { party_size: 2 }),
-                "Trios" => Some(PlayerTeams::Parties { party_size: 3 }),
-                "Quads" => Some(PlayerTeams::Parties { party_size: 4 }),
-                _ => None,
-            };
-        } else if let StringOrInt::Int(i) = s {
-            return Some(PlayerTeams::Teams {
-                num_teams: *i as u8,
-            });
-        }
-
-        None
-    }
-}
-
-struct PlayerTeamsVisitor;
-
-impl<'de> serde::de::Visitor<'de> for PlayerTeamsVisitor {
-    type Value = PlayerTeams;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("an integer representing the number of teams or parties")
-    }
-
-    fn visit_i32<E>(self, value: i32) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(PlayerTeams::from(value))
-    }
-}
-
-impl<'d> serde::Deserialize<'d> for PlayerTeams {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'d>,
-    {
-        deserializer.deserialize_i32(PlayerTeamsVisitor)
-    }
-}
-
-impl From<i32> for PlayerTeams {
-    fn from(num_teams: i32) -> Self {
-        if num_teams == 0 {
-            PlayerTeams::Ffa
-        } else if num_teams < 0 {
-            PlayerTeams::Parties {
-                party_size: -num_teams as u8,
-            }
-        } else {
-            PlayerTeams::Teams {
-                num_teams: num_teams as u8,
-            }
-        }
-    }
-}
-
-impl From<PlayerTeams> for i32 {
-    fn from(teams: PlayerTeams) -> Self {
-        match teams {
-            PlayerTeams::Ffa => 0,
-            PlayerTeams::Teams { num_teams } => num_teams as _,
-            PlayerTeams::Parties { party_size } => -(party_size as i32),
-        }
-    }
-}
-
-impl sqlx::Decode<'_, sqlx::Postgres> for PlayerTeams {
-    fn decode(
-        value: sqlx::postgres::PgValueRef<'_>,
-    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-        let s: i32 = sqlx::decode::Decode::<sqlx::Postgres>::decode(value)?;
-        Ok(PlayerTeams::from(s))
-    }
-}
-
-impl Display for PlayerTeams {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PlayerTeams::Ffa => write!(f, "FFA"),
-            PlayerTeams::Teams { num_teams } => write!(f, "{num_teams} Teams"),
-            PlayerTeams::Parties { party_size } => write!(f, "Parties of {party_size}"),
-        }
-    }
-}
+mod player_teams;
 
 /// Enum representing a value that can be either a string or an integer
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
@@ -122,6 +27,7 @@ impl Display for StringOrInt {
 }
 
 /// Game configuration structure representing lobby settings
+/// To get the teams configurtion in rust, use [`Self::teams`]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, sqlx::FromRow, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct GameConfig {
@@ -141,18 +47,21 @@ pub struct GameConfig {
 }
 
 impl GameConfig {
-    pub fn player_teams(&self) -> PlayerTeams {
+    pub fn teams(&self) -> PlayerTeams {
         if let Some(ref teams) = self.player_teams {
+            // Teams is either a string like Quads, Duos or a number like 4
             PlayerTeams::from_str_or_int(teams).unwrap()
         } else {
-            PlayerTeams::Ffa
+            /// teams: null = FFA
+            PlayerTeams::FFA
         }
     }
 }
 
 /// Database entry for lobby information including configuration
+/// used in list lobby by id
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, sqlx::FromRow, JsonSchema)]
-pub struct LobbyDBEntry {
+pub struct APIGetLobbyWithConfig {
     pub game_id: String,
     pub teams: PlayerTeams,
     pub max_players: i32,
@@ -167,9 +76,9 @@ pub struct LobbyDBEntry {
     pub analysis_complete: bool,
 }
 
-/// Database entry for lobby information without configuration JSON
+/// Database entry for lobby information without used in the list lobbies API
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, sqlx::FromRow, JsonSchema)]
-pub struct LobbyDBEntryNoConfig {
+pub struct APIGetLobby {
     pub game_id: String,
     pub teams: PlayerTeams,
     pub max_players: i32,
@@ -183,13 +92,13 @@ pub struct LobbyDBEntryNoConfig {
     pub analysis_complete: bool,
 }
 
-impl<'a> sqlx::FromRow<'a, sqlx::postgres::PgRow> for LobbyDBEntryNoConfig {
+impl<'a> sqlx::FromRow<'a, sqlx::postgres::PgRow> for APIGetLobby {
     fn from_row(row: &'a sqlx::postgres::PgRow) -> Result<Self, sqlx::Error> {
         use sqlx::Row;
         let teams_val: i32 = row.try_get("teams")?;
         let teams = PlayerTeams::from(teams_val);
 
-        Ok(LobbyDBEntryNoConfig {
+        Ok(APIGetLobby {
             game_id: row.try_get("game_id")?,
             teams,
             max_players: row.try_get("max_players")?,
@@ -198,19 +107,20 @@ impl<'a> sqlx::FromRow<'a, sqlx::postgres::PgRow> for LobbyDBEntryNoConfig {
             first_seen_unix_sec: row.try_get("first_seen_unix_sec")?,
             last_seen_unix_sec: row.try_get("last_seen_unix_sec")?,
             completed: row.try_get("completed")?,
+            // This field must be joined from the analysis table
             analysis_complete: row.try_get("analysis_complete!")?,
         })
     }
 }
 
-impl LobbyDBEntry {
+impl APIGetLobbyWithConfig {
     pub fn lobby_config(&self) -> GameConfig {
         serde_json::from_value(self.lobby_config_json.clone())
             .expect("Invalid lobby config JSON in database")
     }
 }
 
-/// Enum representing the status of analysis queue items
+/// Enum representing the status of analysis queue entries: TODO implement all these
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema, sqlx::Type)]
 #[sqlx(type_name = "analysis_queue_status")]
 pub enum AnalysisQueueStatus {
@@ -226,7 +136,7 @@ pub enum AnalysisQueueStatus {
 
 /// Database entry for finished games
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
-pub struct FinshedGameDBEntry {
+pub struct APIFinishedGame {
     pub game_id: String,
     pub result_json: serde_json::Value,
     pub inserted_at_unix_sec: i64,

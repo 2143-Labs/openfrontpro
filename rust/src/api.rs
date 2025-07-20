@@ -23,23 +23,8 @@ use std::sync::Arc;
 use crate::Config;
 use anyhow::Result;
 
-use crate::database::{FinshedGameDBEntry, GameConfig, LobbyDBEntry, LobbyDBEntryNoConfig};
+use crate::database::{APIGetLobbies, FinshedGameDBEntry, GameConfig, LobbyDBEntryNoConfig};
 use crate::utils::ReqwestErrorHandlingExtension;
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct PublicLobbiesResponse {
-    pub lobbies: Vec<Lobby>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct Lobby {
-    #[serde(rename = "gameID")]
-    pub game_id: String,
-    pub num_clients: i32,
-    pub game_config: GameConfig,
-    pub ms_until_start: u64,
-}
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 struct LobbyQueryParams {
@@ -55,7 +40,7 @@ async fn lobbies_id_handler(
     Extension(database): Extension<PgPool>,
     Query(params): Query<LobbyQueryParams>,
     Path(id): Path<String>,
-) -> Result<Json<LobbyDBEntry>, Response> {
+) -> Result<Json<APIGetLobbies>, Response> {
     let d = sqlx::query_as!(
         LobbyDBEntry,
         r#"SELECT
@@ -241,8 +226,25 @@ pub async fn open_api_json(Extension(api): Extension<OpenApi>) -> impl aide::axu
     Json(api)
 }
 
-#[mockall::automock]
+/// Response from openfront.io/public/lobbies
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PublicLobbiesResponse {
+    pub lobbies: Vec<Lobby>,
+}
 
+/// See [`PublicLobbiesResponse`]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Lobby {
+    #[serde(rename = "gameID")]
+    pub game_id: String,
+    pub num_clients: i32,
+    pub game_config: GameConfig,
+    pub ms_until_start: u64,
+}
+
+#[mockall::automock]
+/// Trait for OpenFront API interactions
 pub trait OpenFrontAPI {
     fn get_game_json(&self, game_id: &str) -> impl Future<Output = Result<Value>> + Send;
     fn get_lobbies(&self) -> impl Future<Output = Result<PublicLobbiesResponse>> + Send;

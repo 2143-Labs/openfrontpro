@@ -1,4 +1,3 @@
-// BEGIN API
 use aide::axum::ApiRouter;
 use anyhow::Result;
 use axum::{Extension, Json, extract::Query, response::Response};
@@ -96,4 +95,3 @@ pub fn routes() -> ApiRouter {
     ApiRouter::new()
     // OAuth routes will be added here
 }
-// END API

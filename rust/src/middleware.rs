@@ -1,4 +1,3 @@
-// BEGIN UTILS
 use axum::{
     body::Body,
     http::{Request, StatusCode},
@@ -49,4 +48,3 @@ impl<B> OnResponse<B> for LogOnResponse {
         info!(">{ts_formatted} {status} ({ms}ms)",);
     }
 }
-// END UTILS

@@ -6,7 +6,7 @@ use sqlx::PgPool;
 use std::{sync::Arc, time::Duration};
 
 use crate::{
-    AnalysisQueueStatus, Config, GameConfig, OpenFrontAPI, PlayerTeams,
+    AnalysisQueueStatus, Config, GameConfig, OpenFrontAPI,
     api::{Lobby, PublicLobbiesResponse},
     database::now_unix_sec,
 };
@@ -54,7 +54,7 @@ pub async fn look_for_new_games(
             last_game_id = first.game_id.clone();
         }
 
-        let player_teams_as_int: i32 = first.game_config.player_teams().into();
+        let player_teams_as_int: i32 = first.game_config.teams().into();
 
         sqlx::query!(
             "INSERT INTO
@@ -90,7 +90,7 @@ pub async fn look_for_new_games(
             "Lobby {} {} ({}) has {}/{} players. Starts in {}ms. Next check in {}ms.",
             first.game_id,
             first.game_config.game_map,
-            first.game_config.player_teams(),
+            first.game_config.teams(),
             first.num_clients,
             first.game_config.max_players,
             first.ms_until_start,
