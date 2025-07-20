@@ -62,8 +62,8 @@
           #ln -s ${packages.my-husky}/bin/husky $out/bin/husky
         };
 
-        packages.simulator-node = pkgs.buildNpmPackage {
-          pname = "openfront-simulator";
+        packages.simulator-npm-package = pkgs.buildNpmPackage {
+          pname = "openfronter-sim";
           version = "0.1.0";
           buildInputs = [
             pkgs.nodejs_24
@@ -78,6 +78,8 @@
             npmConfigHook = pkgs.importNpmLock.npmConfigHook;
             dontNpmPrune = true;
         };
-      }
+
+        packages.simulator-node = "TODO"; # how do I make simulator-npm-package an executable package?
+        }
     );
 }
