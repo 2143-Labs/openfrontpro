@@ -76,7 +76,7 @@
             npmRoot = packages.simulator-base;
           };
             npmConfigHook = pkgs.importNpmLock.npmConfigHook;
-
+            dontNpmPrune = true;
         };
       }
     );
