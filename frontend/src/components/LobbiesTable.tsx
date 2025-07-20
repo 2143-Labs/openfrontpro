@@ -104,7 +104,18 @@ const LobbiesTable: React.FC<LobbiesTableProps> = ({ lobbies }) => {
                   </span>
                 </td>
                 <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
-                  {lobby.teams ? lobby.teams : 'FFA'}
+                  {(() => {
+                    if (!lobby.teams) return 'FFA';
+                    if (typeof lobby.teams === 'object' && 'group' in lobby.teams) {
+                      const teams = lobby.teams as any;
+                      if (teams.group === 'FFA') return 'FFA';
+                      if (teams.group === 'Parties') return `Parties (${teams.party_size})`;
+                      if (teams.group === 'Teams') return `${teams.num_teams} Teams`;
+                      return teams.group;
+                    }
+                    return lobby.teams;
+                  })()
+                  }
                 </td>
                 <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
                   <span style={{

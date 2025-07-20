@@ -1,7 +1,11 @@
 // Types for lobby data
 export interface Lobby {
   game_id: string;
-  teams: number | null;
+  teams: number | null | {
+    group: 'FFA' | 'Parties' | 'Teams';
+    party_size?: number;
+    num_teams?: number;
+  };
   max_players: number;
   game_map: string;
   approx_num_players: number;
