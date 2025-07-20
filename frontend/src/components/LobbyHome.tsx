@@ -13,6 +13,8 @@ function LobbyHome() {
     setAfterFilter,
     mapFilter,
     setMapFilter,
+    teamFilter,
+    setTeamFilter,
     showActiveOnly,
     setShowActiveOnly,
     sortBy,
@@ -56,6 +58,8 @@ function LobbyHome() {
             setAfterFilter={setAfterFilter}
             mapFilter={mapFilter}
             setMapFilter={setMapFilter}
+            teamFilter={teamFilter}
+            setTeamFilter={setTeamFilter}
             lobbies={lobbies}
           />
           

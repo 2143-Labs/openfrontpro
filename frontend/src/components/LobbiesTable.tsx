@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lobby } from '../types';
 import { getGameStatus, getTimeAgo } from '../utils';
+import { getPlayerTeams, formatPlayerTeams } from '../utils/teams';
 import { markGameForAnalysis, unmarkGameForAnalysis } from '../services/api';
 
 interface LobbiesTableProps {
@@ -105,15 +106,8 @@ const LobbiesTable: React.FC<LobbiesTableProps> = ({ lobbies }) => {
                 </td>
                 <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
                   {(() => {
-                    if (!lobby.teams) return 'FFA';
-                    if (typeof lobby.teams === 'object' && 'group' in lobby.teams) {
-                      const teams = lobby.teams as any;
-                      if (teams.group === 'FFA') return 'FFA';
-                      if (teams.group === 'Parties') return `Parties (${teams.party_size})`;
-                      if (teams.group === 'Teams') return `${teams.num_teams} Teams`;
-                      return teams.group;
-                    }
-                    return lobby.teams;
+                    const playerTeams = getPlayerTeams(lobby);
+                    return formatPlayerTeams(playerTeams);
                   })()
                   }
                 </td>

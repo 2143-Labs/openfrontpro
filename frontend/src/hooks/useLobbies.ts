@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Lobby, SortBy } from '../types';
 import { fetchLobbies } from '../services/api';
+import { getPlayerTeams, formatPlayerTeams } from '../utils/teams';
 
 export const useLobbies = () => {
   const [lobbies, setLobbies] = useState<Lobby[]>([]);
@@ -9,6 +10,7 @@ export const useLobbies = () => {
   const [completedFilter, setCompletedFilter] = useState<boolean | null>(null);
   const [afterFilter, setAfterFilter] = useState<number | null>(null);
   const [mapFilter, setMapFilter] = useState<string>('');
+  const [teamFilter, setTeamFilter] = useState<string>('');
   const [showActiveOnly, setShowActiveOnly] = useState(false);
   const [sortBy, setSortBy] = useState<SortBy>('last_seen');
 
@@ -41,6 +43,14 @@ export const useLobbies = () => {
       filtered = lobbies.filter(lobby => !lobby.completed);
     }
     
+    // Filter by team type if selected
+    if (teamFilter) {
+      filtered = filtered.filter(lobby => {
+        const playerTeams = getPlayerTeams(lobby);
+        return playerTeams ? formatPlayerTeams(playerTeams) === teamFilter : false;
+      });
+    }
+    
     // Sort lobbies
     const sorted = [...filtered].sort((a, b) => {
       switch (sortBy) {
@@ -61,7 +71,7 @@ export const useLobbies = () => {
   // Fetch lobbies on component mount and when filters change
   useEffect(() => {
     loadLobbies();
-  }, [completedFilter, afterFilter, mapFilter]);
+  }, [completedFilter, afterFilter, mapFilter, teamFilter]);
 
   return {
     lobbies,
@@ -73,6 +83,8 @@ export const useLobbies = () => {
     setAfterFilter,
     mapFilter,
     setMapFilter,
+    teamFilter,
+    setTeamFilter,
     showActiveOnly,
     setShowActiveOnly,
     sortBy,

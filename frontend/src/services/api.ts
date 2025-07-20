@@ -30,8 +30,11 @@ export const fetchLobbies = async (params: FetchLobbiesParams = {}): Promise<Lob
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   
-  const data = await response.json();
-  return Array.isArray(data) ? data : [];
+  const raw = await response.json();
+  const data = Array.isArray(raw) ? raw : [];
+  
+  // Return lobbies with standardized PlayerTeams type
+  return data;
 };
 
 export const markGameForAnalysis = async (gameId: string) => {

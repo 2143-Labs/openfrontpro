@@ -1,5 +1,6 @@
 import React from 'react';
 import { Lobby } from '../types';
+import { getPlayerTeams, formatPlayerTeams } from '../utils/teams';
 
 interface FilterControlsProps {
   completedFilter: boolean | null;
@@ -8,6 +9,8 @@ interface FilterControlsProps {
   setAfterFilter: (filter: number | null) => void;
   mapFilter: string;
   setMapFilter: (filter: string) => void;
+  teamFilter: string;
+  setTeamFilter: (filter: string) => void;
   lobbies: Lobby[];
 }
 
@@ -18,12 +21,15 @@ const FilterControls: React.FC<FilterControlsProps> = ({
   setAfterFilter,
   mapFilter,
   setMapFilter,
+  teamFilter,
+  setTeamFilter,
   lobbies
 }) => {
   const clearAllFilters = () => {
     setCompletedFilter(null);
     setAfterFilter(null);
     setMapFilter('');
+    setTeamFilter('');
   };
 
   return (
@@ -103,6 +109,25 @@ const FilterControls: React.FC<FilterControlsProps> = ({
           <option value=''>All Maps</option>
           {Array.from(new Set(lobbies.map(lobby => lobby.game_map))).sort().map(map => (
             <option key={map} value={map}>{map}</option>
+          ))}
+        </select>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <label style={{ fontWeight: 'bold', color: '#495057' }}>Teams:</label>
+        <select 
+          value={teamFilter} 
+          onChange={(e) => setTeamFilter(e.target.value)}
+          style={{ 
+            padding: '6px 12px', 
+            borderRadius: '4px', 
+            border: '1px solid #ced4da',
+            fontSize: '0.9em'
+          }}
+        >
+          <option value=''>All Teams</option>
+          {Array.from(new Set(lobbies.map(lobby => formatPlayerTeams(getPlayerTeams(lobby)!)))).sort().map(team => (
+            <option key={team} value={team}>{team}</option>
           ))}
         </select>
       </div>
