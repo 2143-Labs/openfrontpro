@@ -25,19 +25,17 @@
 
         packages.openfrontpro = naersk-lib.buildPackage {
           src = ./.;
-          pname = "openfrontpro";
+          pname = "openfrontpro-rs";
         };
-
-        packages.openfront-frontend = frontend.outputs.packages.${system}.default;
 
         # This exists to act like the docker image, except only as a nix executable.
         # It only has two inputs, packages.openfrontpro and packages.openfront-frontend.
         packages.bundle = pkgs.stdenv.mkDerivation {
-          name = "openfrontpro";
+          name = "openfrontpro-bundle";
             inherit (packages.openfrontpro) version src;
             buildInputs = [
                 packages.openfrontpro
-                packages.openfront-frontend
+                frontend.outputs.packages.${system}.default
                 pkgs.cacert
                 pkgs.bashInteractive
                 pkgs.coreutils
@@ -48,7 +46,7 @@
               mkdir -p $out/bin
               cp ${packages.openfrontpro}/bin/openfrontpro $out/bin/
               wrapProgram $out/bin/openfrontpro \
-                --set FRONTEND_FOLDER ${packages.openfront-frontend} \
+                --set FRONTEND_FOLDER ${frontend.outputs.packages.${system}.default} \
                 --set RUST_LOG info
             '';
         };

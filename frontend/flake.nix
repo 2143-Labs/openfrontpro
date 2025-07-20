@@ -24,6 +24,7 @@
           '';
         };
 
+        packages.default = packages.frontend-node;
         packages.frontend-node = pkgs.buildNpmPackage {
           pname = "openfront-frontend";
           version = "0.1.0";
@@ -42,8 +43,6 @@
             cp -r dist/* $out/
           '';
         };
-
-        packages.default = packages.frontend-node;
       }
     );
 }
