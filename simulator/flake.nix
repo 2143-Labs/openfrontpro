@@ -35,6 +35,7 @@
           '';
         };
 
+        # TODO Switch to bun when it is more stable
         packages.simulator-bun = pkgs.callPackage ./. {
           inherit (bun2nix.lib.${system}) mkBunDerivation;
           inherit pkgs;
@@ -73,6 +74,9 @@
           npmDeps = pkgs.importNpmLock {
             npmRoot = packages.simulator-base;
           };
+          npmFlags = [
+            "--ignore-scripts"
+            ];
             npmConfigHook = pkgs.importNpmLock.npmConfigHook;
 
         };
