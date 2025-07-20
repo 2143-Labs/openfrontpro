@@ -500,7 +500,7 @@ async function handle_game_update(
           e,
         );
       }
-      console.log(`T${gu.tick}: Update for ${key} (${enum_value}):`, up);
+      //console.log(`T${gu.tick}: Update for ${key} (${enum_value}):`, up);
     }
 
     if (enum_value === GameUpdateType.Win) {
@@ -609,27 +609,52 @@ try {
   await p.connect();
   console.log("Connected to database");
 
-  let res = await p.query(
-    `
-    SELECT
-        fg.game_id, fg.result_json, 
-    FROM
-        finished_games fg
-        INNER JOIN analysis_queue aq
-    ON
-        aq.game_id = fg.game_id
-    LIMIT 10`,
-  );
-  console.log("Games: ", res.rows);
+  for(;;) {
+      // Old query: Select 10 jobs from the db
+      // SELECT
+      //     fg.game_id, fg.result_json
+      // FROM
+      //     finished_games fg
+      //     INNER JOIN analysis_queue aq
+      // ON
+      //     aq.game_id = fg.game_id
+      // LIMIT 10`,
+      //
+      // Select 1 job from DB by updating a single row from the analysis_queue table (INNER JOIN with finished_games)
+      // We set the analysis_status to 'Running' and then select the game_id and result_json
+      let res = await p.query(
+        `
+        UPDATE
+            analysis_queue aq
+        SET
+            status = 'Running'
+        FROM
+            finished_games fg
+        WHERE
+            aq.game_id = fg.game_id
+            AND aq.status = 'Pending'
+        RETURNING
+            fg.game_id, fg.result_json
+        `
+      );
+      console.log("Games: ", res.rows);
 
-  for (let game of res.rows) {
-    console.log("Game ID: ", game.game_id);
-    let r = game.result_json as GameRecord;
-    let record = decompressGameRecord(r);
+      for (let game of res.rows) {
+        console.log("Game ID: ", game.game_id);
+        let r = game.result_json as GameRecord;
+        let record = decompressGameRecord(r);
 
-    console.log("Game Winner: ", record.info.winner);
-    let analysis = await simgame(game.game_id, record, p);
-    console.log(analysis.spawns);
+        let time_now = Date.now();
+        let analysis = await simgame(game.game_id, record, p);
+        let time_taken = Date.now() - time_now;
+
+        console.log(
+          `Analysis for game ${game.game_id} completed in ${time_taken} ms. Game winner:`,
+              record.info.winner
+        );
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 5000));
   }
 } catch (e) {
   console.error("Error: ", e);
