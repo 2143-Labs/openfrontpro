@@ -81,7 +81,7 @@
           ];
 
           config = {
-            ExposedPorts = { "3000/tcp" = { }; };
+            #ExposedPorts = { "3000/tcp" = { }; };
             EntryPoint = [ "bun" ];
             Env = [
               #"RUST_LOG=info"

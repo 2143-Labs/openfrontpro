@@ -1,12 +1,13 @@
 {
-  "name": "openfronter",
+  "name": "openfronter-sim",
   "version": "1.0.0",
-  "description": "An OpenFront.io match parser and data analytics engine.",
-  "main": "src/index.ts",
+  "description": "Openfront.pro simulator server",
+  "main": "src/ListGames.ts",
   "scripts": {
     "start": "bun src/ListGames.ts",
     "generate-nix": "bun2nix > bun.nix"
   },
+  "module": "src/ListGames.ts",
   "type": "module",
   "keywords": [],
   "author": "John2143",

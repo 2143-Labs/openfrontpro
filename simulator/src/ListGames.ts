@@ -622,6 +622,7 @@ function change_big_int_to_string_recursively(obj: any): any {
 
 export let base_log = new Logger();
 
+async function main() {
 try {
   let p = new Pool({
     port: 5432,
@@ -700,3 +701,6 @@ try {
 } catch (e) {
   console.error("Error: ", e);
 }
+}
+
+main();
