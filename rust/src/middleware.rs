@@ -38,14 +38,17 @@ impl<B> OnResponse<B> for LogOnResponse {
         _latency: std::time::Duration,
         _span: &Span,
     ) {
-        //let _ent = _span.enter();
-        //let status = response.status();
-        ////let ts_formatted = ts_formatted();
+        let _ent = _span.enter();
+        let status = response.status();
+        //let ts_formatted = ts_formatted();
 
-        //let us = latency.as_micros();
-        //let ms = (us / 100) as f32 / 10.0;
-        //// Log also the method and path from the prev
-        //// Use tracing to get the span value
-        //info!(">{status} ({ms}ms)",);
+        let us = latency.as_micros();
+        let ms = (us / 100) as f32 / 10.0;
+
+        // Log also the method and path from the prev
+        // Use tracing to get the span value
+        if ms > 4 {
+            info!(">{status} ({ms}ms)",);
+        }
     }
 }
