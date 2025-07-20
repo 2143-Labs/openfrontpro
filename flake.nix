@@ -54,6 +54,7 @@
           name = "openfrontpro";
           contents = [
             packages.backend
+            frontend.outputs.packages.${system}.default
           ];
 
           config = {
