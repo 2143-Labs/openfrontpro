@@ -8,10 +8,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    frontend = {
-      url = "path:./frontend";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    #frontend = {
+      #url = "path:./frontend";
+      #inputs.nixpkgs.follows = "nixpkgs";
+    #};
 
     simulator = {
       url = "path:./simulator";
