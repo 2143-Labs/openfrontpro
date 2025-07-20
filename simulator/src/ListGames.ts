@@ -612,7 +612,7 @@ try {
   let res = await p.query(
     `
     SELECT
-        fg.game_id, fg.result_json, 
+        fg.game_id, fg.result_json
     FROM
         finished_games fg
         INNER JOIN analysis_queue aq
