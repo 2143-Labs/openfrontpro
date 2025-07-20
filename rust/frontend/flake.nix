@@ -11,7 +11,7 @@
       in rec {
         devShells.default = pkgs.mkShell {
           buildInputs = [
-            pkgs.nodejs
+            pkgs.nodejs_24
             pkgs.nodePackages.eslint
             pkgs.nodePackages.typescript-language-server
             pkgs.nodePackages.typescript
@@ -24,7 +24,24 @@
           '';
         };
 
-        # packages.frontend-node = TODO: Add nix script to build frontend with node. 
+        packages.frontend-node = pkgs.buildNpmPackage {
+          pname = "openfront-frontend";
+          version = "0.1.0";
+          buildInputs = [
+            pkgs.nodejs_24
+          ];
+
+          src = ./.;
+          npmDeps = pkgs.importNpmLock {
+            npmRoot = ./.;
+          };
+          npmConfigHook = pkgs.importNpmLock.npmConfigHook;
+
+          installPhase = ''
+            mkdir -p $out
+            cp -r dist/* $out/
+          '';
+        };
 
         packages.default = packages.frontend-node;
       }
