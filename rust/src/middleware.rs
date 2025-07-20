@@ -34,8 +34,8 @@ pub struct LogOnResponse;
 impl<B> OnResponse<B> for LogOnResponse {
     fn on_response(
         self,
-        _response: &axum::http::Response<B>,
-        _latency: std::time::Duration,
+        response: &axum::http::Response<B>,
+        latency: std::time::Duration,
         _span: &Span,
     ) {
         let _ent = _span.enter();
@@ -47,7 +47,7 @@ impl<B> OnResponse<B> for LogOnResponse {
 
         // Log also the method and path from the prev
         // Use tracing to get the span value
-        if ms > 4 {
+        if ms > 4.0 {
             info!(">{status} ({ms}ms)",);
         }
     }
