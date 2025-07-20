@@ -23,6 +23,7 @@ jobs:
         with:
           name: john2143
           authToken: ${{ secrets.CACHIX_TOKEN }}
+          github_access_token: ${{ secrets.PAT_PACKAGES }}
 
       - name: Building package
         run: |
