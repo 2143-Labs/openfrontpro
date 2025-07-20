@@ -624,20 +624,24 @@ try {
       // We set the analysis_status to 'Running' and then select the game_id and result_json
       let res = await p.query(
         `
-        UPDATE
-            analysis_queue aq
-        SET
-            status = 'Running'
-        FROM
-            finished_games fg
-        WHERE
-            aq.game_id = fg.game_id
-            AND aq.status = 'Pending'
-        RETURNING
-            fg.game_id, fg.result_json
+        WITH my_job AS (
+            SELECT
+                fg.game_id, fg.result_json
+            FROM
+                finished_games fg
+                INNER JOIN analysis_queue aq
+                ON aq.game_id = fg.game_id
+            WHERE
+                aq.status = 'Pending'
+            LIMIT 1
+        )
+        UPDATE analysis_queue aq
+        SET status = 'Running'
+        FROM my_job
+        WHERE aq.game_id = my_job.game_id
+        RETURNING my_job.game_id, my_job.result_json
         `
       );
-      console.log("Games: ", res.rows);
 
       for (let game of res.rows) {
         console.log("Game ID: ", game.game_id);
