@@ -11,9 +11,12 @@ aide = { version = "0.15.0", features = ["axum", "axum-extra", "axum-json", "axu
 anyhow = { version = "1.0.98", features = ["backtrace"] }
 axum = { version = "0.8.4", features = ["tracing", "multipart", "json", "ws"] }
 base64 = "0.22.1"
+chrono = "0.4.41"
 clap = { version = "4.5.41", features = ["derive", "env"] }
 futures = "0.3.31"
+include_dir = "0.7.4"
 indoc = "2.0.6"
+mockall = "0.13.1"
 paste = "1.0.15"
 rand = "0.9.1"
 regex = "1.11.1"
@@ -25,7 +28,7 @@ sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio", "uuid"] }
 sqlx-core = "0.8.6"
 tokio = { version = "1.46.1", features = ["full"] }
 tower = { version = "0.5.2", features = ["util", "limit"] }
-tower-http = { version = "0.6.6", features = ["cors", "fs", "set-header"] }
+tower-http = { version = "0.6.6", features = ["cors", "fs", "set-header", "normalize-path", "trace"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 urlencoding = "2.1.3"

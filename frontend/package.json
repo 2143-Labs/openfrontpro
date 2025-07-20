@@ -1,22 +1,53 @@
 {
-  "name": "typescript-pnpm-template",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.ts",
+  "name": "openfront-frontend",
+  "version": "0.1.0",
+  "description": "OpenFronter frontend using Vite and Bun",
+  "type": "module",
+  "main": "src/main.tsx",
+  "module": "src/main.tsx",
+  "files": [
+    "src/**/*",
+    "extra_assets/**/*",
+    "dist/**/*"
+  ],
   "scripts": {
-    "start": "webpack serve --open"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite",
+    "serve": "vite preview",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ui": "vitest --ui",
+    "type-check": "tsc --noEmit",
+    "postinstall": ""
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "frontend",
+    "vite",
+    "bun",
+    "react"
+  ],
+  "author": "OpenFronter Team",
+  "license": "MIT",
   "dependencies": {
-    "typescript": "^5.4.3"
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@types/react-router-dom": "^5.3.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "lodash": "^4.17.21",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.7.0",
+    "typescript": "^5.4.3",
+    "vite": "^7.0.5"
   },
   "devDependencies": {
-    "@types/node": "^24.0.14",
-    "ts-loader": "^9.5.1",
-    "webpack": "^5.91.0",
-    "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^5.0.4"
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@types/lodash": "^4.17.0",
+    "@vitest/ui": "^3.2.4",
+    "jsdom": "^26.1.0",
+    "vitest": "^3.2.4"
   }
 }
