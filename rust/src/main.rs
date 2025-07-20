@@ -76,6 +76,30 @@ pub struct Config {
     pub disable_tasks: Vec<ActiveTasks>,
 }
 
+pub struct OAuthBundle {
+    client_id: String,
+    client_secret: String,
+    redirect_uri: String,
+}
+
+impl Config {
+    pub fn get_discord_oauth(&self) -> Option<OAuthBundle> {
+        if let (Some(client_id), Some(client_secret)) = (
+            self.discord_client_id.clone(),
+            self.discord_client_secret.clone(),
+        ) {
+            Some(OAuthBundle {
+                client_id,
+                client_secret,
+                redirect_uri: self.discord_redirect_uri.clone(),
+            })
+        } else {
+            None
+        }
+    }
+
+}
+
 #[derive(
     Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema, clap::ValueEnum, PartialEq, Eq,
 )]
@@ -146,7 +170,14 @@ async fn main() -> anyhow::Result<()> {
         //.without_time()
         .init();
 
-    tracing::info!("Starting OpenFront API server! Connecting to database...");
+
+    tracing::info!(config.frontend_folder, "Starting OpenFront API server! Connecting to database...");
+
+    if config.get_discord_oauth().is_some() {
+        tracing::info!("Discord OAuth is enabled");
+    } else {
+        tracing::warn!("Discord OAuth is not enabled, no client ID or secret provided");
+    }
 
     let database = PgPoolOptions::new()
         .min_connections(2)
