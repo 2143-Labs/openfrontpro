@@ -38,7 +38,7 @@ export const fetchLobbies = async (params: FetchLobbiesParams = {}): Promise<Lob
 };
 
 export const markGameForAnalysis = async (gameId: string) => {
-  const url = new URL(`/api/v1/game/${gameId}/analyze`, window.location.origin);
+  const url = new URL(`/api/v1/games/${gameId}/analyze`, window.location.origin);
   const res = await fetch(url.toString(), { method: 'POST' });
   if (!res.ok) {
     throw new Error(`HTTP error! status: ${res.status}`);
@@ -46,7 +46,7 @@ export const markGameForAnalysis = async (gameId: string) => {
 };
 
 export const unmarkGameForAnalysis = async (gameId: string) => {
-  const url = new URL(`/api/v1/game/${gameId}/analyze`, window.location.origin);
+  const url = new URL(`/api/v1/games/${gameId}/analyze`, window.location.origin);
   const res = await fetch(url.toString(), { method: 'DELETE' });
   if (!res.ok) {
     throw new Error(`HTTP error! status: ${res.status}`);
