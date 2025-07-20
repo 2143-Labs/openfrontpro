@@ -25,10 +25,7 @@ jobs:
 
       - name: Building package
         run: |
-          #nix flake lock ./rust/frontend
-          #nix flake lock ./rust
-          nix build ./frontend
-          nix build ./rust#container
+          nix build .#container
       - name: Install skopeo
         run: sudo apt-get install -y skopeo
       - name: Push with skopeo
