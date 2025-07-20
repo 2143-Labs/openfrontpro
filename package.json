@@ -4,26 +4,24 @@
   "description": "An OpenFront.io match parser and data analytics engine.",
   "main": "src/index.ts",
   "scripts": {
-    "start": "bun src/ListGames.ts",
-    "generate-nix": "bun2nix > bun.nix"
+    "start": "node --loader ts-node/esm --experimental-specifier-resolution=node src/as.ts",
+    "build": "tsc",
+    "build:watch": "tsc --watch"
   },
-  "type": "module",
   "keywords": [],
   "author": "John2143",
   "license": "ISC",
   "dependencies": {
+    "openfront-client": "file:./OpenFrontIO/",
     "@eslint/compat": "^1.2.7",
     "@eslint/js": "^9.21.0",
     "@types/node": "^22.10.2",
     "@types/pg": "^8.11.11",
     "@types/ws": "^8.5.11",
     "chai": "^5.1.1",
-    "openfront-client": "file:../OpenFrontIO/",
-    "pg": "^8.16.3",
-    "tsx": "^4.20.3",
+    "ts-node": "^10.9.2",
     "typescript": "^5.7.2",
-    "typescript-eslint": "^8.26.0",
-    "winston": "^3.17.0"
+    "typescript-eslint": "^8.26.0"
   },
   "devDependencies": {
     "zod": "^3.25.28"

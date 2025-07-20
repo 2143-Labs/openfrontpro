@@ -28,6 +28,7 @@ jobs:
       - name: Building package
         run: |
           nix build .#container
+
       - name: Install skopeo
         run: sudo apt-get install -y skopeo
       - name: Push with skopeo
@@ -43,5 +44,24 @@ jobs:
             skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.repo }}:openfronter-rs-branch-${{ github.head_ref }}
           else
             skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.repo }}:openfronter-rs-latest
+          fi
+
+
+      - name: Building sim package
+        run: |
+          nix build .#container-sim
+
+      - name: Push sim with skopeo
+        run: |
+          ls -la ./result
+          RESULT=$(readlink -f ./result)
+          echo "Result path: $RESULT"
+          IMAGE_TAG=$(date +%Y%m%d_%H%M)
+          skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.repo }}:openfronter-sim-${IMAGE_TAG}
+          # if not pull request, then also push as latest
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.repo }}:openfronter-sim-branch-${{ github.head_ref }}
+          else
+            skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.repo }}:openfronter-sim-latest
           fi
 
