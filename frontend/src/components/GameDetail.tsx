@@ -135,7 +135,7 @@ function GameDetail() {
     );
   }
 
-  const playerTeams = getPlayerTeams(game);
+  const playerTeams = game.teams || { group: 'FFA' }; // Default to FFA if null
   const status = getGameStatus(game, 0);
 
   return (
@@ -187,7 +187,7 @@ function GameDetail() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div><strong>Map:</strong> {game.game_map}</div>
               <div><strong>Players:</strong> {game.approx_num_players}/{game.max_players}</div>
-              <div><strong>Teams:</strong> {playerTeams ? formatPlayerTeams(playerTeams) : 'Unknown'}</div>
+              <div><strong>Teams:</strong> {formatPlayerTeams(playerTeams)}</div>
               <div><strong>Status:</strong> 
                 <span style={{
                   marginLeft: '8px',
@@ -235,21 +235,15 @@ function GameDetail() {
           }}>
             <h2>Team Details</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {playerTeams ? (
-                <>
-                  <div><strong>Team Structure:</strong> {formatPlayerTeams(playerTeams)}</div>
-                  {playerTeams.group === 'Teams' && (
-                    <div><strong>Number of Teams:</strong> {playerTeams.num_teams}</div>
-                  )}
-                  {playerTeams.group === 'Parties' && (
-                    <div><strong>Party Size:</strong> {playerTeams.party_size}</div>
-                  )}
-                  {playerTeams.group === 'FFA' && (
-                    <div><strong>Game Mode:</strong> Free for All (no teams)</div>
-                  )}
-                </>
-              ) : (
-                <div>Team information not available</div>
+              <div><strong>Team Structure:</strong> {formatPlayerTeams(playerTeams)}</div>
+              {playerTeams.group === 'Teams' && (
+                <div><strong>Number of Teams:</strong> {playerTeams.num_teams}</div>
+              )}
+              {playerTeams.group === 'Parties' && (
+                <div><strong>Party Size:</strong> {playerTeams.party_size}</div>
+              )}
+              {playerTeams.group === 'FFA' && (
+                <div><strong>Game Mode:</strong> Free for All (no teams)</div>
               )}
             </div>
           </section>

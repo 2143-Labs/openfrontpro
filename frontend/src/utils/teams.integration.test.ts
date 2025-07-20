@@ -229,7 +229,9 @@ describe('Teams Integration - PlayerTeams Format', () => {
       const display = formatPlayerTeams(teams!);
 
       expect(teams?.group).toBe('Teams');
-      expect(teams?.num_teams).toBe(4);
+      if (teams?.group === 'Teams') {
+        expect(teams.num_teams).toBe(4);
+      }
       expect(display).toBe('4 Teams');
     });
 
@@ -250,7 +252,9 @@ describe('Teams Integration - PlayerTeams Format', () => {
       const display = formatPlayerTeams(teams!);
 
       expect(teams?.group).toBe('Parties');
-      expect(teams?.party_size).toBe(3);
+      if (teams?.group === 'Parties') {
+        expect(teams.party_size).toBe(3);
+      }
       expect(display).toBe('Parties (3)');
     });
   });
