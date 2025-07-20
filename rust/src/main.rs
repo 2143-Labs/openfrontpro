@@ -1,5 +1,5 @@
 #![allow(unused)]
-use std::{fmt::Display, net::SocketAddr, str::FromStr};
+use std::{fmt::Display, net::SocketAddr, str::FromStr, sync::Arc, time::Duration};
 
 mod oauth;
 
@@ -418,11 +418,11 @@ fn now_unix_sec() -> i64 {
         .as_secs() as i64
 }
 
-async fn look_for_new_games(ofapi: &impl OpenFrontAPI, database: PgPool, cfg: &Config) -> anyhow::Result<()> {
+async fn look_for_new_games(ofapi: impl OpenFrontAPI, database: PgPool, cfg: std::sync::Arc<Config>) -> anyhow::Result<()> {
     let mut expected_to_be_new_game_next_check = true;
     let mut last_game_id = String::new();
     loop {
-        let new_games = get_new_games(ofapi, cfg).await?;
+        let new_games = get_new_games(&ofapi, &*cfg).await?;
         let first = new_games.first().context("No new games found...")?;
 
         if first.game_id != last_game_id {
@@ -496,7 +496,7 @@ enum GameStatus {
     NotFound,
 }
 
-async fn check_if_game_finished(ofapi: &impl OpenFrontAPI, game_id: &str) -> anyhow::Result<GameStatus> {
+async fn check_if_game_finished(ofapi: impl OpenFrontAPI, game_id: &str) -> anyhow::Result<GameStatus> {
     let finished = ofapi.get_game_json(game_id).await?;
 
     if finished.get("error").is_some() {
@@ -572,6 +572,7 @@ async fn save_finished_game(
 }
 
 #[mockall::automock]
+
 trait OpenFrontAPI {
     fn get_game_json(&self, game_id: &str) -> impl Future<Output = anyhow::Result<serde_json::Value>> + Send;
     fn get_lobbies(&self) -> impl Future<Output = anyhow::Result<PublicLobbiesResponse>> + Send;
@@ -608,45 +609,135 @@ impl OpenFrontAPI for Config {
     }
 }
 
-impl OpenFrontAPI for std::sync::Arc<Config> {
+impl<T> OpenFrontAPI for &T where
+    T: OpenFrontAPI + ?Sized,
+{
     fn get_game_json(&self, game_id: &str) -> impl Future<Output = anyhow::Result<serde_json::Value>> + Send {
-        self.as_ref().get_game_json(game_id)
+        T::get_game_json(self, game_id)
     }
 
     fn get_lobbies(&self) -> impl Future<Output = anyhow::Result<PublicLobbiesResponse>> + Send {
-        self.as_ref().get_lobbies()
+        T::get_lobbies(self)
+    }
+}
+
+impl<T> OpenFrontAPI for Arc<T> where T: OpenFrontAPI + ?Sized,
+{
+    fn get_game_json(&self, game_id: &str) -> impl Future<Output = anyhow::Result<serde_json::Value>> + Send {
+        T::get_game_json(self, game_id)
+    }
+
+    fn get_lobbies(&self) -> impl Future<Output = anyhow::Result<PublicLobbiesResponse>> + Send {
+        T::get_lobbies(self)
     }
 }
 
 
-async fn look_for_finished_games(ofapi: &impl OpenFrontAPI, database: PgPool) -> anyhow::Result<()> {
-    loop {
-        let unfinished_games = sqlx::query!(
-            "SELECT
-                game_id
-            FROM lobbies
-            WHERE
-                completed = false
-                AND last_seen_unix_sec < extract(epoch from (NOW() - INTERVAL '15 minutes'))
-                -- AND last_seen_unix_sec > extract(epoch from (NOW() - INTERVAL '2 hours'))
-            "
-        )
-        .fetch_all(&database)
-        .await?;
+async fn look_for_lobby_games(
+    ofapi: impl OpenFrontAPI,
+    database: PgPool,
+    cfg: std::sync::Arc<Config>,
+) -> anyhow::Result<()> {
+    let unfinished_games = sqlx::query!(
+        "SELECT
+            game_id
+        FROM lobbies
+        WHERE
+            completed = false
+            AND last_seen_unix_sec < extract(epoch from (NOW() - INTERVAL '15 minutes'))
+            -- AND last_seen_unix_sec > extract(epoch from (NOW() - INTERVAL '2 hours'))
+        "
+    )
+    .fetch_all(&database)
+    .await?;
 
-        tracing::info!(
-            "Found {} unfinished games, checking if they are finished...",
-            unfinished_games.len()
-        );
+    tracing::info!(
+        "Found {} unfinished games, checking if they are finished...",
+        unfinished_games.len()
+    );
 
-        for game in unfinished_games {
-            let game_id = &game.game_id;
-            let finish_status = check_if_game_finished(ofapi, game_id).await?;
-            save_finished_game(database.clone(), finish_status, game_id).await?;
-        }
-
-        tokio::time::sleep(tokio::time::Duration::from_secs(60 * 5)).await;
+    for game in unfinished_games {
+        let game_id = &game.game_id;
+        let finish_status = check_if_game_finished(&ofapi, game_id).await?;
+        save_finished_game(database.clone(), finish_status, game_id).await?;
     }
+
+    Ok(())
+}
+
+enum BackoffStrategy {
+    Exponential {
+        start: Duration,
+        increment: Duration,
+        power: f64,
+        max_stacks: usize,
+    },
+    Linear {
+        start: Duration,
+        increment: Duration,
+        max_stacks: usize,
+    },
+}
+
+impl BackoffStrategy {
+    fn next_backoff(&self, current: usize) -> Duration {
+        match *self {
+            BackoffStrategy::Exponential { start, increment, max_stacks, power } => {
+                let stacks = current.min(max_stacks);
+                let wait_secs = (stacks as f64).powf(power) as u32;
+                start + increment * wait_secs
+            }
+            BackoffStrategy::Linear { start, increment, max_stacks } => {
+                let stacks = current.min(max_stacks);
+                start + increment * stacks as u32
+            }
+        }
+    }
+}
+
+
+struct TaskSettings {
+    sleep_time: Duration,
+    backoff_strategy: BackoffStrategy,
+}
+
+impl Default for BackoffStrategy {
+    fn default() -> Self {
+        BackoffStrategy::Linear {
+            start: Duration::from_secs(5),
+            increment: Duration::from_secs(5),
+            max_stacks: 10,
+        }
+    }
+}
+
+impl Default for TaskSettings {
+    fn default() -> Self {
+        TaskSettings {
+            sleep_time: Duration::from_secs(60), // 1 minute
+            backoff_strategy: BackoffStrategy::default(),
+        }
+    }
+}
+
+fn keep_task_alive<F, R>(
+    mut task: F,
+    task_settings: TaskSettings,
+) where F: FnMut() -> R + Send + 'static, R: Future<Output = anyhow::Result<()>> + Send{
+    tokio::spawn(async move {
+
+        let mut backoff = 0;
+        loop {
+            if let Err(e) = task().await {
+                tracing::error!("Task failed: {}", e);
+                tokio::time::sleep(task_settings.backoff_strategy.next_backoff(backoff)).await;
+                backoff += 1;
+            } else {
+                backoff = 0;
+            }
+            tokio::time::sleep(task_settings.sleep_time).await;
+        }
+    });
 }
 
 /// CREATE TABLE IF NOT EXISTS finished_games (
@@ -675,49 +766,57 @@ async fn look_for_finished_games(ofapi: &impl OpenFrontAPI, database: PgPool) ->
 ///     status analysis_queue_status NOT NULL DEFAULT 'Pending',
 ///     FOREIGN KEY (requesting_user_id) REFERENCES social.registered_users(id) ON DELETE CASCADE
 /// );
-
+///
 async fn look_for_new_games_in_analysis_queue(
+    ofapi: impl OpenFrontAPI,
+    database: PgPool,
+    cfg: std::sync::Arc<Config>,
+) -> anyhow::Result<()> {
+    while look_for_new_game_in_analysis_queue(&ofapi, database.clone(), &*cfg).await? {
+        // Keep looking for new games until there are none left.
+        tokio::time::sleep(Duration::from_secs(2)).await;
+    }
+
+    Ok(())
+}
+async fn look_for_new_game_in_analysis_queue(
     ofapi: &impl OpenFrontAPI,
     database: PgPool,
     cfg: &Config,
-) -> anyhow::Result<()> {
-    loop {
-        // Look for games in the analysis queue that we don't have in the finished_games table yet.
-        let new_games = sqlx::query!(
-            r#"
-            SELECT
-                aq.game_id, aq.requesting_user_id
-            FROM
-                analysis_queue aq
-                LEFT JOIN finished_games fg
-                ON aq.game_id = fg.game_id
-            WHERE
-                fg.game_id IS NULL
-                AND aq.status = 'Pending'
-            ORDER BY
-                aq.requested_unix_sec ASC
-            LIMIT 1
-            "#
-        )
-        .fetch_optional(&database)
-        .await?;
+) -> anyhow::Result<bool> {
+    // Look for games in the analysis queue that we don't have in the finished_games table yet.
+    let new_games = sqlx::query!(
+        r#"
+        SELECT
+            aq.game_id, aq.requesting_user_id
+        FROM
+            analysis_queue aq
+            LEFT JOIN finished_games fg
+            ON aq.game_id = fg.game_id
+        WHERE
+            fg.game_id IS NULL
+            AND aq.status = 'Pending'
+        ORDER BY
+            aq.requested_unix_sec ASC
+        LIMIT 1
+        "#
+    )
+    .fetch_optional(&database)
+    .await?;
 
-        let Some(game) = new_games else {
-            tracing::info!("No new games in analysis queue, checking again in 10 seconds.");
-            tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-            continue;
-        };
+    let Some(game) = new_games else {
+        return Ok(false);
+    };
 
-        let result_maybe = check_if_game_finished(ofapi, &game.game_id).await?;
-        save_finished_game(database.clone(), result_maybe.clone(), &game.game_id).await?;
+    let result_maybe = check_if_game_finished(ofapi, &game.game_id).await?;
+    // Maybe update the analysis queue.
+    let maybe_new_db_status = match result_maybe {
+        GameStatus::Finished(_) => None,
+        GameStatus::Error(_) => Some(AnalysisQueueStatus::Failed),
+        GameStatus::NotFound => Some(AnalysisQueueStatus::NotFound),
+    };
 
-        // Update the analysis queue:
-        let new_db_status = match result_maybe {
-            GameStatus::Finished(_) => AnalysisQueueStatus::Completed,
-            GameStatus::Error(_) => AnalysisQueueStatus::Failed,
-            GameStatus::NotFound => AnalysisQueueStatus::NotFound,
-        };
-
+    if let Some(new_db_status) = maybe_new_db_status {
         sqlx::query!(
             "UPDATE analysis_queue SET status = $2 WHERE game_id = $1",
             game.game_id,
@@ -726,7 +825,12 @@ async fn look_for_new_games_in_analysis_queue(
         .execute(&database)
         .await?;
     }
+
+    save_finished_game(database.clone(), result_maybe.clone(), &game.game_id).await?;
+
+    Ok(true)
 }
+
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
 struct LobbyQueryParams {
@@ -1028,50 +1132,38 @@ async fn main() -> anyhow::Result<()> {
     let db = database.clone();
     let cfg = config.clone();
     let ofapi = config.clone();
-    tokio::spawn(async move {
-        let mut backoff = 0;
-        loop {
-            if let Err(e) = look_for_new_games(&ofapi, db.clone(), &cfg).await {
-                tracing::error!("Error looking for new games: {}", e);
-                tokio::time::sleep(tokio::time::Duration::from_secs(5 + backoff.min(11) * 5)).await;
-                backoff += 1;
-            } else {
-                backoff = 0;
-            }
-        }
-    });
+    keep_task_alive(
+        move || look_for_new_games(ofapi.clone(), db.clone(), cfg.clone()),
+        TaskSettings {
+            sleep_time: tokio::time::Duration::ZERO,
+            ..Default::default()
+        },
+    );
 
     let db = database.clone();
     let cfg = config.clone();
     let ofapi = config.clone();
-    tokio::spawn(async move {
-        let mut backoff = 0;
-        loop {
-            if let Err(e) = look_for_finished_games(&ofapi, db.clone()).await {
-                tracing::error!("Error looking for finished games: {}", e);
-                tokio::time::sleep(tokio::time::Duration::from_secs(5 + backoff.min(11) * 5)).await;
-                backoff += 1;
-            } else {
-                backoff = 0;
-            }
-        }
-    });
+    keep_task_alive(
+        move || look_for_new_games_in_analysis_queue(ofapi.clone(), db.clone(), cfg.clone()),
+        TaskSettings {
+            sleep_time: tokio::time::Duration::from_secs(5),
+            ..Default::default()
+        },
+    );
 
     let db = database.clone();
     let cfg = config.clone();
     let ofapi = config.clone();
-    tokio::spawn(async move {
-        let mut backoff = 0;
-        loop {
-            if let Err(e) = look_for_new_games_in_analysis_queue(&ofapi, db.clone(), &cfg).await {
-                tracing::error!("Error looking for new games: {}", e);
-                tokio::time::sleep(tokio::time::Duration::from_secs(5 + backoff.min(11) * 5)).await;
-                backoff += 1;
-            } else {
-                backoff = 0;
-            }
-        }
-    });
+    keep_task_alive(
+        move || look_for_lobby_games(ofapi.clone(), db.clone(), cfg.clone()),
+        TaskSettings {
+            sleep_time: tokio::time::Duration::from_secs(60 * 5),
+            ..Default::default()
+        },
+    );
+
+
+
 
     axum::serve(
         listener,
