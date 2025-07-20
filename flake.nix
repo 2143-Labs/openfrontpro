@@ -43,8 +43,8 @@
             nativeBuildInputs = [ pkgs.makeWrapper ];
             installPhase = ''
               mkdir -p $out/bin
-              cp ${rust.outputs.packages.${system}.default}/bin/openfrontpro $out/bin/
-              wrapProgram $out/bin/openfrontpro \
+              cp ${rust.outputs.packages.${system}.default}/bin/openfrontpro $out/bin/openfrontpro-bundle
+              wrapProgram $out/bin/openfrontpro-bundle \
                 --set FRONTEND_FOLDER ${frontend.outputs.packages.${system}.default} \
                 --set RUST_LOG info
             '';
