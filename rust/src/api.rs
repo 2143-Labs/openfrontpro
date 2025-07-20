@@ -2,10 +2,7 @@
 
 use aide::{axum::ApiRouter, openapi::OpenApi, redoc::Redoc};
 use axum::{
-    Extension, Json,
-    extract::{Path, Query},
-    response::Response,
-    routing::get,
+    extract::{Path, Query}, response::Response, routing::{get, post}, Extension, Json
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -308,7 +305,7 @@ pub fn routes(database: PgPool, _openapi: OpenApi, cors: CorsLayer) -> ApiRouter
         .route("/games/{game_id}", get(game_handler))
         .route(
             "/games/{game_id}/analyze",
-            get(game_analyze_handler).delete(game_analyze_handler_delete),
+            post(game_analyze_handler).delete(game_analyze_handler_delete),
         );
 
     ApiRouter::new()
