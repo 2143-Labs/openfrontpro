@@ -3,13 +3,13 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     utils.url = "github:numtide/flake-utils";
 
-    frontend = {
-      url = "path:./frontend";
+    rust = {
+      url = "path:./rust";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    rust = {
-      url = "path:./rust";
+    frontend = {
+      url = "path:./frontend";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
