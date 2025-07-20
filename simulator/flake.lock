@@ -96,11 +96,29 @@
         "type": "github"
       }
     },
+    "openfrontio_a221fee": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1752805287,
+        "narHash": "sha256-y9XFxody4ySlNNxlCzePMAtCT/S6Rw76n2iQhnwXoS4=",
+        "owner": "OpenFrontIO",
+        "repo": "OpenFrontIO",
+        "rev": "a221fee92146caaefdee8a287e341a18da11716b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "OpenFrontIO",
+        "repo": "OpenFrontIO",
+        "rev": "a221fee92146caaefdee8a287e341a18da11716b",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "bun2nix": "bun2nix",
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs_2"
+        "nixpkgs": "nixpkgs_2",
+        "openfrontio_a221fee": "openfrontio_a221fee"
       }
     },
     "systems": {

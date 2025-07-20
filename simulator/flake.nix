@@ -3,6 +3,11 @@
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     bun2nix.url = "github:baileyluTCD/bun2nix";
+    openfrontio_a221fee = {
+        #commit = "a221fee92146caaefdee8a287e341a18da11716b";
+        url = "github:OpenFrontIO/OpenFrontIO/a221fee92146caaefdee8a287e341a18da11716b";
+        flake = false;
+    };
   };
 
   outputs = inputs:
@@ -19,7 +24,7 @@
             pkgs.nodePackages.eslint
             pkgs.nodePackages.typescript
             pkgs.pnpm_10
-            packages.my-husky
+            #packages.my-husky
             # Add the bun2nix binary to our devshell
             bun2nix.packages.${system}.default
           ];
@@ -30,62 +35,47 @@
           '';
         };
 
-        packages.my-husky = pkgs.writeShellScriptBin "husky" ''
-          echo "Dummy Husky"
-        '';
-
         packages.simulator-bun = pkgs.callPackage ./. {
           inherit (bun2nix.lib.${system}) mkBunDerivation;
           inherit pkgs;
         };
 
-        packages.default = packages.simulator;
+        packages.default = packages.simulator-node;
+
+        # we need to combine the flake input openfrontio_a221fee with the simulator package
+        packages.simulator-base = pkgs.stdenv.mkDerivation {
+          pname = "openfront-simulator-base";
+          version = "0.1.0";
+          src = ./.;
+          buildInputs = [
+          ];
+
+          installPhase = ''
+            mkdir -p $out/OpenFrontIO/
+            cp -r ${inputs.openfrontio_a221fee}/* $out/OpenFrontIO/
+            cp -r * $out/
+            # add husky as a globally callable command
+            mkdir -p $out/bin
+          '';
+          #ln -s ${packages.my-husky}/bin/husky $out/bin/husky
+        };
+
         packages.simulator-node = pkgs.buildNpmPackage {
           pname = "openfront-simulator";
           version = "0.1.0";
           buildInputs = [
             pkgs.nodejs_24
-            packages.my-husky
+            packages.simulator-base
           ];
 
-          src = ./.;
+          # We also need to include submodules here:
+          src = packages.simulator-base;
           npmDeps = pkgs.importNpmLock {
-            npmRoot = ./.;
+            npmRoot = packages.simulator-base;
           };
-          npmConfigHook = pkgs.importNpmLock.npmConfigHook;
+            npmConfigHook = pkgs.importNpmLock.npmConfigHook;
 
-          installPhase = ''
-            mkdir -p $out
-            cp -r src/* $out/
-          '';
         };
-
-        packages.simulator = pkgs.stdenv.mkDerivation (finalAttrs: {
-          pname = "openfront-simulator";
-          src = ./.;
-          version = "0.1.0";
-          buildInputs = [
-            pkgs.nodejs_24
-            pkgs.pnpm_10
-            packages.my-husky
-          ];
-          nativeBuildInputs = [
-            #pkgs.makeWrapper
-            pkgs.pnpm_10.configHook
-          ];
-          pnpmDeps = pkgs.pnpm_10.fetchDeps {
-            inherit (finalAttrs) pname version src;
-            hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
-          };
-
-
-          #installPhase = ''
-            #mkdir -p $out/bin
-            #cp ${packages.simulator-node}/bin/openfront-simulator $out/bin/openfront-simulator
-            #wrapProgram $out/bin/openfront-simulator \
-              #--set RUST_LOG info
-          #'';
-        });
       }
     );
 }
