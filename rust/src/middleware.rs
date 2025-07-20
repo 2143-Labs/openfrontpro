@@ -1,12 +1,12 @@
 use axum::http::Request;
-use chrono::Utc;
+//use chrono::Utc;
 use tower_http::trace::{OnRequest, OnResponse};
 use tracing::{Span, info};
 
 /// Current date and time as YYYY/MM/DD HH:MM:SST00:00 using chrono crate
-fn ts_formatted() -> String {
-    Utc::now().format("%Y/%m/%d %H:%M:%ST%z").to_string()
-}
+//fn ts_formatted() -> String {
+    //Utc::now().format("%Y/%m/%d %H:%M:%ST%z").to_string()
+//}
 
 #[derive(Clone)]
 pub struct LogOnRequest;
@@ -15,14 +15,12 @@ impl<B> OnRequest<B> for LogOnRequest {
         let method = request.method().clone();
         let path = request.uri().path().to_string();
 
-        let ts_formatted = ts_formatted();
-        _span.record("method", &method.to_string());
-        _span.record("path", &path);
+        //let ts_formatted = ts_formatted();
         let _ = _span.enter();
         if let Some(query) = request.uri().query() {
-            info!("<{ts_formatted} {method} {path}?{query}",);
+            info!("<{method} {path}?{query}",);
         } else {
-            info!("<{ts_formatted} {method} {path}",);
+            info!("<{method} {path}",);
         }
     }
 }
@@ -36,12 +34,14 @@ impl<B> OnResponse<B> for LogOnResponse {
         latency: std::time::Duration,
         _span: &Span,
     ) {
-        let _ = _span.enter();
+        let _ent = _span.enter();
         let status = response.status();
-        let ts_formatted = ts_formatted();
+        //let ts_formatted = ts_formatted();
 
         let us = latency.as_micros();
         let ms = (us / 100) as f32 / 10.0;
-        info!(">{ts_formatted} {status} ({ms}ms)",);
+        // Log also the method and path from the prev
+        // Use tracing to get the span value
+        info!(">{status} ({ms}ms)",);
     }
 }
