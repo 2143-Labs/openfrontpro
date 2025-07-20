@@ -20,7 +20,7 @@
 
           shellHook = ''
             echo "Frontend development shell"
-            echo "Run 'yarn install' to install dependencies"
+            echo "Run 'npm install' to install dependencies"
           '';
         };
 
