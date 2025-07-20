@@ -67,7 +67,11 @@ struct Config {
     #[clap(long, env)]
     pub discord_client_secret: Option<String>,
 
-    #[clap(long, env, default_value = "http://localhost:3000/auth/discord/callback")]
+    #[clap(
+        long,
+        env,
+        default_value = "http://localhost:3000/auth/discord/callback"
+    )]
     pub discord_redirect_uri: String,
 }
 
@@ -86,12 +90,8 @@ struct PublicLobbiesResponse {
 #[serde(tag = "group")]
 enum PlayerTeams {
     FFA,
-    Teams {
-        num_teams: u8
-    },
-    Parties {
-        party_size: u8
-    },
+    Teams { num_teams: u8 },
+    Parties { party_size: u8 },
 }
 // PlayerTeams fromStr:
 impl PlayerTeams {
@@ -101,16 +101,17 @@ impl PlayerTeams {
                 "Duos" => Some(PlayerTeams::Parties { party_size: 2 }),
                 "Trios" => Some(PlayerTeams::Parties { party_size: 3 }),
                 "Quads" => Some(PlayerTeams::Parties { party_size: 4 }),
-                _ => None
+                _ => None,
             };
         } else if let StringOrInt::Int(i) = s {
-            return Some(PlayerTeams::Teams { num_teams: *i as u8 });
+            return Some(PlayerTeams::Teams {
+                num_teams: *i as u8,
+            });
         }
 
         None
     }
 }
-
 
 struct PlayerTeamsVisitor;
 
@@ -143,9 +144,13 @@ impl From<i32> for PlayerTeams {
         if num_teams == 0 {
             PlayerTeams::FFA
         } else if num_teams < 0 {
-            PlayerTeams::Parties { party_size: -num_teams as u8 }
+            PlayerTeams::Parties {
+                party_size: -num_teams as u8,
+            }
         } else {
-            PlayerTeams::Teams { num_teams: num_teams as u8 }
+            PlayerTeams::Teams {
+                num_teams: num_teams as u8,
+            }
         }
     }
 }
@@ -224,7 +229,7 @@ struct GameConfig {
 }
 
 #[cfg(test)]
-mod test {
+mod test1 {
     use super::*;
 
     #[test]
@@ -304,7 +309,11 @@ async fn get_new_games(cfg: &Config) -> anyhow::Result<Vec<Lobby>> {
         base = base.header(reqwest::header::COOKIE, cookie);
     }
 
-    let new_games = base.send().await?.anyhow_error_json::<PublicLobbiesResponse>().await?;
+    let new_games = base
+        .send()
+        .await?
+        .anyhow_error_json::<PublicLobbiesResponse>()
+        .await?;
 
     Ok(new_games.lobbies)
 }
@@ -323,7 +332,7 @@ struct LobbyDBEntry {
     last_seen_unix_sec: i64,
     completed: bool,
     lobby_config_json: serde_json::Value,
-    analysis_complete: bool
+    analysis_complete: bool,
 }
 
 /// This is put into the database for every lobby we see
@@ -361,7 +370,6 @@ impl<'a> sqlx::FromRow<'a, sqlx::postgres::PgRow> for LobbyDBEntryNoConfig {
         })
     }
 }
-
 
 impl LobbyDBEntry {
     pub fn lobby_config(&self) -> GameConfig {
@@ -453,13 +461,19 @@ async fn look_for_new_games(database: PgPool, cfg: &Config) -> anyhow::Result<()
             first.game_config.max_players,
             first.ms_until_start,
             next_time
-
         );
         tokio::time::sleep(tokio::time::Duration::from_millis(next_time)).await;
     }
 }
 
-async fn check_if_game_finished(game_id: &str) -> anyhow::Result<(serde_json::Value, bool)> {
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema, PartialEq, Eq)]
+enum GameStatus {
+    Finished(serde_json::Value),
+    Error(serde_json::Value),
+    NotFound,
+}
+
+async fn check_if_game_finished(game_id: &str) -> anyhow::Result<GameStatus> {
     let finished = reqwest::get(format!("https://api.openfront.io/game/{}", game_id))
         .await?
         .json::<serde_json::Value>()
@@ -467,8 +481,10 @@ async fn check_if_game_finished(game_id: &str) -> anyhow::Result<(serde_json::Va
 
     if finished.get("error").is_some() {
         if finished["error"] == "Not found" {
-            return Ok((finished, false));
+            return Ok(GameStatus::NotFound);
         }
+
+        return Ok(GameStatus::Error(finished));
     }
 
     if finished.get("gitCommit").is_some() {
@@ -482,12 +498,57 @@ async fn check_if_game_finished(game_id: &str) -> anyhow::Result<(serde_json::Va
             }
         }
 
-        return Ok((finished, true));
+        return Ok(GameStatus::Finished(finished));
     }
 
     tracing::error!("Game {} is in an unknown other state.", game_id);
 
     anyhow::bail!("Game {} is in an unknown state: {:?}", game_id, finished);
+}
+
+async fn save_finished_game(
+    database: PgPool,
+    status: GameStatus,
+    game_id: &str,
+) -> anyhow::Result<()> {
+    let (result_json, is_ok) = match status {
+        GameStatus::Finished(json) => (json, true),
+        GameStatus::Error(json) => (json, false),
+        GameStatus::NotFound => {
+            tracing::info!("Game {} not found, skipping.", game_id);
+            return Ok(());
+        }
+    };
+
+    let mut txn = database.begin().await?;
+    sqlx::query!(
+        "UPDATE lobbies SET completed = true WHERE game_id = $1",
+        game_id
+    )
+    .execute(&mut *txn)
+    .await?;
+
+    sqlx::query!(
+        "INSERT INTO finished_games (game_id, result_json, is_ok) VALUES ($1, $2, $3)",
+        game_id,
+        result_json,
+        is_ok
+    )
+    .execute(&mut *txn)
+    .await?;
+
+    txn.commit().await?;
+
+    let dur_secs = result_json["info"]["duration"].as_i64().unwrap_or(0);
+    let num_turns = result_json["info"]["num_turns"].as_i64().unwrap_or(0);
+    tracing::info!(
+        dur_secs,
+        num_turns,
+        "Game {} is finished. Adding results to db.",
+        game_id
+    );
+
+    Ok(())
 }
 
 async fn look_for_finished_games(database: PgPool) -> anyhow::Result<()> {
@@ -501,7 +562,9 @@ async fn look_for_finished_games(database: PgPool) -> anyhow::Result<()> {
                 AND last_seen_unix_sec < extract(epoch from (NOW() - INTERVAL '15 minutes'))
                 -- AND last_seen_unix_sec > extract(epoch from (NOW() - INTERVAL '2 hours'))
             "
-        ).fetch_all(&database).await?;
+        )
+        .fetch_all(&database)
+        .await?;
 
         tracing::info!(
             "Found {} unfinished games, checking if they are finished...",
@@ -510,44 +573,89 @@ async fn look_for_finished_games(database: PgPool) -> anyhow::Result<()> {
 
         for game in unfinished_games {
             let game_id = &game.game_id;
-            let (result_json, finished) = check_if_game_finished(game_id).await?;
-            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-
-            if !finished {
-                tracing::info!("Game {} is still unfinished.", game_id);
-                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-                continue;
-            }
-
-            let mut txn = database.begin().await?;
-            sqlx::query!(
-                "UPDATE lobbies SET completed = true WHERE game_id = $1",
-                game_id
-            )
-            .execute(&mut *txn)
-            .await?;
-
-            sqlx::query!(
-                "INSERT INTO finished_games (game_id, result_json) VALUES ($1, $2)",
-                game_id,
-                result_json
-            )
-            .execute(&mut *txn)
-            .await?;
-
-            txn.commit().await?;
-
-            let dur_secs = result_json["info"]["duration"].as_i64().unwrap_or(0);
-            let num_turns = result_json["info"]["num_turns"].as_i64().unwrap_or(0);
-            tracing::info!(
-                dur_secs,
-                num_turns,
-                "Game {} is finished. Adding results to db.",
-                game_id
-            );
+            let finish_status = check_if_game_finished(game_id).await?;
+            save_finished_game(database.clone(), finish_status, game_id).await?;
         }
 
         tokio::time::sleep(tokio::time::Duration::from_secs(60 * 5)).await;
+    }
+}
+
+/// CREATE TABLE IF NOT EXISTS finished_games (
+///     game_id CHAR(8) PRIMARY KEY,
+///     result_json JSONB NOT NULL,
+///     is_ok BOOLEAN NOT NULL DEFAULT TRUE,
+///     inserted_at_unix_sec bigint NOT NULL DEFAULT extract(epoch from NOW()),
+///     FOREIGN KEY (game_id) REFERENCES lobbies(game_id) ON DELETE CASCADE
+/// );
+/// CREATE TYPE analysis_queue_status AS ENUM (
+///     'Pending',
+///     'Running',
+///     'Completed',
+///     'NotFound',
+///     'Failed',
+///     'Stalled',
+///     'Cancelled',
+///     'CompletedAlready'
+/// );
+///
+/// CREATE TABLE public.analysis_queue (
+///     game_id CHAR(8) NOT NULL,
+///     requesting_user_id CHAR(10),
+///     requested_unix_sec BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()),
+///     started_unix_sec BIGINT,
+///     status analysis_queue_status NOT NULL DEFAULT 'Pending',
+///     FOREIGN KEY (requesting_user_id) REFERENCES social.registered_users(id) ON DELETE CASCADE
+/// );
+
+async fn look_for_new_games_in_analysis_queue(
+    database: PgPool,
+    cfg: &Config,
+) -> anyhow::Result<()> {
+    loop {
+        // Look for games in the analysis queue that we don't have in the finished_games table yet.
+        let new_games = sqlx::query!(
+            r#"
+            SELECT
+                aq.game_id, aq.requesting_user_id
+            FROM
+                analysis_queue aq
+                LEFT JOIN finished_games fg
+                ON aq.game_id = fg.game_id
+            WHERE
+                fg.game_id IS NULL
+                AND aq.status = 'Pending'
+            ORDER BY
+                aq.requested_unix_sec ASC
+            LIMIT 1
+            "#
+        )
+        .fetch_optional(&database)
+        .await?;
+
+        let Some(game) = new_games else {
+            tracing::info!("No new games in analysis queue, checking again in 10 seconds.");
+            tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+            continue;
+        };
+
+        let result_maybe = check_if_game_finished(&game.game_id).await?;
+        save_finished_game(database.clone(), result_maybe.clone(), &game.game_id).await?;
+
+        // Update the analysis queue:
+        let new_db_status = match result_maybe {
+            GameStatus::Finished(_) => AnalysisQueueStatus::Completed,
+            GameStatus::Error(_) => AnalysisQueueStatus::Failed,
+            GameStatus::NotFound => AnalysisQueueStatus::NotFound,
+        };
+
+        sqlx::query!(
+            "UPDATE analysis_queue SET status = $2 WHERE game_id = $1",
+            game.game_id,
+            new_db_status as AnalysisQueueStatus,
+        )
+        .execute(&database)
+        .await?;
     }
 }
 
@@ -559,7 +667,6 @@ struct LobbyQueryParams {
     after: Option<i64>,
     /// Unix timestamp in seconds
     before: Option<i64>,
-
 }
 async fn lobbies_id_handler(
     Extension(database): Extension<PgPool>,
@@ -579,15 +686,12 @@ async fn lobbies_id_handler(
         id
     );
 
-    let lobby = d
-        .fetch_one(&database)
-        .await
-        .map_err(|e| {
-            axum::response::Response::builder()
-                .status(axum::http::StatusCode::NOT_FOUND)
-                .body(axum::body::Body::from(format!("Lobby not found: {}", e)))
-                .expect("Failed to build response for error message")
-        })?;
+    let lobby = d.fetch_one(&database).await.map_err(|e| {
+        axum::response::Response::builder()
+            .status(axum::http::StatusCode::NOT_FOUND)
+            .body(axum::body::Body::from(format!("Lobby not found: {}", e)))
+            .expect("Failed to build response for error message")
+    })?;
 
     Ok(Json(lobby))
 }
@@ -666,14 +770,14 @@ async fn lobbies_handler(
         .fetch_all(&database)
         .await
         .map_err(|e| {
-            axum::response::Response::builder()
-                .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
-                .body(axum::body::Body::from(format!(
-                    "Database query failed: {}",
-                    e
-                )))
-                .expect("Failed to build response for error message")
-        })?;
+        axum::response::Response::builder()
+            .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+            .body(axum::body::Body::from(format!(
+                "Database query failed: {}",
+                e
+            )))
+            .expect("Failed to build response for error message")
+    })?;
 
     Ok(Json(res))
 }
@@ -707,22 +811,22 @@ async fn game_handler(
 }
 
 //CREATE TABLE public.analysis_queue (
-    //game_id CHAR(8) NOT NULL,
-    //requesting_user_id CHAR(10),
-    //requested_unix_sec BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()),
-    //started_unix_sec BIGINT,
-    //status analysis_queue_status NOT NULL DEFAULT 'Pending',
-    //FOREIGN KEY (requesting_user_id) REFERENCES social.registered_users(id) ON DELETE CASCADE
+//game_id CHAR(8) NOT NULL,
+//requesting_user_id CHAR(10),
+//requested_unix_sec BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()),
+//started_unix_sec BIGINT,
+//status analysis_queue_status NOT NULL DEFAULT 'Pending',
+//FOREIGN KEY (requesting_user_id) REFERENCES social.registered_users(id) ON DELETE CASCADE
 //);
 //
 //CREATE TYPE analysis_queue_status AS ENUM (
-    //'Pending',
-    //'Running',
-    //'Completed',
-    //'Failed',
-    //'Stalled',
-    //'Cancelled',
-    //'CompletedAlready'
+//'Pending',
+//'Running',
+//'Completed',
+//'Failed',
+//'Stalled',
+//'Cancelled',
+//'CompletedAlready'
 //);
 //
 // On analyze call: insert
@@ -736,6 +840,7 @@ enum AnalysisQueueStatus {
     Pending,
     Running,
     Completed,
+    NotFound,
     Failed,
     Stalled,
     Cancelled,
@@ -752,15 +857,18 @@ async fn game_analyze_handler(
          VALUES ($1)
          ON CONFLICT (game_id) DO NOTHING",
         game_id,
-    ).execute(&database).await;
+    )
+    .execute(&database)
+    .await;
 
     match res {
-        Ok(_) => {
-            Ok(())
-        },
+        Ok(_) => Ok(()),
         Err(e) => Err(axum::response::Response::builder()
             .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
-            .body(axum::body::Body::from(format!("Failed to queue analysis: {}", e)))
+            .body(axum::body::Body::from(format!(
+                "Failed to queue analysis: {}",
+                e
+            )))
             .expect("Failed to build response for error message")),
     }
 }
@@ -773,19 +881,21 @@ async fn game_analyze_handler_delete(
     let res = sqlx::query!(
         "UPDATE analysis_queue SET status = 'Cancelled' WHERE game_id = $1",
         game_id,
-    ).execute(&database).await;
+    )
+    .execute(&database)
+    .await;
 
     match res {
         Ok(_) => Ok(()),
         Err(e) => Err(axum::response::Response::builder()
             .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
-            .body(axum::body::Body::from(format!("Failed to cancel analysis: {}", e)))
+            .body(axum::body::Body::from(format!(
+                "Failed to cancel analysis: {}",
+                e
+            )))
             .expect("Failed to build response for error message")),
     }
 }
-
-
-
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 16)]
 async fn main() -> anyhow::Result<()> {
@@ -796,9 +906,7 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("Failed to connect to the database")?;
 
-    sqlx::migrate!("./migrations")
-        .run(&database)
-        .await?;
+    sqlx::migrate!("./migrations").run(&database).await?;
 
     tracing::info!("Migrations applied successfully");
 
@@ -825,9 +933,11 @@ async fn main() -> anyhow::Result<()> {
         .route("/lobbies", axum::routing::get(lobbies_handler))
         .route("/lobbies/{id}", axum::routing::get(lobbies_id_handler))
         .api_route("/games/{game_id}", aide::axum::routing::get(game_handler))
-        .route("/games/{game_id}/analyze", axum::routing::get(game_analyze_handler).delete(game_analyze_handler_delete));
-        //.route("/games/{game_id}/analyze", axum::routing::get(game_analyze_handler).delete(game_analyze_handler_delete))
-
+        .route(
+            "/games/{game_id}/analyze",
+            axum::routing::get(game_analyze_handler).delete(game_analyze_handler_delete),
+        );
+    //.route("/games/{game_id}/analyze", axum::routing::get(game_analyze_handler).delete(game_analyze_handler_delete))
 
     let routes = ApiRouter::new()
         .route("/health", axum::routing::get(|| async { "ok!" }))
@@ -898,6 +1008,21 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
+    let db = database.clone();
+    let cfg = config.clone();
+    tokio::spawn(async move {
+        let mut backoff = 0;
+        loop {
+            if let Err(e) = look_for_new_games_in_analysis_queue(db.clone(), &cfg).await {
+                tracing::error!("Error looking for new games: {}", e);
+                tokio::time::sleep(tokio::time::Duration::from_secs(5 + backoff.min(11) * 5)).await;
+                backoff += 1;
+            } else {
+                backoff = 0;
+            }
+        }
+    });
+
     axum::serve(
         listener,
         fin.into_make_service_with_connect_info::<SocketAddr>(),
@@ -905,4 +1030,17 @@ async fn main() -> anyhow::Result<()> {
     .await?;
 
     anyhow::bail!("Server stopped unexpectedly");
+}
+
+
+
+#[cfg(test)]
+mod test2 {
+    use super::*;
+
+    // SQLX Tests:
+    #[sqlx::test]
+    async fn test_insert_lobby(pool: PgPool) {
+
+    }
 }

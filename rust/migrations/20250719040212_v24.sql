@@ -1,19 +1,7 @@
--- Add migration script here
--- Alter lobbies: Add new column playerTeams
-CREATE TABLE analysis_1.spawn_locations (
-    game_id CHAR(8) NOT NULL,
-    client_id CHAR(8) NOT NULL,
-    x INTEGER NOT NULL,
-    y INTEGER NOT NULL,
-    previous_spawns JSONB DEFAULT '[]',
-    PRIMARY KEY (game_id, client_id),
-    FOREIGN KEY (game_id) REFERENCES public.lobbies(game_id) ON DELETE CASCADE
-);
-
 CREATE SCHEMA social;
 
-
 -- Create a function to generate a random user ID
+-- From stackoverflow
 CREATE OR REPLACE FUNCTION social.generate_user_uid(size INT) RETURNS TEXT AS $$
 DECLARE
   characters TEXT := 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -61,6 +49,7 @@ CREATE TYPE analysis_queue_status AS ENUM (
     'Pending',
     'Running',
     'Completed',
+    'NotFound',
     'Failed',
     'Stalled',
     'Cancelled',

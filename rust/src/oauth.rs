@@ -1,11 +1,11 @@
-use axum::{Extension, Json, extract::Query, response::Response};
-use serde::{Deserialize, Serialize};
-use reqwest::Client;
-use tokio;
-use uuid::Uuid;
-use urlencoding;
 use aide::axum::ApiRouter;
 use anyhow::Result;
+use axum::{Extension, Json, extract::Query, response::Response};
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
+use tokio;
+use urlencoding;
+use uuid::Uuid;
 
 use crate::Config;
 
@@ -21,10 +21,12 @@ impl DiscordOAuthConfig {
     /// Create DiscordOAuthConfig from the main application Config
     pub fn from_env(config: &Config) -> Self {
         Self {
-            client_id: config.discord_client_id
+            client_id: config
+                .discord_client_id
                 .clone()
                 .expect("Discord client ID must be configured"),
-            secret: config.discord_client_secret
+            secret: config
+                .discord_client_secret
                 .clone()
                 .expect("Discord client secret must be configured"),
             redirect_uri: config.discord_redirect_uri.clone(),
@@ -52,8 +54,8 @@ pub struct DiscordUser {
 pub fn authorization_url(state: &str, cfg: &DiscordOAuthConfig) -> String {
     format!(
         "https://discord.com/api/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope=identify%20email&state={}",
-        cfg.client_id, 
-        urlencoding::encode(&cfg.redirect_uri), 
+        cfg.client_id,
+        urlencoding::encode(&cfg.redirect_uri),
         urlencoding::encode(state)
     )
 }
@@ -93,5 +95,5 @@ pub async fn fetch_user(token: &str) -> Result<DiscordUser> {
 /// Creates and returns the OAuth API router
 pub fn routes() -> ApiRouter {
     ApiRouter::new()
-        // OAuth routes will be added here
+    // OAuth routes will be added here
 }
