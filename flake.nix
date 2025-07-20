@@ -46,8 +46,8 @@
               cp ${rust.outputs.packages.${system}.default}/bin/openfrontpro $out/bin/openfrontpro-bundle
               wrapProgram $out/bin/openfrontpro-bundle \
                 --set RUST_LOG info
-                #--set FRONTEND_FOLDER ${frontend.outputs.packages.${system}.default}
             '';
+            #--set FRONTEND_FOLDER ${frontend.outputs.packages.${system}.default}
         };
 
         packages.container = pkgs.dockerTools.buildLayeredImage {
