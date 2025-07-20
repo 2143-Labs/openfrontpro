@@ -38,11 +38,6 @@ impl<B> OnResponse<B> for LogOnResponse {
         _span.enter();
         let status = response.status();
         let ts_formatted = ts_formatted();
-        let port = response
-            .extensions()
-            .get::<SocketAddr>()
-            .map(|addr| addr.port())
-            .unwrap_or(5);
 
         let us = latency.as_micros();
         let ms = (us / 100) as f32 / 10.0;
