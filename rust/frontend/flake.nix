@@ -19,6 +19,7 @@
             pkgs.nodePackages.eslint
             # Add the bun2nix binary to our devshell
             bun2nix.packages.${system}.default
+            pkgs.yarn
           ];
 
           shellHook = ''
@@ -27,12 +28,14 @@
           '';
         };
 
-        packages.default = pkgs.callPackage ./. {
+        packages.frontend = pkgs.callPackage ./default.nix {
           inherit (bun2nix.lib.${system}) mkBunDerivation;
           inherit pkgs;
         };
 
-        packages.frontend = packages.default;
+        packages.frontend-node = pkgs.callPackage ./default-yarn.nix { };
+        
+        packages.default = packages.frontend-node;
       }
     );
 }

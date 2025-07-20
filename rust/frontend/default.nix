@@ -11,15 +11,14 @@ mkBunDerivation {
   # Specify runtime dependencies
   buildInputs = [
     pkgs.bun
-    pkgs.nodePackages.typescript
   ];
 
   # Override default build phase to use Vite instead of bun compile
   buildPhase = ''
     runHook preBuild
 
-    # Build the Vite project to create static files
-    bun run build
+    #bun install 
+    bun run build --minify
 
     runHook postBuild
   '';

@@ -27,7 +27,7 @@
           pname = "openfrontpro";
         };
 
-        packages.openfront-frontend = frontend.outputs.packages.${system}.frontend;
+        packages.openfront-frontend = frontend.outputs.packages.${system}.default;
 
         # This exists to act like the docker image, except only as a nix executable.
         # It only has two inputs, packages.openfrontpro and packages.openfront-frontend.
