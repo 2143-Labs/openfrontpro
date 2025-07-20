@@ -8,10 +8,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    #frontend = {
-      #url = "path:./frontend";
-      #inputs.nixpkgs.follows = "nixpkgs";
-    #};
+    frontend = {
+      url = "path:./frontend";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     simulator = {
       url = "path:./simulator";
@@ -19,7 +19,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, utils, rust, simulator }:
+  outputs = { self, nixpkgs, utils, rust, simulator, frontend }:
     utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
@@ -34,7 +34,7 @@
           src = ./.;
             buildInputs = [
                 rust.outputs.packages.${system}.default
-                #frontend.outputs.packages.${system}.default
+                frontend.outputs.packages.${system}.default
                 pkgs.cacert
                 pkgs.bashInteractive
                 pkgs.coreutils
@@ -45,15 +45,15 @@
               mkdir -p $out/bin
               cp ${rust.outputs.packages.${system}.default}/bin/openfrontpro $out/bin/openfrontpro-bundle
               wrapProgram $out/bin/openfrontpro-bundle \
+                --set FRONTEND_FOLDER ${frontend.outputs.packages.${system}.default} \
                 --set RUST_LOG info
             '';
-            #--set FRONTEND_FOLDER ${frontend.outputs.packages.${system}.default}
         };
 
         packages.container = pkgs.dockerTools.buildLayeredImage {
           name = "openfrontpro";
           contents = [
-            #frontend.outputs.packages.${system}.default
+            frontend.outputs.packages.${system}.default
             rust.outputs.packages.${system}.default
             pkgs.cacert
             pkgs.bashInteractive
@@ -69,7 +69,7 @@
             EntryPoint = [ "${rust.outputs.packages.${system}.default}/bin/openfrontpro" ];
             Env = [
               "RUST_LOG=info"
-              #"FRONTEND_FOLDER=${frontend.outputs.packages.${system}.default}"
+              "FRONTEND_FOLDER=${frontend.outputs.packages.${system}.default}"
             ];
             #Cmd = [ "openfrontpro" ];
           };
