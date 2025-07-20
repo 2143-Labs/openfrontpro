@@ -2,39 +2,30 @@
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    bun2nix.url = "github:baileyluTCD/bun2nix?tag=1.5.1";
   };
 
   outputs = inputs:
     inputs.flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = (import (inputs.nixpkgs) { inherit system; });
-        bun2nix = inputs.bun2nix;
       in rec {
         devShells.default = pkgs.mkShell {
           buildInputs = [
-            pkgs.bun
-            pkgs.nodePackages.typescript
-            pkgs.nodePackages.typescript-language-server
+            pkgs.nodejs
             pkgs.nodePackages.eslint
-            # Add the bun2nix binary to our devshell
-            bun2nix.packages.${system}.default
-            pkgs.yarn
+            pkgs.nodePackages.typescript-language-server
+            pkgs.nodePackages.typescript
+
           ];
 
           shellHook = ''
             echo "Frontend development shell"
-            echo "Run 'bun install' to install dependencies"
+            echo "Run 'yarn install' to install dependencies"
           '';
         };
 
-        packages.frontend = pkgs.callPackage ./default.nix {
-          inherit (bun2nix.lib.${system}) mkBunDerivation;
-          inherit pkgs;
-        };
+        packages.frontend-node = pkgs.callPackage ./frontend/default-yarn.nix { };
 
-        packages.frontend-node = pkgs.callPackage ./default-yarn.nix { };
-        
         packages.default = packages.frontend-node;
       }
     );

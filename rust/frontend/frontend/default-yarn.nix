@@ -6,16 +6,26 @@ let
     sha256 = "0000000000000000000000000000000000000000000000000000"; # to be fixed
   };
 in
-pkgs.buildNpmPackage {
+pkgs.stdenv.mkDerivation {
   pname = "openfront-frontend";
   version = "0.1.0";
   src = ./.;
 
-  npmDeps = yarnDeps;
-  # Ensure Vite is in PATH for build
-  buildInputs = [ pkgs.nodePackages.vite ];
+  nativeBuildInputs = with pkgs; [ nodejs yarn ];
+  
+  configurePhase = ''
+    export HOME=$(mktemp -d)
+    yarn config set yarn-offline-mirror $yarnDeps
+    yarn install --offline --frozen-lockfile --ignore-platform --ignore-scripts --no-progress --non-interactive
+    patchShebangs .
+  '';
+  
+  buildPhase = ''
+    yarn build
+  '';
+  
   installPhase = ''
     mkdir -p $out
-    cp -r dist $out/
+    cp -r dist/* $out/
   '';
 }

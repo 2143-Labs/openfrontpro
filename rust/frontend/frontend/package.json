@@ -16,7 +16,7 @@
     "preview": "vite preview",
     "start": "vite",
     "serve": "vite preview",
-    "postinstall": ""
+    "postinstall": "yarn2nix > yarn.nix"
   },
   "keywords": ["frontend", "vite", "bun", "react"],
   "author": "OpenFronter Team",
