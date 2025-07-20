@@ -66,7 +66,7 @@
 
           config = {
             ExposedPorts = { "3000/tcp" = { }; };
-            EntryPoint = [ "${rust.outputs.packages.${system}.openfrontpro}/bin/openfrontpro" ];
+            EntryPoint = [ "${rust.outputs.packages.${system}.default}/bin/openfrontpro" ];
             Env = [
               "RUST_LOG=info"
               "FRONTEND_FOLDER=${frontend.outputs.packages.${system}.default}"
