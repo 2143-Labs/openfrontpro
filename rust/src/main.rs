@@ -5,7 +5,7 @@ use anyhow::Context;
 use axum::Extension;
 use clap::Parser;
 use schemars::JsonSchema;
-use sqlx::PgPool;
+use sqlx::{postgres::PgPoolOptions, PgPool};
 
 use database::AnalysisQueueStatus;
 
@@ -139,21 +139,31 @@ async fn launch_tasks(config: Arc<Config>, database: PgPool) -> anyhow::Result<(
 #[tokio::main(flavor = "multi_thread", worker_threads = 16)]
 async fn main() -> anyhow::Result<()> {
     let config = Config::parse();
-    let config = std::sync::Arc::new(config);
-
-    let database = PgPool::connect(&config.database_url)
-        .await
-        .context("Failed to connect to the database")?;
-
-    sqlx::migrate!("./migrations").run(&database).await?;
-    tracing::info!("Migrations applied successfully");
-
     tracing_subscriber::fmt()
         //.with_max_level(tracing::Level::INFO)
         .with_env_filter(&config.rust_log)
         .with_target(false)
         //.without_time()
         .init();
+
+    tracing::info!("Starting OpenFront API server! Connecting to database...");
+
+    let database = PgPoolOptions::new()
+        .min_connections(2)
+        .max_connections(16)
+        .acquire_timeout(Duration::from_secs(5))
+        .connect_lazy(&config.database_url)
+        .context("Failed to create database connection pool")?;
+
+    let config = std::sync::Arc::new(config);
+
+    let db = database.clone();
+    tokio::spawn(async move {
+        match sqlx::migrate!("./migrations").run(&db).await {
+            Ok(_) => tracing::info!("Database migrations applied successfully"),
+            Err(e) => tracing::error!("Failed to apply database migrations: {}", e),
+        }
+    });
 
     // TODO: Make sure we don't have vulnerabilites around the frontend because CORS.
     // (especially around oauth stuff)

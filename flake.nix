@@ -53,20 +53,12 @@
         packages.container = pkgs.dockerTools.buildLayeredImage {
           name = "openfrontpro";
           contents = [
-            frontend.outputs.packages.${system}.default
-            rust.outputs.packages.${system}.default
-            pkgs.cacert
-            pkgs.bashInteractive
-            pkgs.coreutils
-            pkgs.curl
-            #pkgs.glibcLocales
-            #pkgs.openssl
-            #pkgs.zlib
+            packages.backend
           ];
 
           config = {
             ExposedPorts = { "3000/tcp" = { }; };
-            EntryPoint = [ "${rust.outputs.packages.${system}.default}/bin/openfrontpro" ];
+            EntryPoint = [ "${packages.backend}/bin/openfrontpro-bundle" ];
             Env = [
               "RUST_LOG=info"
               "FRONTEND_FOLDER=${frontend.outputs.packages.${system}.default}"
