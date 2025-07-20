@@ -1,6 +1,7 @@
 #![allow(unused)]
 use std::{fmt::Display, net::SocketAddr, str::FromStr, sync::Arc, time::Duration};
 
+mod middleware;
 mod oauth;
 
 use aide::{
@@ -11,12 +12,13 @@ use aide::{
 use anyhow::Context;
 use axum::{
     Extension, Json,
-    extract::{Path, Query},
+    extract::{Path, Query, ConnectInfo},
     response::Response,
 };
 use clap::Parser;
 use schemars::JsonSchema;
 use sqlx::PgPool;
+use tower_http::trace::DefaultMakeSpan;
 
 async fn serve_file(file_path: &std::path::Path) -> anyhow::Result<Response> {
     let file_contents = tokio::fs::read(file_path).await?;
@@ -76,6 +78,16 @@ struct Config {
         default_value = "http://localhost:3000/auth/discord/callback"
     )]
     pub discord_redirect_uri: String,
+
+    #[clap(long, env, short = 'd')]
+    pub disable_tasks: Vec<ActiveTasks>
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema, clap::ValueEnum, PartialEq, Eq)]
+pub enum ActiveTasks {
+    LookForNewGames,
+    LookForLobbyGames,
+    LookForNewGamesInAnalysisQueue,
 }
 
 // Example Response
@@ -627,6 +639,7 @@ async fn look_for_lobby_games(
         let game_id = &game.game_id;
         let finish_status = check_if_game_finished(&ofapi, game_id).await?;
         save_finished_game(database.clone(), finish_status, game_id).await?;
+        tokio::time::sleep(Duration::from_secs(1)).await;
     }
 
     Ok(())
@@ -1079,7 +1092,12 @@ async fn main() -> anyhow::Result<()> {
         .finish_api(&mut openapi)
         .layer(Extension(openapi.clone()))
         .layer(Extension(database.clone()))
-        //.layer(NormalizePathLayer::trim_trailing_slash())
+        .layer(
+            tower_http::trace::TraceLayer::new_for_http()
+                .on_request(middleware::LogOnRequest)
+                .on_response(middleware::LogOnResponse)
+        )
+        .layer(tower_http::normalize_path::NormalizePathLayer::trim_trailing_slash())
         .layer(cors)
         .fallback_service(axum::routing::get_service(
             tower_http::services::ServeDir::new(&*config.frontend_folder)
@@ -1087,51 +1105,56 @@ async fn main() -> anyhow::Result<()> {
                 .not_found_service(axum::routing::get(|| async move {
                     serve_file(&std::path::Path::new(&missing_html))
                         .await
-                        .unwrap()
+                        .unwrap_or(axum::response::Response::builder()
+                            .status(axum::http::StatusCode::NOT_FOUND)
+                            .body(axum::body::Body::from("Sorry! The frontend folder is missing!"))
+                            .expect("Failed to build 404 response"))
                 })),
         ));
 
+
+    if !config.disable_tasks.contains(&ActiveTasks::LookForNewGames) {
+        let db = database.clone();
+        let cfg = config.clone();
+        let ofapi = config.clone();
+        keep_task_alive(
+            move || look_for_new_games(ofapi.clone(), db.clone(), cfg.clone()),
+            TaskSettings {
+                sleep_time: tokio::time::Duration::ZERO,
+                ..Default::default()
+            },
+        );
+    }
+
+    if !config.disable_tasks.contains(&ActiveTasks::LookForNewGamesInAnalysisQueue) {
+        let db = database.clone();
+        let cfg = config.clone();
+        let ofapi = config.clone();
+        keep_task_alive(
+            move || look_for_new_games_in_analysis_queue(ofapi.clone(), db.clone(), cfg.clone()),
+            TaskSettings {
+                sleep_time: tokio::time::Duration::from_secs(5),
+                ..Default::default()
+            },
+        );
+    }
+
+    if !config.disable_tasks.contains(&ActiveTasks::LookForLobbyGames) {
+
+        let db = database.clone();
+        let cfg = config.clone();
+        let ofapi = config.clone();
+        keep_task_alive(
+            move || look_for_lobby_games(ofapi.clone(), db.clone(), cfg.clone()),
+            TaskSettings {
+                sleep_time: tokio::time::Duration::from_secs(60 * 5),
+                ..Default::default()
+            },
+        );
+    }
+
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", config.port)).await?;
-
-    tracing::info!("Listening on http://{}", listener.local_addr()?);
-
-
-    let db = database.clone();
-    let cfg = config.clone();
-    let ofapi = config.clone();
-    keep_task_alive(
-        move || look_for_new_games(ofapi.clone(), db.clone(), cfg.clone()),
-        TaskSettings {
-            sleep_time: tokio::time::Duration::ZERO,
-            ..Default::default()
-        },
-    );
-
-    let db = database.clone();
-    let cfg = config.clone();
-    let ofapi = config.clone();
-    keep_task_alive(
-        move || look_for_new_games_in_analysis_queue(ofapi.clone(), db.clone(), cfg.clone()),
-        TaskSettings {
-            sleep_time: tokio::time::Duration::from_secs(5),
-            ..Default::default()
-        },
-    );
-
-    let db = database.clone();
-    let cfg = config.clone();
-    let ofapi = config.clone();
-    keep_task_alive(
-        move || look_for_lobby_games(ofapi.clone(), db.clone(), cfg.clone()),
-        TaskSettings {
-            sleep_time: tokio::time::Duration::from_secs(60 * 5),
-            ..Default::default()
-        },
-    );
-
-
-
-
+    tracing::info!("Listening on {}", listener.local_addr()?);
     axum::serve(
         listener,
         fin.into_make_service_with_connect_info::<SocketAddr>(),
