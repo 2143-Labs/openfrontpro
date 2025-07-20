@@ -538,7 +538,8 @@ async fn save_finished_game(
     Ok(())
 }
 
-trait OpenFrontAPI: Clone + Send + Sync {
+#[mockall::automock]
+trait OpenFrontAPI {
     fn get_game_json(&self, game_id: &str) -> impl Future<Output = anyhow::Result<serde_json::Value>> + Send;
     fn get_lobbies(&self) -> impl Future<Output = anyhow::Result<PublicLobbiesResponse>> + Send;
 }
@@ -1050,11 +1051,64 @@ async fn main() -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod test2 {
+    use futures::FutureExt;
+
     use super::*;
+
+    fn create_mocked_api() -> MockOpenFrontAPI {
+        let mut mocked_api = MockOpenFrontAPI::new();
+        mocked_api.expect_get_lobbies()
+            .returning(|| async {
+                Ok(PublicLobbiesResponse {
+                    lobbies: vec![Lobby {
+                        game_id: "testgame".to_string(),
+                        num_clients: 1,
+                        game_config: GameConfig {
+                            game_map: "Test Map".to_string(),
+                            game_type: "Public".to_string(),
+                            difficulty: "Medium".to_string(),
+                            disable_npcs: false,
+                            infinite_gold: false,
+                            infinite_troops: false,
+                            instant_build: false,
+                            game_mode: "Free For All".to_string(),
+                            bots: 0,
+                            disabled_units: vec![],
+                            max_players: 10,
+                            player_teams: None,
+                        },
+                        ms_until_start: 60000,
+                    }],
+                })
+            }.boxed());
+
+
+        fn load_game_in_test(game_id: &str) -> Option<serde_json::Value> {
+            // load it from ./examples/gamedata/
+            let dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/examples/gamedata");
+            let file = dir.get_file(&format!("{}.json", game_id))?;
+            let json: serde_json::Value = serde_json::from_slice(file.contents())
+                .expect("Failed to parse game JSON from examples/gamedata");
+
+            Some(json)
+        }
+        mocked_api.expect_get_game_json()
+            .returning(|game_id| {
+                let game_id = game_id.to_string(); async move {
+                if let Some(json) = load_game_in_test(&game_id) {
+                    Ok(json)
+                } else {
+                    Err(anyhow::anyhow!("Game not found"))
+                }
+            }.boxed()});
+
+        mocked_api
+    }
 
     // SQLX Tests:
     #[sqlx::test]
     async fn test_insert_lobby(pool: PgPool) {
+        let mut mocked_api = create_mocked_api();
 
     }
 }
