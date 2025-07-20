@@ -1,10 +1,9 @@
+// BEGIN API
 use aide::axum::ApiRouter;
 use anyhow::Result;
 use axum::{Extension, Json, extract::Query, response::Response};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use tokio;
-use urlencoding;
 use uuid::Uuid;
 
 use crate::Config;
@@ -97,3 +96,4 @@ pub fn routes() -> ApiRouter {
     ApiRouter::new()
     // OAuth routes will be added here
 }
+// END API
