@@ -4,7 +4,8 @@
   "description": "Openfront.pro simulator server",
   "main": "src/ListGames.ts",
   "scripts": {
-    "start": "bun src/ListGames.ts",
+    "start": "npm tsx src/ListGames.ts",
+    "build": "true",
     "generate-nix": "bun2nix > bun.nix"
   },
   "module": "src/ListGames.ts",

@@ -49,14 +49,15 @@
           version = "0.1.0";
           src = ./.;
           buildInputs = [
+            pkgs.jq
           ];
 
           installPhase = ''
             mkdir -p $out/OpenFrontIO/
             cp -r ${inputs.openfrontio_a221fee}/* $out/OpenFrontIO/
             cp -r * $out/
-            # add husky as a globally callable command
-            mkdir -p $out/bin
+            jq 'del(.scripts.prepare)' $out/OpenFrontIO/package.json > $out/OpenFrontIO/package.json.tmp
+            mv $out/OpenFrontIO/package.json.tmp $out/OpenFrontIO/package.json
           '';
           #ln -s ${packages.my-husky}/bin/husky $out/bin/husky
         };
@@ -74,9 +75,6 @@
           npmDeps = pkgs.importNpmLock {
             npmRoot = packages.simulator-base;
           };
-          npmFlags = [
-            "--ignore-scripts"
-            ];
             npmConfigHook = pkgs.importNpmLock.npmConfigHook;
 
         };
