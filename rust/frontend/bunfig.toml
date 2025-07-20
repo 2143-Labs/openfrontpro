@@ -1,3 +1,5 @@
+## IGNORE THIS FOR NOW: WE WILL SWITCH TO BUN LATER
+
 [install]
 # Automatically install node_modules dependencies
 auto = true

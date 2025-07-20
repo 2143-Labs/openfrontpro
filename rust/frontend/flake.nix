@@ -24,7 +24,7 @@
           '';
         };
 
-        packages.frontend-node = pkgs.callPackage ./frontend/default-yarn.nix { };
+        # packages.frontend-node = TODO: Add nix script to build frontend with node. 
 
         packages.default = packages.frontend-node;
       }
