@@ -4,7 +4,7 @@
   "description": "Openfront.pro simulator server",
   "main": "src/ListGames.ts",
   "scripts": {
-    "start": "npx tsx src/ListGames.ts",
+    "start": "bun src/ListGames.ts",
     "generate-nix": "bun2nix > bun.nix"
   },
   "module": "src/ListGames.ts",
@@ -13,20 +13,24 @@
   "author": "John2143",
   "license": "ISC",
   "dependencies": {
-    "@eslint/compat": "^1.3.1",
-    "@eslint/js": "^9.31.0",
-    "@types/node": "^22.16.5",
-    "@types/pg": "^8.15.4",
-    "@types/ws": "^8.18.1",
-    "chai": "^5.2.1",
-    "openfront-client": "file:../OpenFrontIO",
+    "@eslint/compat": "^1.2.7",
+    "@eslint/js": "^9.21.0",
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.11",
+    "@types/ws": "^8.5.11",
+    "chai": "^5.1.1",
+    "openfront-client": "./OpenFrontIO",
     "pg": "^8.16.3",
     "tsx": "^4.20.3",
-    "typescript": "^5.8.3",
-    "typescript-eslint": "^8.37.0",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.26.0",
     "winston": "^3.17.0"
   },
   "devDependencies": {
-    "zod": "^3.25.76"
-  }
+    "zod": "^3.25.28"
+  },
+  "trustedDependencies": [
+    "openfront-client",
+    "protobufjs"
+  ]
 }

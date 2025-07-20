@@ -20,7 +20,7 @@ mkBunDerivation {
     platforms = platforms.all;
   };
 
-  installPhase = ''
-    bun install
-  '';
+  #installPhase = ''
+    #bun install
+  #'';
 }

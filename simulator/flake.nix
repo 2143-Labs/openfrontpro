@@ -13,6 +13,7 @@
         bun2nix = inputs.bun2nix;
         devShells.default = pkgs.mkShell {
           buildInputs = [
+              pkgs.bun
             pkgs.nodejs_24
             pkgs.nodePackages.typescript-language-server
             pkgs.nodePackages.eslint
@@ -20,7 +21,7 @@
             pkgs.pnpm_10
             packages.my-husky
             # Add the bun2nix binary to our devshell
-            #bun2nix.packages.${system}.default
+            bun2nix.packages.${system}.default
           ];
 
           shellHook = ''
@@ -61,7 +62,6 @@
 
         packages.simulator = pkgs.stdenv.mkDerivation (finalAttrs: {
           pname = "openfront-simulator";
-          name = "openfront-simulator";
           src = ./.;
           version = "0.1.0";
           buildInputs = [
