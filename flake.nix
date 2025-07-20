@@ -27,6 +27,29 @@
       rec {
         packages.default = packages.container;
 
+        # This exists to act like the docker image, except only as a nix executable.
+        # It only has two inputs, packages.openfrontpro and packages.openfront-frontend.
+        packages.backend = pkgs.stdenv.mkDerivation {
+          name = "openfrontpro-bundle";
+          src = ./.;
+            buildInputs = [
+                rust.outputs.packages.${system}.default
+                frontend.outputs.packages.${system}.default
+                pkgs.cacert
+                pkgs.bashInteractive
+                pkgs.coreutils
+                pkgs.curl
+            ];
+            nativeBuildInputs = [ pkgs.makeWrapper ];
+            installPhase = ''
+              mkdir -p $out/bin
+              cp ${rust.outputs.packages.${system}.default}/bin/openfrontpro $out/bin/
+              wrapProgram $out/bin/openfrontpro \
+                --set FRONTEND_FOLDER ${frontend.outputs.packages.${system}.default} \
+                --set RUST_LOG info
+            '';
+        };
+
         packages.container = pkgs.dockerTools.buildLayeredImage {
           name = "openfrontpro";
           contents = [
@@ -43,10 +66,10 @@
 
           config = {
             ExposedPorts = { "3000/tcp" = { }; };
-            EntryPoint = [ "${packages.openfrontpro}/bin/openfrontpro" ];
+            EntryPoint = [ "${rust.outputs.packages.${system}.openfrontpro}/bin/openfrontpro" ];
             Env = [
               "RUST_LOG=info"
-              "FRONTEND_FOLDER=${packages.openfront-frontend}"
+              "FRONTEND_FOLDER=${frontend.outputs.packages.${system}.default}"
             ];
             #Cmd = [ "openfrontpro" ];
           };
