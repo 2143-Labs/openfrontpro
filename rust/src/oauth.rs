@@ -1,9 +1,8 @@
+#![allow(unused)]
 use aide::axum::ApiRouter;
 use anyhow::Result;
-use axum::{Extension, Json, extract::Query, response::Response};
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use serde::Deserialize;
 
 use crate::Config;
 

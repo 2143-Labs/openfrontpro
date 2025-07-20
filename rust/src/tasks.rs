@@ -3,15 +3,11 @@
 use anyhow::Context;
 use serde_json;
 use sqlx::PgPool;
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
-use crate::{
-    AnalysisQueueStatus, Config, GameConfig, OpenFrontAPI,
-    api::{Lobby, PublicLobbiesResponse},
-    database::now_unix_sec,
-};
+use crate::{AnalysisQueueStatus, Config, OpenFrontAPI, api::Lobby, database::now_unix_sec};
 
-pub async fn get_new_games(ofapi: &impl OpenFrontAPI, cfg: &Config) -> anyhow::Result<Vec<Lobby>> {
+pub async fn get_new_games(ofapi: &impl OpenFrontAPI, _cfg: &Config) -> anyhow::Result<Vec<Lobby>> {
     let new_games = ofapi.get_lobbies().await?;
     Ok(new_games.lobbies)
 }
@@ -181,7 +177,7 @@ pub async fn save_finished_game(
 pub async fn look_for_lobby_games(
     ofapi: impl OpenFrontAPI,
     database: PgPool,
-    cfg: std::sync::Arc<Config>,
+    _cfg: std::sync::Arc<Config>,
 ) -> anyhow::Result<()> {
     let unfinished_games = sqlx::query!(
         "SELECT
@@ -212,6 +208,7 @@ pub async fn look_for_lobby_games(
 }
 
 #[derive(Debug, Clone)]
+#[allow(unused)]
 pub enum BackoffStrategy {
     Exponential {
         start: Duration,
@@ -312,7 +309,7 @@ pub async fn look_for_new_games_in_analysis_queue(
 pub async fn look_for_new_game_in_analysis_queue(
     ofapi: &impl OpenFrontAPI,
     database: PgPool,
-    cfg: &Config,
+    _cfg: &Config,
 ) -> anyhow::Result<bool> {
     // Look for games in the analysis queue that we don't have in the finished_games table yet.
     let new_games = sqlx::query!(

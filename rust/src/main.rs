@@ -7,17 +7,14 @@ use clap::Parser;
 use schemars::JsonSchema;
 use sqlx::PgPool;
 
-use database::{
-    APIGetLobbies, AnalysisQueueStatus, FinshedGameDBEntry, GameConfig, LobbyDBEntryNoConfig,
-    PlayerTeams, StringOrInt, now_unix_sec,
-};
+use database::AnalysisQueueStatus;
 
 use tasks::{
     TaskSettings, keep_task_alive, look_for_lobby_games, look_for_new_games,
     look_for_new_games_in_analysis_queue,
 };
 
-use api::{Lobby, OpenFrontAPI, PublicLobbiesResponse};
+use api::OpenFrontAPI;
 use tokio::time::Duration;
 use tower_http::services::ServeDir;
 use utils::serve_file;
@@ -246,7 +243,7 @@ async fn main() -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod test1 {
-    use super::*;
+    use crate::api::PublicLobbiesResponse;
 
     #[test]
     fn should_parse_lobby() {

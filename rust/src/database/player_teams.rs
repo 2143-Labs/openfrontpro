@@ -2,6 +2,12 @@
 //!  - To and from Database (stored as integer, See From<i32>)
 //!  - From openfront API (stored as string or integer, See from_str_or_int)
 
+use std::fmt::Display;
+
+use schemars::JsonSchema;
+
+use crate::database::StringOrInt;
+
 /// Enum representing different player team configurations in a game
 /// Normal serde serialization with a tag is used for encoding this type, but there are many
 /// different decoding types depending on the source.

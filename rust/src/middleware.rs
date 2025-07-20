@@ -1,11 +1,6 @@
-use axum::{
-    body::Body,
-    http::{Request, StatusCode},
-};
+use axum::http::Request;
 use chrono::Utc;
-use std::net::SocketAddr;
-use std::time::SystemTime;
-use tower_http::trace::{OnRequest, OnResponse, TraceLayer};
+use tower_http::trace::{OnRequest, OnResponse};
 use tracing::{Span, info};
 
 /// Current date and time as YYYY/MM/DD HH:MM:SST00:00 using chrono crate
@@ -21,7 +16,9 @@ impl<B> OnRequest<B> for LogOnRequest {
         let path = request.uri().path().to_string();
 
         let ts_formatted = ts_formatted();
-        _span.enter();
+        _span.record("method", &method.to_string());
+        _span.record("path", &path);
+        let _ = _span.enter();
         if let Some(query) = request.uri().query() {
             info!("<{ts_formatted} {method} {path}?{query}",);
         } else {
@@ -39,7 +36,7 @@ impl<B> OnResponse<B> for LogOnResponse {
         latency: std::time::Duration,
         _span: &Span,
     ) {
-        _span.enter();
+        let _ = _span.enter();
         let status = response.status();
         let ts_formatted = ts_formatted();
 

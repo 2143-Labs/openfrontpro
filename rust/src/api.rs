@@ -1,15 +1,11 @@
 #![allow(clippy::all)]
 
-use aide::{
-    axum::{ApiRouter, routing},
-    openapi::OpenApi,
-    redoc::Redoc,
-};
+use aide::{axum::ApiRouter, openapi::OpenApi, redoc::Redoc};
 use axum::{
     Extension, Json,
     extract::{Path, Query},
     response::Response,
-    routing::{delete, get, post},
+    routing::get,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -20,10 +16,12 @@ use tower_http::cors::CorsLayer;
 use std::future::Future;
 use std::sync::Arc;
 
-use crate::Config;
+use crate::{
+    Config,
+    database::{APIFinishedGame, APIGetLobby, APIGetLobbyWithConfig, GameConfig},
+};
 use anyhow::Result;
 
-use crate::database::{APIGetLobbies, FinshedGameDBEntry, GameConfig, LobbyDBEntryNoConfig};
 use crate::utils::ReqwestErrorHandlingExtension;
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
@@ -38,11 +36,10 @@ struct LobbyQueryParams {
 
 async fn lobbies_id_handler(
     Extension(database): Extension<PgPool>,
-    Query(params): Query<LobbyQueryParams>,
     Path(id): Path<String>,
-) -> Result<Json<APIGetLobbies>, Response> {
+) -> Result<Json<APIGetLobbyWithConfig>, Response> {
     let d = sqlx::query_as!(
-        LobbyDBEntry,
+        APIGetLobbyWithConfig,
         r#"SELECT
             lo.*,
             (co.inserted_at_unix_sec IS NOT NULL) AS "analysis_complete!"
@@ -67,7 +64,7 @@ async fn lobbies_id_handler(
 async fn lobbies_handler(
     Extension(database): Extension<PgPool>,
     Query(params): Query<LobbyQueryParams>,
-) -> Result<Json<Vec<LobbyDBEntryNoConfig>>, Response> {
+) -> Result<Json<Vec<APIGetLobby>>, Response> {
     let mut querybuilder = sqlx::query_builder::QueryBuilder::new(
         r#"
         SELECT
@@ -133,19 +130,19 @@ async fn lobbies_handler(
 
     querybuilder.push(" ORDER BY last_seen_unix_sec DESC LIMIT 100");
 
-    let res: Vec<LobbyDBEntryNoConfig> = querybuilder
+    let res: Vec<APIGetLobby> = querybuilder
         .build_query_as()
         .fetch_all(&database)
         .await
         .map_err(|e| {
-        axum::response::Response::builder()
-            .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
-            .body(axum::body::Body::from(format!(
-                "Database query failed: {}",
-                e
-            )))
-            .expect("Failed to build response for error message")
-    })?;
+            axum::response::Response::builder()
+                .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+                .body(axum::body::Body::from(format!(
+                    "Database query failed: {}",
+                    e
+                )))
+                .expect("Failed to build response for error message")
+        })?;
 
     Ok(Json(res))
 }
@@ -155,7 +152,7 @@ async fn game_handler(
     Path(game_id): Path<String>,
 ) -> Result<Json<Value>, Response> {
     let lobby = sqlx::query_as!(
-        FinshedGameDBEntry,
+        APIFinishedGame,
         "SELECT game_id, result_json, inserted_at_unix_sec FROM finished_games WHERE game_id = $1",
         game_id
     )
@@ -304,7 +301,7 @@ where
     }
 }
 
-pub fn routes(database: PgPool, openapi: OpenApi, cors: CorsLayer) -> ApiRouter {
+pub fn routes(database: PgPool, _openapi: OpenApi, cors: CorsLayer) -> ApiRouter {
     let api_routes = ApiRouter::new()
         .route("/lobbies", get(lobbies_handler))
         .route("/lobbies/{id}", get(lobbies_id_handler))

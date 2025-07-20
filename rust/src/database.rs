@@ -1,8 +1,6 @@
 //! Database-related structures and implementations
 
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, Row, postgres::PgRow};
 use std::fmt::Display;
 
 use crate::database::player_teams::PlayerTeams;
@@ -52,7 +50,7 @@ impl GameConfig {
             // Teams is either a string like Quads, Duos or a number like 4
             PlayerTeams::from_str_or_int(teams).unwrap()
         } else {
-            /// teams: null = FFA
+            // teams: null = FFA
             PlayerTeams::FFA
         }
     }
@@ -113,12 +111,12 @@ impl<'a> sqlx::FromRow<'a, sqlx::postgres::PgRow> for APIGetLobby {
     }
 }
 
-impl APIGetLobbyWithConfig {
-    pub fn lobby_config(&self) -> GameConfig {
-        serde_json::from_value(self.lobby_config_json.clone())
-            .expect("Invalid lobby config JSON in database")
-    }
-}
+//impl APIGetLobbyWithConfig {
+    //pub fn lobby_config(&self) -> GameConfig {
+        //serde_json::from_value(self.lobby_config_json.clone())
+            //.expect("Invalid lobby config JSON in database")
+    //}
+//}
 
 /// Enum representing the status of analysis queue entries: TODO implement all these
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema, sqlx::Type)]
