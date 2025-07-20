@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                aq.game_id, aq.requesting_user_id\n            FROM\n                analysis_queue aq\n                LEFT JOIN finished_games fg\n                ON aq.game_id = fg.game_id\n            WHERE\n                fg.game_id IS NULL\n                AND aq.status = 'Pending'\n            ORDER BY\n                aq.requested_unix_sec ASC\n            LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "game_id",
+        "type_info": "Bpchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "requesting_user_id",
+        "type_info": "Bpchar"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "54102e86122fc6114fcb7492425542db388d96113eb7d3abd942c83e2e81a7d1"
+}

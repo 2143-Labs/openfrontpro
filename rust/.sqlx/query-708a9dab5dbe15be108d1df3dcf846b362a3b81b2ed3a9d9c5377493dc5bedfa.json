@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE analysis_queue SET status = $2 WHERE game_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Bpchar",
+        {
+          "Custom": {
+            "name": "analysis_queue_status",
+            "kind": {
+              "Enum": [
+                "Pending",
+                "Running",
+                "Completed",
+                "NotFound",
+                "Failed",
+                "Stalled",
+                "Cancelled",
+                "CompletedAlready"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "708a9dab5dbe15be108d1df3dcf846b362a3b81b2ed3a9d9c5377493dc5bedfa"
+}
