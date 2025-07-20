@@ -19,7 +19,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, utils, frontend, rust, simulator }:
+  outputs = { self, nixpkgs, utils, rust, simulator }:
     utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
@@ -34,7 +34,7 @@
           src = ./.;
             buildInputs = [
                 rust.outputs.packages.${system}.default
-                frontend.outputs.packages.${system}.default
+                #frontend.outputs.packages.${system}.default
                 pkgs.cacert
                 pkgs.bashInteractive
                 pkgs.coreutils
@@ -45,8 +45,8 @@
               mkdir -p $out/bin
               cp ${rust.outputs.packages.${system}.default}/bin/openfrontpro $out/bin/openfrontpro-bundle
               wrapProgram $out/bin/openfrontpro-bundle \
-                --set FRONTEND_FOLDER ${frontend.outputs.packages.${system}.default} \
                 --set RUST_LOG info
+                #--set FRONTEND_FOLDER ${frontend.outputs.packages.${system}.default}
             '';
         };
 
