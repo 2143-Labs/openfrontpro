@@ -16,7 +16,8 @@
         naersk-lib = pkgs.callPackage naersk { };
       in
       rec {
-        defaultPackage = packages.bundle;
+        packages.default = packages.bundle;
+
         devShell = with pkgs; mkShell {
           buildInputs = [ cargo rustc rustfmt pre-commit rustPackages.clippy rust-analyzer sqlx-cli bacon];
           RUST_SRC_PATH = rustPlatform.rustLibSrc;
@@ -50,31 +51,6 @@
                 --set FRONTEND_FOLDER ${packages.openfront-frontend} \
                 --set RUST_LOG info
             '';
-        };
-
-        packages.container = pkgs.dockerTools.buildLayeredImage {
-          name = "openfrontpro";
-          contents = [
-            packages.openfrontpro
-            packages.openfront-frontend
-            pkgs.cacert
-            pkgs.bashInteractive
-            pkgs.coreutils
-            pkgs.curl
-            #pkgs.glibcLocales
-            #pkgs.openssl
-            #pkgs.zlib
-          ];
-
-          config = {
-            ExposedPorts = { "3000/tcp" = { }; };
-            EntryPoint = [ "${packages.openfrontpro}/bin/openfrontpro" ];
-            Env = [
-              "RUST_LOG=info"
-              "FRONTEND_FOLDER=${packages.openfront-frontend}"
-            ];
-            #Cmd = [ "openfrontpro" ];
-          };
         };
       }
     );
