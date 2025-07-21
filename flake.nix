@@ -16,10 +16,20 @@
     simulator = {
       url = "path:./simulator";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.bun2nix.follows = "bun2nix";
+      inputs.openfrontio_a221fee.follows = "openfrontio_a221fee";
+      inputs.flake-utils.follows = "utils";
+    };
+
+    bun2nix.url = "github:baileyluTCD/bun2nix";
+
+    openfrontio_a221fee = {
+      url = "github:OpenFrontIO/OpenFrontIO/a221fee92146caaefdee8a287e341a18da11716b";
+      flake = false;          # matches simulator/flake.nix
     };
   };
 
-  outputs = { self, nixpkgs, utils, rust, simulator, frontend }:
+  outputs = { self, nixpkgs, utils, rust, simulator, frontend, bun2nix, openfrontio_a221fee }:
     utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };

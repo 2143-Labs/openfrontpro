@@ -10,7 +10,7 @@
     };
   };
 
-  outputs = { nixpkgs, openfrontio_a221fee, ... } @ inputs:
+  outputs = { nixpkgs, bun2nix, openfrontio_a221fee, flake-utils, ... } @ inputs:
     inputs.flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = (import (nixpkgs) { inherit system; });
