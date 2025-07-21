@@ -15,8 +15,6 @@ function LobbyHome() {
     setMapFilter,
     teamFilter,
     setTeamFilter,
-    showActiveOnly,
-    setShowActiveOnly,
     sortBy,
     setSortBy,
     getFilteredAndSortedLobbies,
@@ -26,7 +24,7 @@ function LobbyHome() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>🎮 OpenFronter Lobbies</h1>
+        <h1>OpenFronter Lobbies</h1>
         <p>Discover and join game lobbies</p>
         <div style={{ marginTop: '1rem' }}>
           <button 
@@ -65,8 +63,6 @@ function LobbyHome() {
           
           {!loading && !error && lobbies.length > 0 && (
             <SortControls
-              showActiveOnly={showActiveOnly}
-              setShowActiveOnly={setShowActiveOnly}
               sortBy={sortBy}
               setSortBy={setSortBy}
             />
@@ -80,7 +76,6 @@ function LobbyHome() {
             <div style={{ textAlign: 'center', marginTop: '2rem' }}>
               <p style={{ color: '#666' }}>
                 Showing {getFilteredAndSortedLobbies().length} of {lobbies.length} {lobbies.length === 1 ? 'lobby' : 'lobbies'}
-                {showActiveOnly && ' (active games only)'}
               </p>
             </div>
           )}
@@ -88,7 +83,7 @@ function LobbyHome() {
       </main>
       
       <footer className="App-footer">
-        <p>&copy; 2024 OpenFronter. Connect and play together!</p>
+        <p>&copy; 2024 OpenFront.Pro. Connect and play together!</p>
       </footer>
     </div>
   );

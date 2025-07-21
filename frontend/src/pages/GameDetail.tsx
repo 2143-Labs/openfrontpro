@@ -48,7 +48,7 @@ const GameDetail: React.FC = () => {
         <button onClick={handleBack} className="back-button">
           ← Back
         </button>
-        <h1>🎮 Game Detail</h1>
+        <h1>Game Detail</h1>
         <div style={{ textAlign: 'center', padding: '40px' }}>
           <p>Loading game details...</p>
         </div>
@@ -62,7 +62,7 @@ const GameDetail: React.FC = () => {
         <button onClick={handleBack} className="back-button">
           ← Back
         </button>
-        <h1>🎮 Game Detail</h1>
+        <h1>Game Detail</h1>
         <div style={{ textAlign: 'center', padding: '40px', color: '#dc3545' }}>
           <p>Error: {error}</p>
         </div>
@@ -76,7 +76,7 @@ const GameDetail: React.FC = () => {
         <button onClick={handleBack} className="back-button">
           ← Back
         </button>
-        <h1>🎮 Game Detail</h1>
+        <h1>Game Detail</h1>
         <div style={{ textAlign: 'center', padding: '40px' }}>
           <p>Game not found.</p>
         </div>

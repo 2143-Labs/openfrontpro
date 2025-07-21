@@ -61,7 +61,7 @@ function GameDetail() {
             >
               ← Back to Lobbies
             </button>
-            <h1>🎮 Game Detail</h1>
+            <h1>Game Detail</h1>
           </div>
         </header>
         <main className="App-main">
@@ -92,7 +92,7 @@ function GameDetail() {
             >
               ← Back to Lobbies
             </button>
-            <h1>🎮 Game Detail</h1>
+            <h1>Game Detail</h1>
           </div>
         </header>
         <main className="App-main">
@@ -123,7 +123,7 @@ function GameDetail() {
             >
               ← Back to Lobbies
             </button>
-            <h1>🎮 Game Detail</h1>
+            <h1>Game Detail</h1>
           </div>
         </header>
         <main className="App-main">
@@ -164,7 +164,7 @@ function GameDetail() {
             ← Back to Lobbies
           </button>
           <div>
-            <h1>🎮 Game Detail</h1>
+            <h1>Game Detail</h1>
             <p>Game ID: <strong style={{ fontFamily: 'monospace' }}>{gameID}</strong></p>
           </div>
         </div>
@@ -251,7 +251,7 @@ function GameDetail() {
       </main>
       
       <footer className="App-footer">
-        <p>&copy; 2024 OpenFronter. Connect and play together!</p>
+        <p>&copy; 2024 OpenFront.Pro. Connect and play together!</p>
       </footer>
     </div>
   );

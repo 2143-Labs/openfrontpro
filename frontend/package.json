@@ -1,7 +1,7 @@
 {
   "name": "openfront-frontend",
   "version": "0.1.0",
-  "description": "OpenFronter frontend using Vite and Bun",
+  "description": "OpenFront.Pro frontend using Vite and Bun",
   "type": "module",
   "main": "src/main.tsx",
   "module": "src/main.tsx",
@@ -28,7 +28,7 @@
     "bun",
     "react"
   ],
-  "author": "OpenFronter Team",
+  "author": "OpenFront.Pro Team",
   "license": "MIT",
   "dependencies": {
     "@types/react": "^19.1.8",

@@ -1,6 +1,6 @@
-# OpenFronter Frontend
+# OpenFront.Pro Frontend
 
-A React frontend application for OpenFronter, built with Vite and Bun, managed with Nix for reproducible builds.
+A React frontend application for OpenFront.Pro, built with Vite and Bun, managed with Nix for reproducible builds.
 
 ## Prerequisites
 

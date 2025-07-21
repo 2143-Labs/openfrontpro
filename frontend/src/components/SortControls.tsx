@@ -2,15 +2,11 @@ import React from 'react';
 import { SortBy } from '../types';
 
 interface SortControlsProps {
-  showActiveOnly: boolean;
-  setShowActiveOnly: (show: boolean) => void;
   sortBy: SortBy;
   setSortBy: (sort: SortBy) => void;
 }
 
 const SortControls: React.FC<SortControlsProps> = ({
-  showActiveOnly,
-  setShowActiveOnly,
   sortBy,
   setSortBy
 }) => {
@@ -23,15 +19,6 @@ const SortControls: React.FC<SortControlsProps> = ({
       marginBottom: '20px',
       flexWrap: 'wrap'
     }}>
-      <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <input
-          type="checkbox"
-          checked={showActiveOnly}
-          onChange={(e) => setShowActiveOnly(e.target.checked)}
-        />
-        Show active games only
-      </label>
-      
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <label>Sort by:</label>
         <select

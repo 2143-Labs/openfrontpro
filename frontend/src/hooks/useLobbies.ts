@@ -11,7 +11,6 @@ export const useLobbies = () => {
   const [afterFilter, setAfterFilter] = useState<number | null>(null);
   const [mapFilter, setMapFilter] = useState<string>('');
   const [teamFilter, setTeamFilter] = useState<string>('');
-  const [showActiveOnly, setShowActiveOnly] = useState(false);
   const [sortBy, setSortBy] = useState<SortBy>('last_seen');
 
   const loadLobbies = async () => {
@@ -37,11 +36,6 @@ export const useLobbies = () => {
   // Filter and sort lobbies
   const getFilteredAndSortedLobbies = () => {
     let filtered = lobbies;
-    
-    // Filter by active only if selected
-    if (showActiveOnly) {
-      filtered = lobbies.filter(lobby => !lobby.completed);
-    }
     
     // Filter by team type if selected
     if (teamFilter) {
@@ -85,8 +79,6 @@ export const useLobbies = () => {
     setMapFilter,
     teamFilter,
     setTeamFilter,
-    showActiveOnly,
-    setShowActiveOnly,
     sortBy,
     setSortBy,
     getFilteredAndSortedLobbies,
