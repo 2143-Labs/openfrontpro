@@ -431,6 +431,7 @@ async function handle_game_update(
 
         // On tick 300, insert the player data
         if (gu.tick === 300) {
+            //console.log(update);
           await p.query(
             `
             INSERT INTO
@@ -446,8 +447,10 @@ async function handle_game_update(
               update.smallID,
               update.playerType,
               update.name,
-              null, //TODO
-              update.team,
+              null, //TODO check this logic here, probably need to change db
+              typeof update.team === "string"
+                ? null
+                : update.team,
             ],
           );
         }
@@ -623,84 +626,90 @@ function change_big_int_to_string_recursively(obj: any): any {
 export let base_log = new Logger();
 
 async function main() {
-try {
-  let p = new Pool({
-    port: 5432,
-    host: "localhost",
-    user: "postgres",
-    database: "openfrontpro",
-  });
+    try {
+        let p = new Pool({
+            port: 5432,
+            host: "localhost",
+            user: "postgres",
+            database: "openfrontpro",
+        });
 
-  await p.connect();
-  console.log("Connected to database");
+        await p.connect();
+        console.log("Connected to database");
 
-  for(;;) {
-      // Old query: Select 10 jobs from the db
-      // SELECT
-      //     fg.game_id, fg.result_json
-      // FROM
-      //     finished_games fg
-      //     INNER JOIN analysis_queue aq
-      // ON
-      //     aq.game_id = fg.game_id
-      // LIMIT 10`,
-      //
-      // Select 1 job from DB by updating a single row from the analysis_queue table (INNER JOIN with finished_games)
-      // We set the analysis_status to 'Running' and then select the game_id and result_json
-      let res = await p.query(
-        `
-        WITH my_job AS (
-            SELECT
-                fg.game_id, fg.result_json
-            FROM
-                finished_games fg
-                INNER JOIN analysis_queue aq
-                ON aq.game_id = fg.game_id
-            WHERE
-                aq.status = 'Pending'
-            LIMIT 1
-        )
-        UPDATE analysis_queue aq
-        SET
-            status = 'Running',
-            started_unix_sec = EXTRACT(EPOCH FROM NOW())
-        FROM my_job
-        WHERE aq.game_id = my_job.game_id
-        RETURNING my_job.game_id, my_job.result_json
-        `
-      );
+        for(;;) {
+            // Old query: Select 10 jobs from the db
+            // SELECT
+            //     fg.game_id, fg.result_json
+            // FROM
+            //     finished_games fg
+            //     INNER JOIN analysis_queue aq
+            // ON
+            //     aq.game_id = fg.game_id
+            // LIMIT 10`,
+            //
+            // Select 1 job from DB by updating a single row from the analysis_queue table (INNER JOIN with finished_games)
+            // We set the analysis_status to 'Running' and then select the game_id and result_json
+            let res = await p.query(
+                `
+                WITH my_job AS (
+                    SELECT
+                    fg.game_id, fg.result_json
+                    FROM
+                    finished_games fg
+                    INNER JOIN analysis_queue aq
+                    ON aq.game_id = fg.game_id
+                    WHERE
+                    aq.status = 'Pending'
+                    LIMIT 1
+                )
+                UPDATE analysis_queue aq
+                SET
+                status = 'Running',
+                    started_unix_sec = EXTRACT(EPOCH FROM NOW())
+                FROM my_job
+                WHERE aq.game_id = my_job.game_id
+                RETURNING my_job.game_id, my_job.result_json
+                `
+            );
 
-      for (let game of res.rows) {
-        console.log("Game ID: ", game.game_id);
-        let r = game.result_json as GameRecord;
-        let record = decompressGameRecord(r);
+            for (let game of res.rows) {
+                console.log("Game ID: ", game.game_id);
+                let r = game.result_json as GameRecord;
+                let record = decompressGameRecord(r);
 
-        let time_now = Date.now();
-        let analysis = await simgame(game.game_id, record, p);
-        let time_taken = Date.now() - time_now;
+                let new_state = "Completed";
+                let time_now = Date.now();
+                try {
+                    let analysis = await simgame(game.game_id, record, p);
+                } catch (e) {
+                    console.log("The analysis failed for game", game.game_id, e);
+                    new_state = "Failed";
+                } finally {
+                    let time_taken = Date.now() - time_now;
 
-        console.log(
-          `Analysis for game ${game.game_id} completed in ${time_taken} ms. Game winner:`,
-              record.info.winner
-        );
+                    console.log(
+                        `Analysis for game ${game.game_id} = ${new_state} in ${time_taken} ms. Game winner:`,
+                            record.info.winner
+                    );
+                }
 
-        // Update analysis_queue table with the game_id and status 'Completed'
-        await p.query(
-          `
-          UPDATE analysis_queue
-          SET
-              status = 'Completed'
-          WHERE game_id = $1
-          `,
-          [game.game_id],
-        );
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-  }
-} catch (e) {
-  console.error("Error: ", e);
-}
+                // Update analysis_queue table with the game_id and status 'Completed'
+                await p.query(
+                    `
+                    UPDATE analysis_queue
+                    SET
+                    status = $2
+                    WHERE game_id = $1
+                    `,
+                    [game.game_id, new_state],
+                );
+            }
+            await new Promise((resolve) => setTimeout(resolve, 5000));
+        }
+    } catch (e) {
+        console.error("Error: ", e);
+    }
 }
 
 main();
