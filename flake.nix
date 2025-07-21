@@ -50,8 +50,6 @@
             '';
         };
 
-        packages.simulator = simulator.outputs.packages.${system}.default;
-
         packages.container = pkgs.dockerTools.buildLayeredImage {
           name = "openfrontpro";
           contents = [
@@ -74,20 +72,24 @@
           };
         };
 
+        packages.simulator = simulator.outputs.packages.${system}.default;
         packages.container-sim = pkgs.dockerTools.buildLayeredImage {
           name = "openfrontpro-simulator";
           contents = [
-            packages.simulator
+            #packages.simulator
+            #simulator.outputs.packages.${system}.default
+            pkgs.fish
           ];
 
           config = {
             #ExposedPorts = { "3000/tcp" = { }; };
-            EntryPoint = [ "bun" ];
+            #EntryPoint = [ "${packages.simulator}/bin/openfronter-sim" ];
+            EntryPoint = [ "${pkgs.fish}/bin/fish" ];
             Env = [
               #"RUST_LOG=info"
               #"FRONTEND_FOLDER=${frontend.outputs.packages.${system}.default}"
             ];
-            Cmd = [ "start" ];
+            Cmd = [ "-c" "echo 'test'" ];
           };
         };
       }
