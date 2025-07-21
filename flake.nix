@@ -76,7 +76,7 @@
         packages.container-sim = pkgs.dockerTools.buildLayeredImage {
           name = "openfrontpro-simulator";
           contents = [
-            #packages.simulator
+            packages.simulator
             #simulator.outputs.packages.${system}.default
             pkgs.fish
           ];
