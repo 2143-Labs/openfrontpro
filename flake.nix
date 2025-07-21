@@ -69,7 +69,7 @@
 
           config = {
             ExposedPorts = { "3000/tcp" = { }; };
-            EntryPoint = [ "${packages.backend}/bin/openfrontpro" ];
+            EntryPoint = [ "${packages.backend}/bin/openfrontpro-bundle" ];
             Env = [
               "RUST_LOG=info"
               "FRONTEND_FOLDER=${frontend.outputs.packages.${system}.default}"
