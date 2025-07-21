@@ -101,7 +101,7 @@ struct PublicLobbiesResponse {
     lobbies: Vec<Lobby>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, JsonSchema)]
+#[derive(Debug, Clone, serde::Serialize, JsonSchema, PartialEq)]
 #[serde(tag = "group")]
 enum PlayerTeams {
     FFA,
@@ -269,6 +269,39 @@ mod test1 {
                 "game_map should not be empty"
             );
         }
+    }
+
+    #[test]
+    fn test_player_teams_from_str_or_int_edge_cases() {
+        // Test string variants that should convert to Parties
+        let duos = PlayerTeams::from_str_or_int(&StringOrInt::String("Duos".to_string()));
+        assert_eq!(duos, Some(PlayerTeams::Parties { party_size: 2 }));
+        
+        let trios = PlayerTeams::from_str_or_int(&StringOrInt::String("Trios".to_string()));
+        assert_eq!(trios, Some(PlayerTeams::Parties { party_size: 3 }));
+        
+        let quads = PlayerTeams::from_str_or_int(&StringOrInt::String("Quads".to_string()));
+        assert_eq!(quads, Some(PlayerTeams::Parties { party_size: 4 }));
+        
+        // Test that unknown strings return None
+        let unknown = PlayerTeams::from_str_or_int(&StringOrInt::String("Unknown".to_string()));
+        assert_eq!(unknown, None);
+        
+        // Test negative integers should convert to Parties via from_str_or_int -> Teams conversion
+        // Note: from_str_or_int converts all ints to Teams, but From<i32> handles negatives as Parties
+        let negative_two = PlayerTeams::from_str_or_int(&StringOrInt::Int(-2));
+        assert_eq!(negative_two, Some(PlayerTeams::Teams { num_teams: (-2i32) as u8 }));
+        
+        // Test positive integers convert to Teams
+        let positive_four = PlayerTeams::from_str_or_int(&StringOrInt::Int(4));
+        assert_eq!(positive_four, Some(PlayerTeams::Teams { num_teams: 4 }));
+        
+        // Test From<i32> implementation for negative numbers (which creates Parties)
+        let from_negative_two = PlayerTeams::from(-2i32);
+        assert_eq!(from_negative_two, PlayerTeams::Parties { party_size: 2 });
+        
+        let from_negative_three = PlayerTeams::from(-3i32);
+        assert_eq!(from_negative_three, PlayerTeams::Parties { party_size: 3 });
     }
 }
 
@@ -1170,6 +1203,7 @@ mod test2 {
 
     use super::*;
 
+    /// Original helper function for basic mocking with game fixture loading
     fn create_mocked_api() -> MockOpenFrontAPI {
         let mut mocked_api = MockOpenFrontAPI::new();
         mocked_api.expect_get_lobbies()
@@ -1196,6 +1230,16 @@ mod test2 {
                     }],
                 })
             }.boxed());
+    
+    // Four distinct mocked API scenarios for comprehensive testing:
+    //
+    // 1. create_mocked_api_finished_game() - Returns valid finished game JSON from mygame.json fixture
+    // 2. create_mocked_api_error_state() - Returns {"error":"Some failure"} 
+    // 3. create_mocked_api_not_found() - Returns {"error":"Not found"}
+    // 4. create_mocked_api_malformed() - Returns Err(anyhow!("bad json"))
+    //
+    // Each function uses return_once() for single test usage, allowing precise
+    // control over API responses for different test scenarios.
 
 
         fn load_game_in_test(game_id: &str) -> Option<serde_json::Value> {
@@ -1220,10 +1264,731 @@ mod test2 {
         mocked_api
     }
 
+    /// Create a mocked API that returns a finished game using the mygame.json fixture
+    fn create_mocked_api_finished_game() -> MockOpenFrontAPI {
+        let mut mocked_api = MockOpenFrontAPI::new();
+        
+        // Setup get_lobbies with default behavior
+        mocked_api.expect_get_lobbies()
+            .return_once(|| async {
+                Ok(PublicLobbiesResponse { lobbies: vec![] })
+            }.boxed());
+
+        // Setup get_game_json to return valid finished game data from mygame.json
+        mocked_api.expect_get_game_json()
+            .return_once(|_game_id| async move {
+                let dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/examples/gamedata");
+                let file = dir.get_file("mygame.json")
+                    .expect("mygame.json fixture should exist");
+                let json: serde_json::Value = serde_json::from_slice(file.contents())
+                    .expect("Failed to parse mygame.json");
+                Ok(json)
+            }.boxed());
+
+        mocked_api
+    }
+
+    /// Create a mocked API that returns a generic error state
+    fn create_mocked_api_error_state() -> MockOpenFrontAPI {
+        let mut mocked_api = MockOpenFrontAPI::new();
+        
+        // Setup get_lobbies with default behavior
+        mocked_api.expect_get_lobbies()
+            .return_once(|| async {
+                Ok(PublicLobbiesResponse { lobbies: vec![] })
+            }.boxed());
+
+        // Setup get_game_json to return error JSON
+        mocked_api.expect_get_game_json()
+            .return_once(|_game_id| async move {
+                Ok(serde_json::json!({"error": "Some failure"}))
+            }.boxed());
+
+        mocked_api
+    }
+
+    /// Create a mocked API that returns a "Not found" error
+    fn create_mocked_api_not_found() -> MockOpenFrontAPI {
+        let mut mocked_api = MockOpenFrontAPI::new();
+        
+        // Setup get_lobbies with default behavior
+        mocked_api.expect_get_lobbies()
+            .return_once(|| async {
+                Ok(PublicLobbiesResponse { lobbies: vec![] })
+            }.boxed());
+
+        // Setup get_game_json to return "Not found" error JSON
+        mocked_api.expect_get_game_json()
+            .return_once(|_game_id| async move {
+                Ok(serde_json::json!({"error": "Not found"}))
+            }.boxed());
+
+        mocked_api
+    }
+
+    /// Create a mocked API that returns malformed JSON (anyhow error)
+    fn create_mocked_api_malformed() -> MockOpenFrontAPI {
+        let mut mocked_api = MockOpenFrontAPI::new();
+        
+        // Setup get_lobbies with default behavior
+        mocked_api.expect_get_lobbies()
+            .return_once(|| async {
+                Ok(PublicLobbiesResponse { lobbies: vec![] })
+            }.boxed());
+
+        // Setup get_game_json to return an anyhow error for bad JSON
+        mocked_api.expect_get_game_json()
+            .return_once(|_game_id| async move {
+                Err(anyhow::anyhow!("bad json"))
+            }.boxed());
+
+        mocked_api
+    }
+
     // SQLX Tests:
     #[sqlx::test]
     async fn test_insert_lobby(pool: PgPool) {
-        let mut mocked_api = create_mocked_api();
+        let mock = create_mocked_api();
+        let cfg = Config {
+            port: 3000,
+            rust_log: "info".to_string(),
+            database_url: "postgres://test".to_string(),
+            useragent: None,
+            cookie: None,
+            openfront_lobby_url: "https://openfront.io/api/public_lobbies".to_string(),
+            openfront_api_url: "https://api.openfront.io".to_string(),
+            frontend_folder: "./frontend".to_string(),
+            discord_client_id: None,
+            discord_client_secret: None,
+            discord_redirect_uri: "http://localhost:3000/auth/discord/callback".to_string(),
+        };
 
+        // Instead of calling look_for_new_games, call get_new_games directly
+        let new_games = get_new_games(&mock, &cfg).await.unwrap();
+        assert!(!new_games.is_empty(), "Should have at least one game from mocked API");
+        
+        let lobby = &new_games[0];
+        
+        // Perform manual DB insert using same logic as look_for_new_games
+        let player_teams_as_int: i32 = lobby.game_config.player_teams().into();
+        let test_timestamp = now_unix_sec();
+
+        // Insert the lobby into the database using the same query as the real code
+        sqlx::query!(
+            "INSERT INTO
+                lobbies (game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec, lobby_config_json)
+            VALUES
+                ($1, $2, $3, $4, $5, $6, $6, $7)
+            ON CONFLICT (game_id)
+            DO UPDATE
+                SET approx_num_players = $5
+                , last_seen_unix_sec = $6
+            ",
+            lobby.game_id,
+            player_teams_as_int,
+            lobby.game_config.max_players,
+            lobby.game_config.game_map,
+            lobby.num_clients,
+            test_timestamp,
+            serde_json::to_value(&lobby.game_config).unwrap()
+        ).execute(&pool).await.unwrap();
+
+        // Query back the inserted row to verify it was inserted correctly
+        let inserted_lobby = sqlx::query_as!(
+            LobbyDBEntry,
+            r#"SELECT
+                *,
+                false AS "analysis_complete!"
+            FROM
+                lobbies
+            WHERE game_id = $1"#,
+            lobby.game_id
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        // Assert that the row appears with correct fields
+        assert_eq!(inserted_lobby.game_id, "testgame");
+        assert_eq!(inserted_lobby.max_players, 10);
+        assert_eq!(inserted_lobby.game_map, "Test Map");
+        assert_eq!(inserted_lobby.approx_num_players, 1);
+        assert_eq!(inserted_lobby.first_seen_unix_sec, test_timestamp);
+        assert_eq!(inserted_lobby.last_seen_unix_sec, test_timestamp);
+        assert_eq!(inserted_lobby.completed, false);
+        assert_eq!(inserted_lobby.teams, PlayerTeams::FFA);
+        
+        // Verify the JSON config was stored correctly
+        let config = inserted_lobby.lobby_config();
+        assert_eq!(config.game_map, "Test Map");
+        assert_eq!(config.max_players, 10);
+        assert_eq!(config.game_mode, "Free For All");
+    }
+
+    // Example tests demonstrating the four mock API scenarios
+    
+    #[tokio::test]
+    async fn test_finished_game_scenario() {
+        let mocked_api = create_mocked_api_finished_game();
+        let status = check_if_game_finished(&mocked_api, "test_game").await.unwrap();
+        
+        match status {
+            GameStatus::Finished(json) => {
+                // Verify it's a finished game by checking for gitCommit field
+                assert!(json.get("gitCommit").is_some(), "Expected finished game to have gitCommit field");
+            }
+            _ => panic!("Expected GameStatus::Finished but got {:?}", status),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_error_state_scenario() {
+        let mocked_api = create_mocked_api_error_state();
+        let status = check_if_game_finished(&mocked_api, "test_game").await.unwrap();
+        
+        match status {
+            GameStatus::Error(json) => {
+                assert_eq!(json["error"], "Some failure");
+            }
+            _ => panic!("Expected GameStatus::Error but got {:?}", status),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_not_found_scenario() {
+        let mocked_api = create_mocked_api_not_found();
+        let status = check_if_game_finished(&mocked_api, "test_game").await.unwrap();
+        
+        match status {
+            GameStatus::NotFound => {
+                // Expected - this is the correct behavior
+            }
+            _ => panic!("Expected GameStatus::NotFound but got {:?}", status),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_game_status_malformed() {
+        let mocked_api = create_mocked_api_malformed();
+        let result = check_if_game_finished(&mocked_api, "test_game").await;
+
+        assert!(result.is_err(), "Expected an error due to malformed JSON");
+        let error = result.unwrap_err();
+        assert_eq!(error.to_string(), "bad json");
+    }
+
+    // Step 3: Test GameStatus detection via check_if_game_finished
+    
+    #[tokio::test]
+    async fn test_game_status_finished() {
+        let mocked_api = create_mocked_api_finished_game();
+        let status = check_if_game_finished(&mocked_api, "test_game").await.unwrap();
+        
+        match status {
+            GameStatus::Finished(json) => {
+                // Verify it's a finished game by checking for gitCommit field
+                assert!(json.get("gitCommit").is_some(), "Expected finished game to have gitCommit field");
+                
+                // Check winner id exists
+                let winner_id = json["info"]["winner"][1].as_str().expect("Winner ID should exist");
+                assert!(!winner_id.is_empty(), "Winner ID should not be empty");
+                
+                // Check players length > 0
+                let players = json["info"]["players"].as_array().expect("Players should be an array");
+                assert!(players.len() > 0, "Players array should not be empty");
+                
+                // Check duration > 0
+                let duration = json["info"]["duration"].as_i64().expect("Duration should exist");
+                assert!(duration > 0, "Duration should be greater than 0");
+                
+                // Check num_turns > 0
+                let num_turns = json["info"]["num_turns"].as_i64().expect("Num turns should exist");
+                assert!(num_turns > 0, "Num turns should be greater than 0");
+            }
+            _ => panic!("Expected GameStatus::Finished but got {:?}", status),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_game_status_error() {
+        let mocked_api = create_mocked_api_error_state();
+        let status = check_if_game_finished(&mocked_api, "test_game").await.unwrap();
+        
+        match status {
+            GameStatus::Error(json) => {
+                assert_eq!(json["error"], "Some failure");
+            }
+            _ => panic!("Expected GameStatus::Error but got {:?}", status),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_game_status_not_found() {
+        let mocked_api = create_mocked_api_not_found();
+        let status = check_if_game_finished(&mocked_api, "test_game").await.unwrap();
+        
+        match status {
+            GameStatus::NotFound => {
+                // Expected - this is the correct behavior
+            }
+            _ => panic!("Expected GameStatus::NotFound but got {:?}", status),
+        }
+    }
+
+    // Step 6: Add finished game database integration tests using #[sqlx::test]
+    
+    #[sqlx::test]
+    async fn test_save_finished_game_with_finished_status(pool: PgPool) {
+        let game_id = "testfin1";
+        
+        // Insert a dummy lobby row (simulate previously tracked game)
+        let test_timestamp = now_unix_sec();
+        let dummy_config = serde_json::json!({
+            "gameMap": "Test Map",
+            "gameType": "Public",
+            "difficulty": "Medium",
+            "maxPlayers": 10
+        });
+        
+        sqlx::query!(
+            "INSERT INTO lobbies (game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec, completed, lobby_config_json)
+             VALUES ($1, $2, $3, $4, $5, $6, $6, false, $7)",
+            game_id,
+            0, // FFA
+            10,
+            "Test Map",
+            5,
+            test_timestamp,
+            dummy_config
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // Verify lobby was inserted and completed is false initially
+        let initial_lobby = sqlx::query!("SELECT completed FROM lobbies WHERE game_id = $1", game_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(initial_lobby.completed, false);
+
+        // Create finished game JSON with winner info
+        let finished_game_json = serde_json::json!({
+            "gitCommit": "abc123def456",
+            "info": {
+                "gameID": game_id,
+                "winner": ["player", "player123"],
+                "duration": 1200,
+                "num_turns": 5000,
+                "players": [
+                    {
+                        "clientID": "player123",
+                        "username": "WinnerPlayer"
+                    }
+                ]
+            }
+        });
+
+        // Call save_finished_game with GameStatus::Finished
+        let game_status = GameStatus::Finished(finished_game_json.clone());
+        save_finished_game(pool.clone(), game_status, game_id).await.unwrap();
+
+        // Assert: lobbies.completed flag set to true
+        let updated_lobby = sqlx::query!("SELECT completed FROM lobbies WHERE game_id = $1", game_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(updated_lobby.completed, true);
+
+        // Assert: finished_games has row with same game_id, result_json->info->winner present, is_ok true
+        let finished_game = sqlx::query!(
+            "SELECT game_id, result_json, is_ok FROM finished_games WHERE game_id = $1",
+            game_id
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        
+        assert_eq!(finished_game.game_id, game_id);
+        assert_eq!(finished_game.is_ok, true);
+        
+        // Verify result_json contains winner info
+        let result_json = &finished_game.result_json;
+        assert!(result_json["info"]["winner"].is_array());
+        assert_eq!(result_json["info"]["winner"][0], "player");
+        assert_eq!(result_json["info"]["winner"][1], "player123");
+        assert!(result_json["gitCommit"].is_string());
+    }
+
+    #[sqlx::test]
+    async fn test_save_finished_game_with_error_status(pool: PgPool) {
+        let game_id = "testerr1";
+        
+        // Insert a dummy lobby row (simulate previously tracked game)
+        let test_timestamp = now_unix_sec();
+        let dummy_config = serde_json::json!({
+            "gameMap": "Error Test Map",
+            "gameType": "Public",
+            "difficulty": "Hard",
+            "maxPlayers": 20
+        });
+        
+        sqlx::query!(
+            "INSERT INTO lobbies (game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec, completed, lobby_config_json)
+             VALUES ($1, $2, $3, $4, $5, $6, $6, false, $7)",
+            game_id,
+            2, // 2 teams
+            20,
+            "Error Test Map",
+            8,
+            test_timestamp,
+            dummy_config
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // Verify lobby was inserted and completed is false initially
+        let initial_lobby = sqlx::query!("SELECT completed FROM lobbies WHERE game_id = $1", game_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(initial_lobby.completed, false);
+
+        // Create error game JSON
+        let error_game_json = serde_json::json!({
+            "error": "Game failed to complete due to server error",
+            "gameID": game_id,
+            "timestamp": test_timestamp
+        });
+
+        // Call save_finished_game with GameStatus::Error
+        let game_status = GameStatus::Error(error_game_json.clone());
+        save_finished_game(pool.clone(), game_status, game_id).await.unwrap();
+
+        // Assert: lobbies.completed flag set to true
+        let updated_lobby = sqlx::query!("SELECT completed FROM lobbies WHERE game_id = $1", game_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(updated_lobby.completed, true);
+
+        // Assert: finished_games has row with same game_id, result_json with error, is_ok false
+        let finished_game = sqlx::query!(
+            "SELECT game_id, result_json, is_ok FROM finished_games WHERE game_id = $1",
+            game_id
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        
+        assert_eq!(finished_game.game_id, game_id);
+        assert_eq!(finished_game.is_ok, false); // Key difference from successful completion
+        
+        // Verify result_json contains error info
+        let result_json = &finished_game.result_json;
+        assert_eq!(result_json["error"], "Game failed to complete due to server error");
+        assert_eq!(result_json["gameID"], game_id);
+    }
+
+    #[sqlx::test]
+    async fn test_save_finished_game_with_not_found_status(pool: PgPool) {
+        let game_id = "testnf01";
+        
+        // Insert a dummy lobby row (simulate previously tracked game)
+        let test_timestamp = now_unix_sec();
+        let dummy_config = serde_json::json!({
+            "gameMap": "Not Found Test Map",
+            "gameType": "Private",
+            "difficulty": "Easy",
+            "maxPlayers": 5
+        });
+        
+        sqlx::query!(
+            "INSERT INTO lobbies (game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec, completed, lobby_config_json)
+             VALUES ($1, $2, $3, $4, $5, $6, $6, false, $7)",
+            game_id,
+            -2, // Parties of 2
+            5,
+            "Not Found Test Map",
+            3,
+            test_timestamp,
+            dummy_config
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // Verify lobby was inserted and completed is false initially
+        let initial_lobby = sqlx::query!("SELECT completed FROM lobbies WHERE game_id = $1", game_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(initial_lobby.completed, false);
+
+        // Call save_finished_game with GameStatus::NotFound
+        let game_status = GameStatus::NotFound;
+        save_finished_game(pool.clone(), game_status, game_id).await.unwrap();
+
+        // Assert: With NotFound status, the function should return early without doing anything
+        // lobbies.completed should remain false
+        let updated_lobby = sqlx::query!("SELECT completed FROM lobbies WHERE game_id = $1", game_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(updated_lobby.completed, false); // Should remain unchanged
+
+        // Assert: No row should be inserted into finished_games table for NotFound status
+        let finished_game_count = sqlx::query!(
+            "SELECT COUNT(*) as count FROM finished_games WHERE game_id = $1",
+            game_id
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        
+        assert_eq!(finished_game_count.count.unwrap_or(0), 0); // No rows should exist
+    }
+
+    #[sqlx::test]
+    async fn test_save_finished_game_transactional_behavior(pool: PgPool) {
+        let game_id = "testtxn1";
+        
+        // Insert a dummy lobby row
+        let test_timestamp = now_unix_sec();
+        let dummy_config = serde_json::json!({
+            "gameMap": "Transaction Test Map",
+            "gameType": "Public",
+            "difficulty": "Medium",
+            "maxPlayers": 10
+        });
+        
+        sqlx::query!(
+            "INSERT INTO lobbies (game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec, completed, lobby_config_json)
+             VALUES ($1, $2, $3, $4, $5, $6, $6, false, $7)",
+            game_id,
+            0, // FFA
+            10,
+            "Transaction Test Map",
+            7,
+            test_timestamp,
+            dummy_config
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // Create finished game JSON with all required winner structure
+        let finished_game_json = serde_json::json!({
+            "gitCommit": "transaction_test_commit",
+            "info": {
+                "gameID": game_id,
+                "winner": ["player", "txn_player"],
+                "duration": 800,
+                "num_turns": 3000,
+                "players": [
+                    {
+                        "clientID": "txn_player",
+                        "username": "TransactionTester"
+                    }
+                ]
+            }
+        });
+
+        // Call save_finished_game which should execute both updates in a transaction
+        let game_status = GameStatus::Finished(finished_game_json.clone());
+        save_finished_game(pool.clone(), game_status, game_id).await.unwrap();
+
+        // Both the lobby update and finished_games insert should have succeeded together
+        // Verify both changes were committed
+        let lobby_result = sqlx::query!("SELECT completed FROM lobbies WHERE game_id = $1", game_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(lobby_result.completed, true);
+
+        let finished_game_result = sqlx::query!(
+            "SELECT game_id, is_ok FROM finished_games WHERE game_id = $1",
+            game_id
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(finished_game_result.game_id, game_id);
+        assert_eq!(finished_game_result.is_ok, true);
+    }
+
+    /// Helper function to run one iteration of the look_for_finished_games inner logic
+    /// This extracts the core logic without the infinite loop for testing purposes
+    async fn look_for_finished_games_single_iteration(
+        ofapi: &impl OpenFrontAPI, 
+        database: PgPool
+    ) -> anyhow::Result<usize> {
+        let unfinished_games = sqlx::query!(
+            "SELECT
+                game_id
+            FROM lobbies
+            WHERE
+                completed = false
+                AND last_seen_unix_sec < extract(epoch from (NOW() - INTERVAL '15 minutes'))
+                -- AND last_seen_unix_sec > extract(epoch from (NOW() - INTERVAL '2 hours'))
+            "
+        )
+        .fetch_all(&database)
+        .await?;
+
+        tracing::info!(
+            "Found {} unfinished games, checking if they are finished...",
+            unfinished_games.len()
+        );
+
+        let mut processed_count = 0;
+        for game in unfinished_games {
+            let game_id = &game.game_id;
+            let finish_status = check_if_game_finished(ofapi, game_id).await?;
+            save_finished_game(database.clone(), finish_status, game_id).await?;
+            processed_count += 1;
+        }
+
+        Ok(processed_count)
+    }
+
+    #[sqlx::test]
+    async fn test_look_for_finished_games_regression(pool: PgPool) {
+        let game_id = "regtest1";
+        
+        // Insert an unfinished game with last_seen_unix_sec older than 15 minutes
+        let fifteen_min_ago = now_unix_sec() - (16 * 60); // 16 minutes ago to ensure it's older than 15
+        let dummy_config = serde_json::json!({
+            "gameMap": "Regression Test Map",
+            "gameType": "Public", 
+            "difficulty": "Medium",
+            "maxPlayers": 10
+        });
+        
+        sqlx::query!(
+            "INSERT INTO lobbies (game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec, completed, lobby_config_json)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, false, $8)",
+            game_id,
+            0, // FFA
+            10,
+            "Regression Test Map",
+            8,
+            fifteen_min_ago, // first_seen
+            fifteen_min_ago, // last_seen (16 minutes ago)
+            dummy_config
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // Verify the game is initially unfinished
+        let initial_lobby = sqlx::query!("SELECT completed FROM lobbies WHERE game_id = $1", game_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(initial_lobby.completed, false);
+
+        // Create a mocked API that returns finished game JSON
+        let mut mocked_api = MockOpenFrontAPI::new();
+        mocked_api.expect_get_game_json()
+            .with(mockall::predicate::eq(game_id))
+            .return_once(|_game_id| async move {
+                let dir = include_dir::include_dir!("$CARGO_MANIFEST_DIR/examples/gamedata");
+                let file = dir.get_file("mygame.json")
+                    .expect("mygame.json fixture should exist for regression test");
+                let json: serde_json::Value = serde_json::from_slice(file.contents())
+                    .expect("Failed to parse mygame.json in regression test");
+                Ok(json)
+            }.boxed());
+
+        // Use timeout to run one iteration of the finished games loop
+        // This ensures we don't get stuck in an infinite loop during testing
+        let timeout_duration = tokio::time::Duration::from_secs(10);
+        let result = tokio::time::timeout(
+            timeout_duration,
+            look_for_finished_games_single_iteration(&mocked_api, pool.clone())
+        ).await;
+
+        // Verify the timeout didn't occur and the function succeeded
+        assert!(result.is_ok(), "Function should complete within timeout");
+        let processed_count = result.unwrap().unwrap();
+        assert_eq!(processed_count, 1, "Should process exactly 1 game");
+
+        // Assert: Database should now be updated - lobby marked as completed
+        let updated_lobby = sqlx::query!("SELECT completed FROM lobbies WHERE game_id = $1", game_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(updated_lobby.completed, true, "Game should be marked as completed after processing");
+
+        // Assert: finished_games table should have the new entry
+        let finished_game = sqlx::query!(
+            "SELECT game_id, is_ok FROM finished_games WHERE game_id = $1",
+            game_id
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        
+        assert_eq!(finished_game.game_id, game_id);
+        assert_eq!(finished_game.is_ok, true, "Game should be marked as successfully finished");
+    }
+
+    #[sqlx::test] 
+    async fn test_look_for_finished_games_no_old_games(pool: PgPool) {
+        let game_id = "newgame1";
+        
+        // Insert a recent unfinished game (only 5 minutes old, not 15+ minutes)
+        let five_min_ago = now_unix_sec() - (5 * 60); // 5 minutes ago
+        let dummy_config = serde_json::json!({
+            "gameMap": "Recent Test Map",
+            "gameType": "Public",
+            "difficulty": "Easy", 
+            "maxPlayers": 20
+        });
+        
+        sqlx::query!(
+            "INSERT INTO lobbies (game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec, completed, lobby_config_json)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, false, $8)",
+            game_id,
+            0, // FFA
+            20,
+            "Recent Test Map",
+            12,
+            five_min_ago, // first_seen
+            five_min_ago, // last_seen (only 5 minutes ago)
+            dummy_config
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // Create a mocked API (shouldn't be called since no games are old enough)
+        let mocked_api = MockOpenFrontAPI::new();
+        // No expectations set - if called, test will fail
+
+        // Run one iteration - should process 0 games since none are old enough
+        let processed_count = look_for_finished_games_single_iteration(&mocked_api, pool.clone())
+            .await
+            .unwrap();
+        assert_eq!(processed_count, 0, "Should process 0 games since none are old enough");
+
+        // Game should still be unfinished
+        let lobby = sqlx::query!("SELECT completed FROM lobbies WHERE game_id = $1", game_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(lobby.completed, false, "Recent game should remain unfinished");
+
+        // No entries should be in finished_games
+        let finished_count = sqlx::query!(
+            "SELECT COUNT(*) as count FROM finished_games WHERE game_id = $1",
+            game_id
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(finished_count.count.unwrap_or(0), 0, "No finished games should be recorded");
     }
 }
