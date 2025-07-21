@@ -63,12 +63,8 @@
         packages.container = pkgs.dockerTools.buildLayeredImage {
           name = "openfrontpro";
           contents = [
-                rust.outputs.packages.${system}.default
+                packages.backend
                 frontend.outputs.packages.${system}.default
-                pkgs.cacert
-                pkgs.bashInteractive
-                pkgs.coreutils
-                pkgs.curl
           ];
 
           config = {
