@@ -115,7 +115,7 @@ async function simgame(gameId: string, record: GameRecord, p: Pool) {
 
   // Load terrain
   let map_data = await load_map_data(
-    "../OpenFrontIO/resources/maps",
+    "./OpenFrontIO/resources/maps",
     record.info.config.gameMap,
   );
   console.log("Map data loaded", map_data.manifest.name);

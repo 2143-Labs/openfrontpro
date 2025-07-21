@@ -23,7 +23,6 @@
             pkgs.nodePackages.typescript-language-server
             pkgs.nodePackages.eslint
             pkgs.nodePackages.typescript
-            pkgs.pnpm_10
             #packages.my-husky
             # Add the bun2nix binary to our devshell
             bun2nix.packages.${system}.default
@@ -49,6 +48,7 @@
           version = "0.1.0";
           src = ./.;
           buildInputs = [
+            pkgs.nodejs_24
             pkgs.jq
           ];
 
@@ -62,7 +62,7 @@
           #ln -s ${packages.my-husky}/bin/husky $out/bin/husky
         };
 
-        packages.simulator-npm-package = pkgs.buildNpmPackage {
+        packages.simulator-node = pkgs.buildNpmPackage {
           pname = "openfronter-sim";
           version = "0.1.0";
           buildInputs = [
@@ -77,9 +77,25 @@
           };
             npmConfigHook = pkgs.importNpmLock.npmConfigHook;
             dontNpmPrune = true;
-        };
+          nodejs = pkgs.nodejs_24;  # ensures proper shebang patching
+          installPhase = ''
+            runHook preInstall
 
-        packages.simulator-node = "TODO"; # how do I make simulator-npm-package an executable package?
+            mkdir -p $out/bin/
+            mkdir -p $out/src/
+            cp -r src/* $out/src/
+            cp ./package.json $out/
+            cp -r ./node_modules/ $out/node_modules/
+
+            cat > $out/bin/openfronter-sim <<EOF
+            #!/bin/sh
+            ${pkgs.nodejs_24}/bin/npm start
+            EOF
+            chmod +x $out/bin/openfronter-sim
+
+            runHook postInstall
+            '';
+        };
         }
     );
 }
