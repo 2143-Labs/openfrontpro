@@ -44,6 +44,11 @@ import { Logger } from "winston";
 import { Pool } from "pg";
 import fs from "fs/promises";
 
+const { DATABASE_URL } = process.env;
+if (!DATABASE_URL) {
+  throw new Error("Missing DATABASE_URL environment variable");
+}
+
 type MapData = {
   minimap: Uint8Array;
   map: Uint8Array;
@@ -627,12 +632,16 @@ export let base_log = new Logger();
 
 async function main() {
     try {
-        let p = new Pool({
-            port: 5432,
-            host: "localhost",
-            user: "postgres",
-            database: "openfrontpro",
-        });
+        const dbUrl = new URL(DATABASE_URL!);
+        const poolConfig = {
+            host: dbUrl.hostname,
+            port: Number(dbUrl.port) || 5432,
+            user: dbUrl.username,
+            password: dbUrl.password,
+            database: dbUrl.pathname.replace(/^\//, "")
+        };
+
+        const p = new Pool(poolConfig);
 
         await p.connect();
         console.log("Connected to database");
