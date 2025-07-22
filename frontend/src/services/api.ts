@@ -2,18 +2,23 @@ import { Lobby } from '../types';
 
 export interface FetchLobbiesParams {
   completed?: boolean | null;
+  hasAnalysis?: boolean | null;
   after?: number | null;
   mapName?: string;
 }
 
 export const fetchLobbies = async (params: FetchLobbiesParams = {}): Promise<Lobby[]> => {
-  const { completed, after, mapName } = params;
+  const { completed, hasAnalysis, after, mapName } = params;
   
   // Build URL with query parameters
   const url = new URL('/api/v1/lobbies', window.location.origin);
   
   if (completed !== null && completed !== undefined) {
     url.searchParams.append('completed', completed.toString());
+  }
+  
+  if (hasAnalysis !== null && hasAnalysis !== undefined) {
+    url.searchParams.append('has_analysis', hasAnalysis.toString());
   }
   
   if (after !== null && after !== undefined) {

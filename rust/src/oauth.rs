@@ -1,8 +1,13 @@
 #![allow(unused)]
-use aide::axum::ApiRouter;
+use std::sync::Arc;
+
+use aide::{axum::ApiRouter,  IntoApi};
 use anyhow::Result;
+use axum::{extract::Query, response::Response, Extension};
 use reqwest::Client;
+use schemars::JsonSchema;
 use serde::Deserialize;
+use sqlx::PgPool;
 
 use crate::Config;
 
@@ -50,7 +55,7 @@ pub struct DiscordUser {
 
 pub fn authorization_url(state: &str, cfg: &DiscordOAuthConfig) -> String {
     format!(
-        "https://discord.com/api/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope=identify%20email&state={}",
+        "https://discord.com/api/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope=identify+openid+gateway.connect+sdk.social_layer_presence&state={}",
         cfg.client_id,
         urlencoding::encode(&cfg.redirect_uri),
         urlencoding::encode(state)
@@ -89,8 +94,88 @@ pub async fn fetch_user(token: &str) -> Result<DiscordUser> {
     Ok(user)
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+struct CallbackAPIParams {
+    code: Option<String>,
+    error: Option<String>,
+    state: String,
+}
+
+fn basic_error_response(error: &str) -> Response {
+    Response::builder()
+        .status(axum::http::StatusCode::BAD_REQUEST)
+        .body(axum::body::Body::from(format!("Error: {}", error)))
+        .unwrap()
+}
+
+async fn callback_api_handler(
+    Extension(database): Extension<PgPool>,
+    Extension(config): Extension<Arc<Config>>,
+    Query(params): Query<CallbackAPIParams>,
+) -> Result<Response, Response> {
+    if let Some(error) = params.error {
+        return Err(basic_error_response(&error));
+    }
+
+    let Some(code) = params.code else {
+        return Err(basic_error_response("Missing 'code' parameter in callback"));
+    };
+
+    //TODO check state
+
+    let cfg = DiscordOAuthConfig::from_env(&config);
+    let token_response = exchange_code(&code, &cfg).await.map_err(|e| {
+        basic_error_response(&format!("Failed to exchange code: {}", e))
+    })?;
+    let user = fetch_user(&token_response.access_token).await.map_err(|e| {
+        basic_error_response(&format!("Failed to fetch user: {}", e))
+    })?;
+
+    // Process the user information as needed
+
+    let res = Response::builder()
+        .status(axum::http::StatusCode::FOUND)
+        .header(axum::http::header::CONTENT_TYPE, "text/plain")
+        .header(axum::http::header::CACHE_CONTROL, "no-cache")
+        // Send them back to /
+        .header(axum::http::header::LOCATION, "/")
+        // Add logged in cookies
+        .header(
+            axum::http::header::SET_COOKIE,
+            format!(
+                "todo_DELETE_THIS_discord_user_id={}; Path=/; HttpOnly; Secure; SameSite=Strict",
+                user.id
+            ),
+        )
+        .body(axum::body::Body::from(format!(
+            "User {}#{} authenticated successfully",
+            user.username, user.discriminator
+        )))
+        .map_err(|e| {
+            basic_error_response(&format!("Failed to build response: {}", e))
+        })?;
+
+    Ok(res)
+}
+
+async fn login_redir_handler(
+    Extension(config): Extension<Arc<Config>>,
+) -> Response {
+    let state = "some_random_state"; // This should be a securely generated random state
+
+    let cfg = DiscordOAuthConfig::from_env(&config);
+    let url = authorization_url(state, &cfg);
+    Response::builder()
+        .status(axum::http::StatusCode::FOUND)
+        .header(axum::http::header::LOCATION, url)
+        .body(axum::body::Body::empty())
+        .unwrap()
+}
+
 /// Creates and returns the OAuth API router
 pub fn routes() -> ApiRouter {
+    // This lives under oauth/discord/
     ApiRouter::new()
-    // OAuth routes will be added here
+        .route("/callback", axum::routing::get(callback_api_handler))
+        .route("/login", axum::routing::get(login_redir_handler))
 }

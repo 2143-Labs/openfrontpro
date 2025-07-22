@@ -242,6 +242,7 @@ async fn main() -> anyhow::Result<()> {
     let fin = routes
         .finish_api(&mut openapi)
         .layer(Extension(openapi.clone()))
+        .layer(Extension(config.clone()))
         .layer(
             // TODO Figure out how to embed a "request_id" without a lot of boilerplate so that we
             // can tie the request and response together in the logs.

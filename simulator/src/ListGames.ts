@@ -415,6 +415,10 @@ async function finalizeAnalysis(
     const gameId = analysis.gameId;
 
     for (const [client_id, spawn] of Object.entries(analysis.spawns)) {
+        if(!spawn.x || !spawn.y) {
+            console.log("invalid spawn for client", client_id, "in game", gameId);
+            continue;
+        }
         await pool.query(INSERT_SPAWN_LOCATIONS, [
             gameId,
             client_id,

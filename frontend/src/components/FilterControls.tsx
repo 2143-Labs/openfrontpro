@@ -5,6 +5,8 @@ import { getPlayerTeams, formatPlayerTeams } from '../utils/teams';
 interface FilterControlsProps {
   completedFilter: boolean | null;
   setCompletedFilter: (filter: boolean | null) => void;
+  hasAnalysisFilter: boolean | null;
+  setHasAnalysisFilter: (filter: boolean | null) => void;
   afterFilter: number | null;
   setAfterFilter: (filter: number | null) => void;
   mapFilter: string;
@@ -17,6 +19,8 @@ interface FilterControlsProps {
 const FilterControls: React.FC<FilterControlsProps> = ({
   completedFilter,
   setCompletedFilter,
+  hasAnalysisFilter,
+  setHasAnalysisFilter,
   afterFilter,
   setAfterFilter,
   mapFilter,
@@ -27,6 +31,7 @@ const FilterControls: React.FC<FilterControlsProps> = ({
 }) => {
   const clearAllFilters = () => {
     setCompletedFilter(null);
+    setHasAnalysisFilter(null);
     setAfterFilter(null);
     setMapFilter('');
     setTeamFilter('');
@@ -73,6 +78,38 @@ const FilterControls: React.FC<FilterControlsProps> = ({
           }}
         >
           {completedFilter === false ? '✓ Active' : 'Show Active'}
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <label style={{ fontWeight: 'bold', color: '#495057' }}>Analysis:</label>
+        <button 
+          onClick={() => setHasAnalysisFilter(hasAnalysisFilter === true ? null : true)}
+          style={{ 
+            padding: '6px 12px', 
+            backgroundColor: hasAnalysisFilter === true ? '#28a745' : '#6c757d', 
+            color: 'white', 
+            borderRadius: '4px', 
+            border: 'none',
+            fontSize: '0.9em',
+            cursor: 'pointer'
+          }}
+        >
+          {hasAnalysisFilter === true ? '✓ Analyzed' : 'Show Analyzed'}
+        </button>
+        <button 
+          onClick={() => setHasAnalysisFilter(hasAnalysisFilter === false ? null : false)}
+          style={{ 
+            padding: '6px 12px', 
+            backgroundColor: hasAnalysisFilter === false ? '#28a745' : '#6c757d', 
+            color: 'white', 
+            borderRadius: '4px', 
+            border: 'none',
+            fontSize: '0.9em',
+            cursor: 'pointer'
+          }}
+        >
+          {hasAnalysisFilter === false ? '✓ Not Analyzed' : 'Show Not Analyzed'}
         </button>
       </div>
 

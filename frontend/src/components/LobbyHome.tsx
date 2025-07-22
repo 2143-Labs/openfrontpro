@@ -9,6 +9,8 @@ function LobbyHome() {
     error,
     completedFilter,
     setCompletedFilter,
+    hasAnalysisFilter,
+    setHasAnalysisFilter,
     afterFilter,
     setAfterFilter,
     mapFilter,
@@ -114,41 +116,6 @@ function LobbyHome() {
       </header>
       
       <main className="App-main">
-        <section className="lobbies-section">
-          <h2>Available Lobbies</h2>
-          
-          <FilterControls
-            completedFilter={completedFilter}
-            setCompletedFilter={setCompletedFilter}
-            afterFilter={afterFilter}
-            setAfterFilter={setAfterFilter}
-            mapFilter={mapFilter}
-            setMapFilter={setMapFilter}
-            teamFilter={teamFilter}
-            setTeamFilter={setTeamFilter}
-            lobbies={lobbies}
-          />
-          
-          {!loading && !error && lobbies.length > 0 && (
-            <SortControls
-              sortBy={sortBy}
-              setSortBy={setSortBy}
-            />
-          )}
-          
-          {loading && <LoadingSpinner />}
-          {error && <ErrorMessage message={error} />}
-          {!loading && !error && <LobbiesTable lobbies={getFilteredAndSortedLobbies()} />}
-          
-          {!loading && !error && lobbies.length > 0 && (
-            <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-              <p style={{ color: '#666' }}>
-                Showing {getFilteredAndSortedLobbies().length} of {lobbies.length} {lobbies.length === 1 ? 'lobby' : 'lobbies'}
-              </p>
-            </div>
-          )}
-        </section>
-        
         <section className="analysis-section">
           <h2>Analyze Single Game</h2>
           <p style={{ color: '#666', marginBottom: '1.5rem' }}>
@@ -187,6 +154,43 @@ function LobbyHome() {
               </div>
             )}
           </div>
+        </section>
+        
+        <section className="lobbies-section">
+          <h2>Available Lobbies</h2>
+          
+          <FilterControls
+            completedFilter={completedFilter}
+            setCompletedFilter={setCompletedFilter}
+            hasAnalysisFilter={hasAnalysisFilter}
+            setHasAnalysisFilter={setHasAnalysisFilter}
+            afterFilter={afterFilter}
+            setAfterFilter={setAfterFilter}
+            mapFilter={mapFilter}
+            setMapFilter={setMapFilter}
+            teamFilter={teamFilter}
+            setTeamFilter={setTeamFilter}
+            lobbies={lobbies}
+          />
+          
+          {!loading && !error && lobbies.length > 0 && (
+            <SortControls
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+            />
+          )}
+          
+          {loading && <LoadingSpinner />}
+          {error && <ErrorMessage message={error} />}
+          {!loading && !error && <LobbiesTable lobbies={getFilteredAndSortedLobbies()} />}
+          
+          {!loading && !error && lobbies.length > 0 && (
+            <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+              <p style={{ color: '#666' }}>
+                Showing {getFilteredAndSortedLobbies().length} of {lobbies.length} {lobbies.length === 1 ? 'lobby' : 'lobbies'}
+              </p>
+            </div>
+          )}
         </section>
       </main>
       

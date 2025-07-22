@@ -8,6 +8,7 @@ export const useLobbies = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [completedFilter, setCompletedFilter] = useState<boolean | null>(null);
+  const [hasAnalysisFilter, setHasAnalysisFilter] = useState<boolean | null>(null);
   const [afterFilter, setAfterFilter] = useState<number | null>(null);
   const [mapFilter, setMapFilter] = useState<string>('');
   const [teamFilter, setTeamFilter] = useState<string>('');
@@ -20,6 +21,7 @@ export const useLobbies = () => {
       
       const data = await fetchLobbies({
         completed: completedFilter,
+        hasAnalysis: hasAnalysisFilter,
         after: afterFilter,
         mapName: mapFilter
       });
@@ -65,7 +67,7 @@ export const useLobbies = () => {
   // Fetch lobbies on component mount and when filters change
   useEffect(() => {
     loadLobbies();
-  }, [completedFilter, afterFilter, mapFilter, teamFilter]);
+  }, [completedFilter, hasAnalysisFilter, afterFilter, mapFilter, teamFilter]);
 
   return {
     lobbies,
@@ -73,6 +75,8 @@ export const useLobbies = () => {
     error,
     completedFilter,
     setCompletedFilter,
+    hasAnalysisFilter,
+    setHasAnalysisFilter,
     afterFilter,
     setAfterFilter,
     mapFilter,

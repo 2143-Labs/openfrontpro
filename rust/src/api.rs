@@ -24,6 +24,7 @@ use crate::utils::ReqwestErrorHandlingExtension;
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 struct LobbyQueryParams {
     completed: Option<bool>,
+    has_analysis: Option<bool>,
     game_map: Option<String>,
     /// Unix timestamp in seconds
     after: Option<i64>,
@@ -123,6 +124,22 @@ async fn lobbies_handler(
 
         querybuilder.push("game_map = ");
         querybuilder.push_bind(game_map);
+    }
+
+    if let Some(has_analysis) = params.has_analysis {
+        if _has_where {
+            querybuilder.push(" AND ");
+        } else {
+            querybuilder.push(" WHERE ");
+        }
+        _has_where = true;
+
+        querybuilder.push("co.inserted_at_unix_sec IS ");
+        if has_analysis {
+            querybuilder.push("NOT NULL");
+        } else {
+            querybuilder.push("NULL");
+        }
     }
 
     querybuilder.push(" ORDER BY last_seen_unix_sec DESC LIMIT 100");
@@ -310,6 +327,7 @@ pub fn routes(database: PgPool, _openapi: OpenApi, cors: CorsLayer) -> ApiRouter
     ApiRouter::new()
         .route("/health", get(|| async { "ok!" }))
         .nest("/api/v1/", api_routes)
+        .nest("/oauth/discord/", crate::oauth::routes())
         .route("/openapi.json", get(open_api_json))
         .route("/redoc", Redoc::new("/openapi.json").axum_route())
         .layer(cors)
