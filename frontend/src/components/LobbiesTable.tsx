@@ -12,6 +12,23 @@ interface LobbiesTableProps {
 const LobbiesTable: React.FC<LobbiesTableProps> = ({ lobbies }) => {
   const navigate = useNavigate();
 
+  const buttonStyle = {
+    backgroundColor: '#007bff',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    padding: '6px 12px',
+    cursor: 'pointer',
+    fontSize: '0.8em',
+    fontWeight: 'bold',
+    textDecoration: 'none',
+    display: 'inline-block',
+    transition: 'background-color 0.2s ease',
+    "&:hover, &:focus": {
+      backgroundColor: '#0056b3'
+    }
+  };
+
   if (lobbies.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
@@ -34,6 +51,7 @@ const LobbiesTable: React.FC<LobbiesTableProps> = ({ lobbies }) => {
         <thead>
           <tr style={{ backgroundColor: '#f8f9fa' }}>
             <th style={{ width: '80px', textAlign: 'center', borderBottom: '2px solid #dee2e6', padding: '12px' }}>Analyze</th>
+            <th style={{ width: '80px', textAlign: 'center', borderBottom: '2px solid #dee2e6', padding: '12px' }}>Replay</th>
             <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Game ID</th>
             <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Map</th>
             <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Players</th>
@@ -92,6 +110,25 @@ const LobbiesTable: React.FC<LobbiesTableProps> = ({ lobbies }) => {
                     onClick={(e) => e.stopPropagation()}
                     style={{ cursor: 'pointer' }}
                   />
+                </td>
+                <td style={{ textAlign: 'center', borderBottom: '1px solid #dee2e6', padding: '12px' }}>
+                  <a
+                    href={`https://openfront.io/#join=${lobby.game_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    role="button"
+                    aria-label={`View replay for game ${lobby.game_id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }
+                    }}
+                    style={buttonStyle}
+                  >
+                    View Replay
+                  </a>
                 </td>
                 <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
                   <strong style={{ fontFamily: 'monospace' }}>{lobby.game_id}</strong>

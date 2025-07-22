@@ -24,6 +24,9 @@ function LobbyHome() {
   return (
     <div className="App">
       <header className="App-header">
+        <div className="wip-banner">
+          🚧 This site is a work in progress 🚧
+        </div>
         <h1>openfront.pro</h1>
         <p>Match replay analysis for OpenFront</p>
         <div style={{ marginTop: '1rem' }}>
@@ -43,6 +46,14 @@ function LobbyHome() {
             {loading ? 'Refreshing...' : '🔄 Refresh Lobbies'}
           </button>
         </div>
+        <a
+          href="https://openfront.io"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="origin-btn"
+        >
+          ▶️ Play the original game
+        </a>
       </header>
       
       <main className="App-main">
