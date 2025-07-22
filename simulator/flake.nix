@@ -79,10 +79,11 @@
             runHook preInstall
 
             mkdir -p $out/bin/
-            mkdir -p $out/src/
-            cp -r src/* $out/src/
+            mkdir -p $out/
+            cp -r src/ $out/src
             cp ./package.json $out/
             cp -r ./node_modules/ $out/node_modules/
+            #ln -s ./node_modules $out/node_modules
 
             cat > $out/bin/openfronter-sim <<EOF
             #!/bin/sh
