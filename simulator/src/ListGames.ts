@@ -96,31 +96,6 @@ type ExtraData = {
 
 // ===== Database helpers =====
 
-// SQL Query Constants
-const DELETE_GENERAL_EVENTS = formatSql`
-  DELETE FROM analysis_1.general_events WHERE game_id = $1;
-`;
-
-const DELETE_PLAYER_UPDATES = formatSql`
-  DELETE FROM analysis_1.player_updates WHERE game_id = $1;
-`;
-
-const DELETE_DISPLAY_EVENTS = formatSql`
-  DELETE FROM analysis_1.display_events WHERE game_id = $1;
-`;
-
-const DELETE_COMPLETED_ANALYSIS = formatSql`
-  DELETE FROM analysis_1.completed_analysis WHERE game_id = $1;
-`;
-
-const DELETE_PLAYERS = formatSql`
-  DELETE FROM analysis_1.players WHERE game_id = $1;
-`;
-
-const DELETE_SPAWN_LOCATIONS = formatSql`
-  DELETE FROM analysis_1.spawn_locations WHERE game_id = $1;
-`;
-
 const INSERT_SPAWN_LOCATIONS = formatSql`
   INSERT INTO analysis_1.spawn_locations (game_id, client_id, tick, x, y, previous_spawns)
   VALUES ($1, $2, $3, $4, $5, $6)
@@ -149,12 +124,12 @@ const INSERT_PLAYER = formatSql`
   VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `;
 
-const INSERT_PLAYER_UPDATE_OLD = formatSql`
-  INSERT INTO
-    analysis_1.player_updates (game_id, id, player_status, small_id, tiles_owned, gold, workers, troops, target_troop_ratio, tick)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-  RETURNING tick
-`;
+//const INSERT_PLAYER_UPDATE_OLD = formatSql`
+  //INSERT INTO
+    //analysis_1.player_updates (game_id, id, player_status, small_id, tiles_owned, gold, workers, troops, target_troop_ratio, tick)
+  //VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+  //RETURNING tick
+//`;
 
 const INSERT_GENERAL_EVENT = formatSql`
   INSERT INTO
@@ -265,6 +240,8 @@ async function cleanupPreviousAnalysis(
         "completed_analysis",
         "players",
         "spawn_locations",
+        "packed_player_updates",
+        "troop_ratio_change",
     ];
 
     for (const tableName of tableNames) {
@@ -412,7 +389,9 @@ async function initializeGame(
             const extra_data: ExtraData = {
                 players_died_on_turn: {},
                 players_disconnected_on_turn: {},
+                players_troop_ratio: {},
             };
+            console.log("Extra data is all null now", extra_data);
             const has_won = await handle_game_update(
                 gu,
                 pool,
@@ -536,6 +515,7 @@ async function simgame(gameId: string, record: GameRecord, p: Pool) {
     const extra_data: ExtraData = {
         players_died_on_turn: {},
         players_disconnected_on_turn: {},
+        players_troop_ratio: {},
     };
 
     // -1 means unlimited. Game ends at 0;
@@ -763,11 +743,10 @@ async function processPlayerUpdates(
             compress_value_for_db(update.gold),
             compress_value_for_db(update.workers),
             compress_value_for_db(update.troops),
-
         ]);
 
-        let last_troop_ratio = extraData.players_troop_ratio[update.id];
-        if(update.targetTroopRatio !== last_troop_ratio) {
+        let last_troop_ratio = extraData.players_troop_ratio?.[update.id];
+        if(update.targetTroopRatio !== last_troop_ratio && update.playerType === PlayerType.Human) {
             await pool.query(INSERT_PLAYER_TROOP_RATIO_CHANGE, [
                 gameId,
                 update.smallID,
@@ -869,24 +848,30 @@ async function processPendingGames(pool: Pool): Promise<void> {
     }
 }
 
-async function main() {
+async function setup(): Promise<Pool> {
+    const dbUrl = new URL(DATABASE_URL!);
+    const poolConfig = {
+        host: dbUrl.hostname,
+        port: Number(dbUrl.port) || 5432,
+        user: dbUrl.username,
+        password: dbUrl.password,
+        database: dbUrl.pathname.replace(/^\//, ""),
+    };
+
+    const p = new Pool(poolConfig);
+
+    await p.connect();
+
+    console.log("Connected to database");
+
+    return p;
+}
+
+async function main(database: Pool): Promise<void> {
     try {
-        const dbUrl = new URL(DATABASE_URL!);
-        const poolConfig = {
-            host: dbUrl.hostname,
-            port: Number(dbUrl.port) || 5432,
-            user: dbUrl.username,
-            password: dbUrl.password,
-            database: dbUrl.pathname.replace(/^\//, ""),
-        };
-
-        const p = new Pool(poolConfig);
-
-        await p.connect();
-        console.log("Connected to database");
 
         for (;;) {
-            await processPendingGames(p);
+            await processPendingGames(database);
             await new Promise((resolve) => setTimeout(resolve, 5000));
         }
     } catch (e) {
@@ -894,4 +879,5 @@ async function main() {
     }
 }
 
-main();
+let db = setup();
+db.then(database => main(database));

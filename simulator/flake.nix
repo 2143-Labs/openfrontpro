@@ -3,14 +3,13 @@
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     bun2nix.url = "github:baileyluTCD/bun2nix";
-    openfrontio_a221fee = {
-        #commit = "a221fee92146caaefdee8a287e341a18da11716b";
-        url = "github:OpenFrontIO/OpenFrontIO/a221fee92146caaefdee8a287e341a18da11716b";
+    openfrontio_98420c = {
+        url = "github:OpenFrontIO/OpenFrontIO/98420ccf97f4a5917a9fb2baf6ef2d12d6a2558c";
         flake = false;
     };
   };
 
-  outputs = { nixpkgs, bun2nix, openfrontio_a221fee, flake-utils, ... } @ inputs:
+  outputs = { nixpkgs, bun2nix, openfrontio_98420c, flake-utils, ... } @ inputs:
     inputs.flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = (import (nixpkgs) { inherit system; });
@@ -39,7 +38,7 @@
           inherit pkgs;
         };
 
-        # we need to combine the flake input openfrontio_a221fee with the simulator package
+        # we need to combine the flake input openfrontio with the simulator package
         packages.simulator-base = pkgs.stdenv.mkDerivation {
           pname = "openfront-simulator-base";
           version = "0.1.0";
@@ -51,7 +50,7 @@
 
           installPhase = ''
             mkdir -p $out/OpenFrontIO/
-            cp -r ${openfrontio_a221fee}/* $out/OpenFrontIO/
+            cp -r ${openfrontio_98420c}/* $out/OpenFrontIO/
             cp -r * $out/
             jq 'del(.scripts.prepare)' $out/OpenFrontIO/package.json > $out/OpenFrontIO/package.json.tmp
             mv $out/OpenFrontIO/package.json.tmp $out/OpenFrontIO/package.json
