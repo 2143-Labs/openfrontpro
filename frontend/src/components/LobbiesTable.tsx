@@ -155,15 +155,13 @@ const LobbiesTable: React.FC<LobbiesTableProps> = ({ lobbies }) => {
                     fontSize: '0.8em',
                     fontWeight: 'bold',
                     backgroundColor: 
-                      status === 'active' ? '#d4edda' :
-                      status === 'in-progress' ? '#fff3cd' :
-                      status === 'full' ? '#ffeaa7' :
-                      '#f8d7da',
+                      status === 'analyzed' ? '#d1ecf1' :
+                      status === 'completed' ? '#d4edda' :
+                      '#fff3cd',
                     color: 
-                      status === 'active' ? '#155724' :
-                      status === 'in-progress' ? '#856404' :
-                      status === 'full' ? '#b8860b' :
-                      '#721c24'
+                      status === 'analyzed' ? '#0c5460' :
+                      status === 'completed' ? '#155724' :
+                      '#856404'
                   }}>
                     {status.toUpperCase()}
                   </span>

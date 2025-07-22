@@ -21,4 +21,4 @@ export interface Lobby {
 
 export type SortBy = 'last_seen' | 'players' | 'map';
 
-export type GameStatus = 'completed' | 'full' | 'active' | 'in-progress';
+export type GameStatus = 'completed' | 'analyzed' | 'in-progress';

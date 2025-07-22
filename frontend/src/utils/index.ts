@@ -2,9 +2,8 @@ import { Lobby, GameStatus } from '../types';
 
 // Helper function to determine game status
 export const getGameStatus = (lobby: Lobby, index: number): GameStatus => {
-  if (index === 0) return 'active';
+  if (lobby.analysis_complete) return 'analyzed';
   if (lobby.completed) return 'completed';
-  if (lobby.approx_num_players >= lobby.max_players) return 'full';
   return 'in-progress';
 };
 
