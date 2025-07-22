@@ -148,7 +148,7 @@ const INSERT_PLAYER = formatSql`
   VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `;
 
-const INSERT_PLAYER_UPDATE = formatSql`
+const INSERT_PLAYER_UPDATE_OLD = formatSql`
   INSERT INTO
     analysis_1.player_updates (game_id, id, player_status, small_id, tiles_owned, gold, workers, troops, target_troop_ratio, tick)
   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -689,7 +689,7 @@ async function processPlayerUpdates(
             continue;
         }
 
-        const d = await pool.query(INSERT_PLAYER_UPDATE, [
+        const d = await pool.query(INSERT_PLAYER_UPDATE_OLD, [
             gameId,
             update.id,
             playerStatus,
