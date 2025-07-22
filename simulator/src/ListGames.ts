@@ -91,6 +91,7 @@ type Analysis = {
 type ExtraData = {
     players_died_on_turn: Record<string, number>;
     players_disconnected_on_turn: Record<string, number>;
+    players_troop_ratio: Record<string, number>;
 };
 
 // ===== Database helpers =====
@@ -188,6 +189,69 @@ const UPDATE_ANALYSIS_QUEUE_STATUS = formatSql`
     status = $2
   WHERE game_id = $1
 `;
+
+// CREATE TABLE analysis_1.packed_player_updates (
+//    game_id CHAR(8) NOT NULL, -- 8 bytes
+//    small_id SMALLINT NOT NULL, -- 2 bytes
+//    tick SMALLINT NOT NULL, -- 2 bytes
+//    player_alive BIT(1) NOT NULL, -- 1 bit
+//    player_connected BIT(1) NOT NULL, -- 1 bit
+//    tiles_owned SMALLINT NOT NULL DEFAULT 0, -- 2 bytes
+//    gold  SMALLINT NOT NULL DEFAULT 0, -- 2 bytes
+//    workers SMALLINT NOT NULL DEFAULT 0, -- 2 bytes
+//    troops SMALLINT NOT NULL DEFAULT 0, -- 2 bytes
+//    FOREIGN KEY (game_id) REFERENCES public.finished_games(game_id) ON DELETE CASCADE,
+//    PRIMARY KEY (game_id, tick, small_id)
+// );
+const INSERT_PLAYER_UPDATE_NEW = formatSql`
+  INSERT INTO
+    analysis_1.packed_player_updates (game_id, small_id, tick, player_alive, player_connected, tiles_owned, gold, workers, troops)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+  RETURNING tick
+`;
+
+// -- These tables are a follow up from the original analysis_1.player_updates.
+// -- The goal is to store less data.
+// 
+// -- When a user changes their target troop ratio, we want to store that. Cause
+// -- it's uncommon, we don't want to store it for every frame
+// CREATE TABLE analysis_1.troop_ratio_change (
+//    game_id CHAR(8) NOT NULL,
+//    small_id SMALLINT NOT NULL,
+//    client_id CHAR(8) NOT NULL,
+//    target_troop_ratio REAL NOT NULL
+// );
+const INSERT_PLAYER_TROOP_RATIO_CHANGE = formatSql`
+    INSERT INTO
+        analysis_1.troop_ratio_change (game_id, small_id, client_id, target_troop_ratio)
+    VALUES ($1, $2, $3, $4)
+`;
+
+// Maps a value from the range [0, 1T] to a range of small int: -32768 to 32767
+function encode_float_to_u16(value: number | bigint): number {
+    const MAX_INPUT = 1_000_000_000_000;
+    const U16_MAX = 65535;
+    if(value > MAX_INPUT) {
+        value = MAX_INPUT;
+    } else if(value < 0) {
+        console.log("[warn] Cannot encode negative value to u16, setting to 0");
+        value = 0;
+    }
+    if (typeof value === "bigint") {
+        value = Number(value);
+    }
+    const log_max = Math.log10(MAX_INPUT + 1);
+    const log_value = Math.log10(value + 1);
+    return Math.round((log_value / log_max) * U16_MAX);
+}
+
+function turn_u16_to_i16(value: number): number {
+    return value - 32768;
+}
+
+function compress_value_for_db(value: number | bigint): number {
+    return turn_u16_to_i16(encode_float_to_u16(value));
+}
 
 // ===== Database cleanup helpers =====
 async function cleanupPreviousAnalysis(
@@ -689,18 +753,29 @@ async function processPlayerUpdates(
             continue;
         }
 
-        const d = await pool.query(INSERT_PLAYER_UPDATE_OLD, [
+        const d = await pool.query(INSERT_PLAYER_UPDATE_NEW, [
             gameId,
-            update.id,
-            playerStatus,
             update.smallID,
-            update.tilesOwned,
-            update.gold,
-            Math.floor(update.workers),
-            Math.floor(update.troops),
-            Math.floor(update.targetTroopRatio * 1000),
             tick,
+            isAliveBit,
+            isConnectedBit,
+            compress_value_for_db(update.tilesOwned),
+            compress_value_for_db(update.gold),
+            compress_value_for_db(update.workers),
+            compress_value_for_db(update.troops),
+
         ]);
+
+        let last_troop_ratio = extraData.players_troop_ratio[update.id];
+        if(update.targetTroopRatio !== last_troop_ratio) {
+            await pool.query(INSERT_PLAYER_TROOP_RATIO_CHANGE, [
+                gameId,
+                update.smallID,
+                update.clientID,
+                update.targetTroopRatio,
+            ]);
+            extraData.players_troop_ratio[update.id] = update.targetTroopRatio;
+        }
 
         if (d?.rows[0].tick !== tick) {
             throw new Error(
