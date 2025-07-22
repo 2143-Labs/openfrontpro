@@ -24,8 +24,8 @@ function LobbyHome() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>OpenFronter Lobbies</h1>
-        <p>Discover and join game lobbies</p>
+        <h1>openfront.pro</h1>
+        <p>Match replay analysis for OpenFront</p>
         <div style={{ marginTop: '1rem' }}>
           <button 
             onClick={refreshLobbies}

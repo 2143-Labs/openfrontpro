@@ -83,19 +83,22 @@
           name = "openfrontpro-simulator";
           contents = [
             packages.simulator
+            pkgs.nodejs_24
             #simulator.outputs.packages.${system}.default
             pkgs.fish
+            pkgs.bash
           ];
 
           config = {
             #ExposedPorts = { "3000/tcp" = { }; };
-            #EntryPoint = [ "${packages.simulator}/bin/openfronter-sim" ];
-            EntryPoint = [ "${pkgs.fish}/bin/fish" ];
+            #EntryPoint = [ "fish" ];
+            #EntryPoint = [ "${pkgs.fish}/bin/fish" ];
+            EntryPoint = [ "${packages.simulator}/bin/openfronter-sim" ];
             Env = [
               #"RUST_LOG=info"
               #"FRONTEND_FOLDER=${frontend.outputs.packages.${system}.default}"
             ];
-            Cmd = [ "-c" "echo 'test'" ];
+            #Cmd = [ "-c" "${packages.simulator}/bin/openfronter-sim" ];
           };
         };
       }

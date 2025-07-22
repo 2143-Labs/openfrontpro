@@ -172,8 +172,7 @@ async fn game_analyze_handler(
     //Insert into analysis_queue
     let res = sqlx::query!(
         "INSERT INTO analysis_queue (game_id)
-         VALUES ($1)
-         ON CONFLICT (game_id) DO NOTHING",
+         VALUES ($1)",
         game_id,
     )
     .execute(&database)

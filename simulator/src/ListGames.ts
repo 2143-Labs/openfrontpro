@@ -1,306 +1,504 @@
+async function runSimulation(runner, record, analysis, pool, extraData) {
+    runner.init();
+    let simulation_turns_left = -1;
+    for (const turn of record.turns) {
+        await analyze_intents(turn, pool, record, analysis);
+        runner.addTurn(turn);
+        runner.executeNextTick();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        if (simulation_turns_left === 0) {
+            console.log("Player has won, stopping simulation.");
+            break;
+        } else if (simulation_turns_left > 0) {
+            console.log("Simulation turns left: ", simulation_turns_left);
+            simulation_turns_left--;
+        }
+    }
+    return analysis;
+}
+
+// Utility to format SQL queries
+function formatSql(strings: TemplateStringsArray, ...values: any[]): string {
+    return strings.reduce(
+        (acc, str, index) => acc + str + (values[index] || ""),
+        "",
+    );
+}
+
+// ===== Imports =====
 import { getServerConfig } from "openfront-client/src/core/configuration/ConfigLoader.ts";
 import { DefaultConfig } from "openfront-client/src/core/configuration/DefaultConfig.ts";
 import { Executor } from "openfront-client/src/core/execution/ExecutionManager.ts";
-import { PseudoRandom } from "openfront-client/src/core/PseudoRandom.ts";
 import {
-  Cell,
-  GameMapType,
-  Nation,
-  PlayerInfo,
-  PlayerType,
-  MessageType,
-  UnitType,
+    Cell,
+    GameMapType,
+    MessageType,
+    Nation,
+    PlayerInfo,
+    PlayerType,
+    UnitType,
 } from "openfront-client/src/core/game/Game.ts";
 import { createGame } from "openfront-client/src/core/game/GameImpl.ts";
+import { GameMapImpl } from "openfront-client/src/core/game/GameMap.ts";
 import {
-  GameMapImpl,
-  type GameMap,
-} from "openfront-client/src/core/game/GameMap.ts";
-import {
-  type GameUpdateViewData,
-  ErrorUpdate,
-  GameUpdateType,
-  type GameUpdate,
-  type DisplayMessageUpdate,
-  AllianceRequestUpdate,
-  PlayerUpdate,
-  UnitUpdate,
+    ErrorUpdate,
+    GameUpdateType,
+    PlayerUpdate,
+    UnitUpdate,
+    type DisplayMessageUpdate,
+    type GameUpdate,
+    type GameUpdateViewData,
 } from "openfront-client/src/core/game/GameUpdates.ts";
+import { PseudoRandom } from "openfront-client/src/core/PseudoRandom.ts";
 //import { type TerrainMapData } from "openfront-client/src/core/game/TerrainMapLoader.ts";
 import { GameRunner } from "openfront-client/src/core/GameRunner.ts";
+import { Turn, type GameRecord } from "openfront-client/src/core/Schemas.ts";
 import {
-    Turn,
-  type GameEndInfo,
-  type GameRecord,
-  type GameStartInfo,
-} from "openfront-client/src/core/Schemas.ts";
-import {
-  decompressGameRecord,
-  simpleHash,
+    decompressGameRecord,
+    simpleHash,
 } from "openfront-client/src/core/Util.ts";
 
 import { Logger } from "winston";
 
-import { Pool } from "pg";
 import fs from "fs/promises";
+import { Pool } from "pg";
 
+// ===== Constants / Types =====
 const { DATABASE_URL } = process.env;
 if (!DATABASE_URL) {
-  throw new Error("Missing DATABASE_URL environment variable");
+    throw new Error("Missing DATABASE_URL environment variable");
 }
 
 type MapData = {
-  minimap: Uint8Array;
-  map: Uint8Array;
-  manifest: any;
+    minimap: Uint8Array;
+    map: Uint8Array;
+    manifest: any;
 };
-
-function game_type_from_name(name: string): GameMapType {
-  for (let [k, v] of Object.entries(GameMapType)) {
-    if (v === name) {
-      return k as GameMapType;
-    }
-  }
-  throw new Error(`Unknown game type: ${name}`);
-}
-
-async function load_map_data(
-  maps_path: string,
-  map_name: string,
-): Promise<MapData> {
-  //let map_type = game_type_from_name(map_name);
-  let map_file_name = map_name.replace(/ /g, "").toLowerCase();
-
-  let map_file = fs.readFile(`${maps_path}/${map_file_name}/map.bin`);
-  let mini_map_file = fs.readFile(`${maps_path}/${map_file_name}/mini_map.bin`);
-  let manifest_file = fs.readFile(
-    `${maps_path}/${map_file_name}/manifest.json`,
-    { encoding: "utf-8" },
-  );
-
-  let [map_data, mini_map_data, manifest_data] = await Promise.all([
-    map_file,
-    mini_map_file,
-    manifest_file,
-  ]);
-  let manifest = JSON.parse(manifest_data);
-
-  let map = new Uint8Array(map_data);
-  let mini_map = new Uint8Array(mini_map_data);
-
-  return {
-    minimap: mini_map,
-    map: map,
-    manifest: manifest,
-  };
-}
 
 type PlayerSpawn = {
     turn: number;
     x: number;
     y: number;
     previous_spawns: PlayerSpawn[];
-}
+};
 
 type Analysis = {
-  gameId: string;
-  players: PlayerInfo[];
-  spawns: Record<string, PlayerSpawn>;
+    gameId: string;
+    players: PlayerInfo[];
+    spawns: Record<string, PlayerSpawn>;
 };
 
-async function simgame(gameId: string, record: GameRecord, p: Pool) {
-  let prod_config = getServerConfig("prod");
-  let server_config = new DefaultConfig(
-    prod_config,
-    record.info.config,
-    null,
-    true,
-  );
-  let random = new PseudoRandom(simpleHash(gameId));
+type ExtraData = {
+    players_died_on_turn: Record<string, number>;
+    players_disconnected_on_turn: Record<string, number>;
+};
 
-  // Load terrain
-  let map_data = await load_map_data(
-    "./OpenFrontIO/resources/maps",
-    record.info.config.gameMap,
-  );
-  console.log("Map data loaded", map_data.manifest.name);
-  let map_impl = new GameMapImpl(
-    map_data.manifest.map.width,
-    map_data.manifest.map.height,
-    map_data.map,
-    map_data.manifest.map.num_land_tiles,
-  );
+// ===== Database helpers =====
 
-  let mini_map_impl = new GameMapImpl(
-    map_data.manifest.mini_map.width,
-    map_data.manifest.mini_map.height,
-    map_data.minimap,
-    map_data.manifest.mini_map.num_land_tiles,
-  );
+// SQL Query Constants
+const DELETE_GENERAL_EVENTS = formatSql`
+  DELETE FROM analysis_1.general_events WHERE game_id = $1;
+`;
 
-  // Create players and nations
-  let humans = record.info.players.map(
-    (p) =>
-      new PlayerInfo(p.username, PlayerType.Human, p.clientID, random.nextID()),
-  );
-  let nations = [];
-  if (!record.info.config.disableNPCs) {
-    nations = map_data.manifest.nations.map((n: any) => {
-      let pi = new PlayerInfo(
-        n.name,
-        PlayerType.FakeHuman,
-        null,
-        random.nextID(),
-      );
+const DELETE_PLAYER_UPDATES = formatSql`
+  DELETE FROM analysis_1.player_updates WHERE game_id = $1;
+`;
 
-      let [x, y] = n.coordinates;
-      let nation = new Nation(new Cell(x, y), n.strength, pi);
+const DELETE_DISPLAY_EVENTS = formatSql`
+  DELETE FROM analysis_1.display_events WHERE game_id = $1;
+`;
 
-      return nation;
-    });
-  }
+const DELETE_COMPLETED_ANALYSIS = formatSql`
+  DELETE FROM analysis_1.completed_analysis WHERE game_id = $1;
+`;
 
-  let winner = record.info.winner![1];
-  console.log("Winner: ", winner);
-  let winner_player = humans.find((p) => p.clientID === winner)!;
-  console.log("Winner Player: ", winner_player);
-  //let winner_id = winner_player.id;
-  //process.exit(1)
+const DELETE_PLAYERS = formatSql`
+  DELETE FROM analysis_1.players WHERE game_id = $1;
+`;
 
-  // Simulate the game
-  // Clear all tables with this game ID
-  await p.query(
-    `
-    DELETE FROM analysis_1.general_events WHERE game_id = $1;
-  `,
-    [gameId],
-  );
-  await p.query(
-    `
-    DELETE FROM analysis_1.player_updates WHERE game_id = $1;
-    `,
-    [gameId],
-  );
-  await p.query(
-    `
-    DELETE FROM analysis_1.display_events WHERE game_id = $1;
-    `,
-    [gameId],
-  );
-  await p.query(
-    `
-    DELETE FROM analysis_1.completed_analysis WHERE game_id = $1;
-    `,
-    [gameId],
-  );
-  await p.query(
-    `
-    DELETE FROM analysis_1.players WHERE game_id = $1;
-    `,
-    [gameId],
-  );
-    await p.query(
-        `
-        DELETE FROM analysis_1.spawn_locations WHERE game_id = $1;
-        `,
-        [gameId],
-    );
+const DELETE_SPAWN_LOCATIONS = formatSql`
+  DELETE FROM analysis_1.spawn_locations WHERE game_id = $1;
+`;
 
+const INSERT_SPAWN_LOCATIONS = formatSql`
+  INSERT INTO analysis_1.spawn_locations (game_id, client_id, tick, x, y, previous_spawns)
+  VALUES ($1, $2, $3, $4, $5, $6)
+`;
 
+const UPSERT_COMPLETED_ANALYSIS = formatSql`
+  INSERT INTO analysis_1.completed_analysis (game_id, analysis_engine_version)
+  VALUES ($1, $2)
+  ON CONFLICT (game_id) DO UPDATE
+  SET inserted_at_unix_sec = EXTRACT(EPOCH FROM NOW()),
+      analysis_engine_version = $2
+`;
 
-  console.log("Clear complete. Starting analysis.", gameId);
+const INSERT_DISPLAY_EVENT = formatSql`
+  INSERT INTO
+    analysis_1.display_events (game_id, tick, message_type, message, player_id, gold_amount)
+  VALUES ($1, $2, $3, $4, $5, $6)
+  RETURNING tick
+`;
 
-  let game = createGame(
-    humans,
-    nations,
-    map_impl,
-    mini_map_impl,
-    server_config,
-  );
+const INSERT_PLAYER = formatSql`
+  INSERT INTO
+    analysis_1.players (
+      game_id, id, client_id, small_id, player_type, name, flag, team
+    )
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+`;
 
-  // This is a mutable object that we pass to every call to handle_game_update
-  // Used to store data that we care about between turns, but doesn't make the analysis
-  let extra_data: ExtraData = {
-    players_died_on_turn: {},
-    players_disconnected_on_turn: {},
-  };
+const INSERT_PLAYER_UPDATE = formatSql`
+  INSERT INTO
+    analysis_1.player_updates (game_id, id, player_status, small_id, tiles_owned, gold, workers, troops, target_troop_ratio, tick)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+  RETURNING tick
+`;
 
-  // -1 means unlimited. Game ends at 0;
-  let simulation_turns_left = -1;
-  const runner = new GameRunner(
-    game,
-    new Executor(game, gameId, "openfrontpro"),
-    async (gu) => {
-      let has_won = await handle_game_update(gu, p, record, extra_data);
-      if (simulation_turns_left === -1 && has_won) {
-        simulation_turns_left = 5;
-      }
-    },
-  );
+const INSERT_GENERAL_EVENT = formatSql`
+  INSERT INTO
+    analysis_1.general_events (game_id, tick, event_type, data)
+  VALUES ($1, $2, $3, $4)
+  RETURNING tick
+`;
 
-  let analysis: Analysis = {
-    gameId: gameId,
-    players: humans,
-    spawns: {},
-  };
+const SELECT_AND_UPDATE_JOB = formatSql`
+  WITH my_job AS (
+    SELECT
+      fg.game_id, fg.result_json
+    FROM
+      finished_games fg
+    INNER JOIN analysis_queue aq ON aq.game_id = fg.game_id
+    WHERE
+      aq.status = 'Pending'
+    LIMIT 1
+  )
+  UPDATE analysis_queue aq
+  SET
+    status = 'Running',
+    started_unix_sec = EXTRACT(EPOCH FROM NOW())
+  FROM my_job
+  WHERE aq.game_id = my_job.game_id
+  RETURNING my_job.game_id, my_job.result_json
+`;
 
-  // Simualte the game
-  runner.init();
-  for (let [i, turn] of record.turns.entries()) {
-    await analyze_intents(turn, p, record, analysis);
-    runner.addTurn(turn);
-    runner.executeNextTick();
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    if (simulation_turns_left == 0) {
-      console.log("Player has won, stopping simulation.");
-      break;
-    } else if (simulation_turns_left > 0) {
-      console.log("Simulation turns left: ", simulation_turns_left);
-      simulation_turns_left--;
+const UPDATE_ANALYSIS_QUEUE_STATUS = formatSql`
+  UPDATE analysis_queue
+  SET
+    status = $2
+  WHERE game_id = $1
+`;
+
+// ===== Database cleanup helpers =====
+async function cleanupPreviousAnalysis(
+    pool: Pool,
+    gameId: string,
+): Promise<void> {
+    const tableNames = [
+        "general_events",
+        "player_updates",
+        "display_events",
+        "completed_analysis",
+        "players",
+        "spawn_locations",
+    ];
+
+    for (const tableName of tableNames) {
+        try {
+            const deleteQuery = `DELETE FROM analysis_1.${tableName} WHERE game_id = $1;`;
+            await pool.query(deleteQuery, [gameId]);
+        } catch (error) {
+            throw new Error(`Failed to delete from ${tableName}: ${error}`);
+        }
     }
-  }
-  console.log("Simulation complete. Finalizing analysis.");
-
-    for (let [client_id, spawn] of Object.entries(analysis.spawns)) {
-        await p.query(
-            `
-            INSERT INTO analysis_1.spawn_locations (game_id, client_id, tick, x, y, previous_spawns)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            `,
-            [
-                gameId,
-                client_id,
-                spawn.turn,
-                spawn.x,
-                spawn.y,
-                JSON.stringify(spawn.previous_spawns),
-            ],
-        );
-    }
-
-  await p.query(
-    `
-      INSERT INTO analysis_1.completed_analysis (game_id, analysis_engine_version)
-        VALUES ($1, $2)
-        ON CONFLICT (game_id) DO UPDATE
-        SET inserted_at_unix_sec = EXTRACT(EPOCH FROM NOW()),
-            analysis_engine_version = $2
-    `,
-    [gameId, "v1"],
-  );
-
-  console.log("Completed analysis for game", gameId);
-  return analysis;
 }
 
-let is_game_update = (
-  update: GameUpdateViewData | ErrorUpdate,
-): update is GameUpdateViewData => {
-  if ((update as GameUpdateViewData).tick) {
-    return true;
-  }
-  return false;
-};
+// ===== Game setup helpers =====
+function game_type_from_name(name: string): GameMapType {
+    for (const [k, v] of Object.entries(GameMapType)) {
+        if (v === name) {
+            return k as GameMapType;
+        }
+    }
+    throw new Error(`Unknown game type: ${name}`);
+}
+
+async function load_map_data(
+    maps_path: string,
+    map_name: string,
+): Promise<MapData> {
+    //let map_type = game_type_from_name(map_name);
+    const map_file_name = map_name.replace(/ /g, "").toLowerCase();
+
+    const map_file = fs.readFile(`${maps_path}/${map_file_name}/map.bin`);
+    const mini_map_file = fs.readFile(
+        `${maps_path}/${map_file_name}/mini_map.bin`,
+    );
+    const manifest_file = fs.readFile(
+        `${maps_path}/${map_file_name}/manifest.json`,
+        { encoding: "utf-8" },
+    );
+
+    const [map_data, mini_map_data, manifest_data] = await Promise.all([
+        map_file,
+        mini_map_file,
+        manifest_file,
+    ]);
+    const manifest = JSON.parse(manifest_data);
+
+    const map = new Uint8Array(map_data);
+    const mini_map = new Uint8Array(mini_map_data);
+
+    return {
+        minimap: mini_map,
+        map: map,
+        manifest: manifest,
+    };
+}
+
+// ===== Game initialization =====
+async function initializeGame(
+    record: GameRecord,
+    gameId: string,
+    pool: Pool,
+): Promise<{
+    game: any;
+    runner: GameRunner;
+    humans: PlayerInfo[];
+    nations: Nation[];
+    mapImpl: GameMapImpl;
+    miniMapImpl: GameMapImpl;
+}> {
+    const prod_config = getServerConfig("prod");
+    const server_config = new DefaultConfig(
+        prod_config,
+        record.info.config,
+        null,
+        true,
+    );
+    const random = new PseudoRandom(simpleHash(gameId));
+
+    // Load terrain
+    const map_data = await load_map_data(
+        "./OpenFrontIO/resources/maps",
+        record.info.config.gameMap,
+    );
+    console.log("Map data loaded", map_data.manifest.name);
+    const mapImpl = new GameMapImpl(
+        map_data.manifest.map.width,
+        map_data.manifest.map.height,
+        map_data.map,
+        map_data.manifest.map.num_land_tiles,
+    );
+
+    const miniMapImpl = new GameMapImpl(
+        map_data.manifest.mini_map.width,
+        map_data.manifest.mini_map.height,
+        map_data.minimap,
+        map_data.manifest.mini_map.num_land_tiles,
+    );
+
+    // Create players and nations
+    const humans = record.info.players.map(
+        (p) =>
+            new PlayerInfo(
+                p.username,
+                PlayerType.Human,
+                p.clientID,
+                random.nextID(),
+            ),
+    );
+    let nations = [];
+    if (!record.info.config.disableNPCs) {
+        nations = map_data.manifest.nations.map((n: any) => {
+            const pi = new PlayerInfo(
+                n.name,
+                PlayerType.FakeHuman,
+                null,
+                random.nextID(),
+            );
+
+            const [x, y] = n.coordinates;
+            const nation = new Nation(new Cell(x, y), n.strength, pi);
+
+            return nation;
+        });
+    }
+
+    const winner = record.info.winner![1];
+    console.log("Winner: ", winner);
+    const winner_player = humans.find((p) => p.clientID === winner)!;
+    console.log("Winner Player: ", winner_player);
+    //let winner_id = winner_player.id;
+    //process.exit(1)
+
+    const game = createGame(
+        humans,
+        nations,
+        mapImpl,
+        miniMapImpl,
+        server_config,
+    );
+
+    const runner = new GameRunner(
+        game,
+        new Executor(game, gameId, "openfrontpro"),
+        async (gu) => {
+            const simulation_turns_left = -1;
+            const extra_data: ExtraData = {
+                players_died_on_turn: {},
+                players_disconnected_on_turn: {},
+            };
+            const has_won = await handle_game_update(
+                gu,
+                pool,
+                record,
+                extra_data,
+            );
+            if (simulation_turns_left === -1 && has_won) {
+                console.log("Player has won, stopping simulation.");
+            }
+        },
+    );
+
+    return { game, runner, humans, nations, mapImpl, miniMapImpl };
+}
+
+// ===== Analysis finalization =====
+async function finalizeAnalysis(
+    pool: Pool,
+    analysis: Analysis,
+): Promise<Analysis> {
+    const gameId = analysis.gameId;
+
+    for (const [client_id, spawn] of Object.entries(analysis.spawns)) {
+        await pool.query(INSERT_SPAWN_LOCATIONS, [
+            gameId,
+            client_id,
+            spawn.turn,
+            spawn.x,
+            spawn.y,
+            JSON.stringify(spawn.previous_spawns),
+        ]);
+    }
+
+    await pool.query(UPSERT_COMPLETED_ANALYSIS, [gameId, "v1"]);
+
+    console.log("Completed analysis for game", gameId);
+    return analysis;
+}
+
+// ===== Simulation helpers =====
+async function simgame(gameId: string, record: GameRecord, p: Pool) {
+    const prod_config = getServerConfig("prod");
+    const server_config = new DefaultConfig(
+        prod_config,
+        record.info.config,
+        null,
+        true,
+    );
+    const random = new PseudoRandom(simpleHash(gameId));
+
+    // Load terrain
+    const map_data = await load_map_data(
+        "./OpenFrontIO/resources/maps",
+        record.info.config.gameMap,
+    );
+    console.log("Map data loaded", map_data.manifest.name);
+    const map_impl = new GameMapImpl(
+        map_data.manifest.map.width,
+        map_data.manifest.map.height,
+        map_data.map,
+        map_data.manifest.map.num_land_tiles,
+    );
+
+    const mini_map_impl = new GameMapImpl(
+        map_data.manifest.mini_map.width,
+        map_data.manifest.mini_map.height,
+        map_data.minimap,
+        map_data.manifest.mini_map.num_land_tiles,
+    );
+
+    // Create players and nations
+    const humans = record.info.players.map(
+        (p) =>
+            new PlayerInfo(
+                p.username,
+                PlayerType.Human,
+                p.clientID,
+                random.nextID(),
+            ),
+    );
+    let nations = [];
+    if (!record.info.config.disableNPCs) {
+        nations = map_data.manifest.nations.map((n: any) => {
+            const pi = new PlayerInfo(
+                n.name,
+                PlayerType.FakeHuman,
+                null,
+                random.nextID(),
+            );
+
+            const [x, y] = n.coordinates;
+            const nation = new Nation(new Cell(x, y), n.strength, pi);
+
+            return nation;
+        });
+    }
+
+    const winner = record.info.winner![1];
+    console.log("Winner: ", winner);
+    const winner_player = humans.find((p) => p.clientID === winner)!;
+    console.log("Winner Player: ", winner_player);
+    //let winner_id = winner_player.id;
+    //process.exit(1)
+
+    // Simulate the game
+    // Clear all tables with this game ID
+    await cleanupPreviousAnalysis(p, gameId);
+
+    console.log("Clear complete. Starting analysis.", gameId);
+
+    const game = createGame(
+        humans,
+        nations,
+        map_impl,
+        mini_map_impl,
+        server_config,
+    );
+
+    // This is a mutable object that we pass to every call to handle_game_update
+    // Used to store data that we care about between turns, but doesn't make the analysis
+    const extra_data: ExtraData = {
+        players_died_on_turn: {},
+        players_disconnected_on_turn: {},
+    };
+
+    // -1 means unlimited. Game ends at 0;
+    let simulation_turns_left = -1;
+    const runner = new GameRunner(
+        game,
+        new Executor(game, gameId, "openfrontpro"),
+        async (gu) => {
+            const has_won = await handle_game_update(gu, p, record, extra_data);
+            if (simulation_turns_left === -1 && has_won) {
+                simulation_turns_left = 5;
+            }
+        },
+    );
+
+    const analysis: Analysis = {
+        gameId: gameId,
+        players: humans,
+        spawns: {},
+    };
+
+    // Run the simulation
+    await runSimulation(runner, record, analysis, p, extra_data);
+    console.log("Simulation complete. Finalizing analysis.");
+
+    return await finalizeAnalysis(p, analysis);
+}
 
 async function analyze_intents(
     turn: Turn,
@@ -308,327 +506,293 @@ async function analyze_intents(
     record: GameRecord,
     analysis: Analysis,
 ): Promise<void> {
-    for(let intent of turn.intents) {
-        if (intent.type === "spawn") {
-            let client_id = intent.clientID;
-            let x = intent.x;
-            let y = intent.y;
-
-            let prev_spawns = analysis.spawns[client_id]?.previous_spawns || [];
-
-            // Store the spawn location
-            analysis.spawns[client_id] = {
-                x, y,
-                turn: turn.turnNumber,
-                previous_spawns: prev_spawns,
-            };
+    for (const intent of turn.intents) {
+        if (intent.type !== "spawn") {
+            continue;
         }
+
+        const client_id = intent.clientID;
+        const x = intent.x;
+        const y = intent.y;
+
+        const prev_spawns = analysis.spawns[client_id]?.previous_spawns || [];
+
+        // Store the spawn location
+        analysis.spawns[client_id] = {
+            x,
+            y,
+            turn: turn.turnNumber,
+            previous_spawns: prev_spawns,
+        };
     }
 }
 
-type ExtraData = {
-    players_died_on_turn: Record<string, number>;
-    players_disconnected_on_turn: Record<string, number>;
-}
-
+// ===== Game-update helpers =====
+const is_game_update = (
+    update: GameUpdateViewData | ErrorUpdate,
+): update is GameUpdateViewData => {
+    if ((update as GameUpdateViewData).tick) {
+        return true;
+    }
+    return false;
+};
 
 /// Function to handle game updates. Returns true if the game is finished.
 async function handle_game_update(
-  gu: GameUpdateViewData | ErrorUpdate,
-  p: Pool,
-  record: GameRecord,
-  extra_data: ExtraData,
+    gu: GameUpdateViewData | ErrorUpdate,
+    pool: Pool,
+    record: GameRecord,
+    extraData: ExtraData,
 ): Promise<boolean> {
-  let game_is_won = false;
-  let gameId = record.info.gameID;
-  if (!is_game_update(gu)) {
-    console.error("Error Update: ", gu);
-    return false;
-  }
+    const gameId = record.info.gameID;
+    let gameIsWon = false;
 
-  if (gu.tick % 100 === 0) {
-    console.log(`Game Update at tick`, gu.tick);
-  }
-
-  //record.info.players[0].persistentID;
-
-  //console.log("Game Update at tick: ", gu.tick);
-  //console.log(gu.playerNameViewData);
-  for (let [key, enum_value] of Object.entries(GameUpdateType)) {
-    let ups: GameUpdate[] = gu.updates[enum_value] || [];
-    if (ups.length === 0) {
-      continue;
-    }
-    for (let up of ups) {
-      // @ts-ignore
-      up.type = key;
+    if (!is_game_update(gu)) {
+        console.error("Error Update: ", gu);
+        return false;
     }
 
-    //console.log(`Game Update Type: ${key} (${enum_value})`, ups);
-
-    if (enum_value === GameUpdateType.Unit) {
-      ups = ups.filter((u: UnitUpdate) => u.unitType != UnitType.TradeShip);
-      //for(let up of ups) {
-      //let unit_update = up as UnitUpdate;
-
-      //}
-      //Trade ship, warship
-      continue; //TODO
+    const shouldLogTick = gu.tick % 100 === 0;
+    if (shouldLogTick) {
+        console.log(`Game Update at tick`, gu.tick);
     }
-    if (enum_value === GameUpdateType.Hash) {
-      continue;
-    }
-    if (enum_value === GameUpdateType.DisplayEvent) {
-      for (let up of ups) {
-        let display_update = up as DisplayMessageUpdate;
-        let message_type = messageTypeToString(display_update.messageType);
-        // @ts-ignore
-        up.messageType = message_type;
 
-        let d = await p.query(
-          `
-            INSERT INTO
-                analysis_1.display_events (game_id, tick, message_type, message, player_id, gold_amount)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING tick
-            `,
-          [
-            gameId,
-            gu.tick,
-            display_update.messageType,
-            display_update.message,
-            display_update.playerID,
-            display_update.goldAmount,
-          ],
-        );
+    for (const [key, enumValue] of Object.entries(GameUpdateType)) {
+        const ups: GameUpdate[] = gu.updates[enumValue] || [];
+        const hasNoUpdates = ups.length === 0;
 
-        if (d?.rows[0].tick !== gu.tick) {
-          throw new Error(
-            `Failed to insert display event for game ${gameId} at tick ${gu.tick}`,
-          );
+        if (hasNoUpdates) {
+            continue;
         }
-      }
 
-      continue;
-    }
+        // Add type information to updates
+        ups.forEach((up) => {
+            (up as any).type = key;
+        });
 
-    if (enum_value === GameUpdateType.Player) {
-      if (gu.tick % 10 !== 0) {
-        //console.log(`T${gu.tick}: Player Update: `, winner[0]);
-        continue;
-      }
+        switch (enumValue) {
+            case GameUpdateType.Unit:
+                // Filter out trade ships and skip processing for now
+                const filteredUps = ups.filter(
+                    (u: UnitUpdate) => u.unitType !== UnitType.TradeShip,
+                );
+                continue; // TODO
 
-      for (let up of ups) {
-        let update = up as PlayerUpdate;
-        let isAliveBit = update.isAlive ? 1 : 0;
-        let isConnectedBit = !update.isDisconnected ? 1 : 0;
-        let player_status = isAliveBit | (isConnectedBit << 1);
-
-        let disconnected_at = extra_data.players_disconnected_on_turn[update.id];
-        if(disconnected_at) {
-            if(disconnected_at + 15 < gu.tick) {
-                // Player has been disconnected for more than 15 ticks, don't save them to db.
+            case GameUpdateType.Hash:
                 continue;
-            }
-        } else if(gu.tick > 301, update.isDisconnected && !disconnected_at) {
-            extra_data.players_disconnected_on_turn[update.id] = gu.tick;
-        }
 
-        // On tick 300, insert the player data
-        if (gu.tick === 300) {
-            //console.log(update);
-          await p.query(
-            `
-            INSERT INTO
-                analysis_1.players (
-                    game_id, id, client_id, small_id, player_type, name, flag, team
-                )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            `,
-            [
-              gameId,
-              update.id,
-              update.clientID,
-              update.smallID,
-              update.playerType,
-              update.name,
-              null, //TODO check this logic here, probably need to change db
-              typeof update.team === "string"
-                ? null
-                : update.team,
-            ],
-          );
-        }
+            case GameUpdateType.DisplayEvent:
+                await processDisplayEvents(ups, gameId, gu.tick, pool);
+                break;
 
-        if (gu.tick > 15 && update.playerType === PlayerType.Bot) {
-          // Ignore bots after 15 ticks
-          // Can't continue here because we have more inserts lower
-        } else {
-          let d = await p.query(
-            `
-                INSERT INTO
-                    analysis_1.player_updates (game_id, id, player_status, small_id, tiles_owned, gold, workers, troops, target_troop_ratio, tick)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                RETURNING tick
-            `,
-            [
-              gameId,
-              update.id,
-              player_status,
-              update.smallID,
-              update.tilesOwned,
-              update.gold,
-              Math.floor(update.workers),
-              Math.floor(update.troops),
-              Math.floor(update.targetTroopRatio * 1000),
-              gu.tick,
-            ],
-          );
-          if (d?.rows[0].tick !== gu.tick) {
-            throw new Error(
-              `Failed to insert player update for game ${gameId} at tick ${gu.tick}`,
-            );
-          }
-        }
-      }
+            case GameUpdateType.Player:
+                await processPlayerUpdates(
+                    ups,
+                    gameId,
+                    gu.tick,
+                    pool,
+                    extraData,
+                );
+                break;
 
-      continue;
+            case GameUpdateType.Win:
+                gameIsWon = true;
+                break;
+
+            default:
+                await processGeneralEvents(ups, gameId, gu.tick, pool, key);
+                break;
+        }
     }
 
-    //if (enum_value === GameUpdateType.BonusEvent) {
-    // Troops/Workers/Gold bonus
-    // in ffa it's only for bots
-    //continue;
-    //}
-
-    for (let up of ups) {
-      // Remove type from the update to save space
-      // @ts-ignore
-      delete up.type;
-
-      //let new_db_item = {
-      //game_id: gameId,
-      //tick: gu.tick,
-      //event_type: key,
-      //data: up,
-      //};
-
-      try {
-        let d = await p.query(
-          `
-                INSERT INTO
-                    analysis_1.general_events (game_id, tick, event_type, data)
-                VALUES ($1, $2, $3, $4)
-                RETURNING tick
-            `,
-          [gameId, gu.tick, key, change_big_int_to_string_recursively(up)],
-        );
-        if (d?.rows[0].tick !== gu.tick) {
-          throw new Error(`No rows from DB updated`);
-        }
-      } catch (e) {
-        console.error(
-          `Error inserting general event for game ${gameId} at tick ${gu.tick}:`,
-          e,
-        );
-      }
-      //console.log(`T${gu.tick}: Update for ${key} (${enum_value}):`, up);
-    }
-
-    if (enum_value === GameUpdateType.Win) {
-      return game_is_won; // Game is finished
-    }
-  }
-  //console.log(gu.updates);
-
-  return game_is_won;
-
-  //TODO tile updateS?
-  //let tus: [number, number][] = [];
-  //for(let tu of gu.packedTileUpdates) {
-  //let x = map_impl.x(tu);
-  //let y = map_impl.y(tu);
-
-  //tus.push({
-  //x, y
-  //});
-  //}
-  //console.log("Tile Updates: ", tus);
+    return gameIsWon;
 }
 
-function messageTypeToString(type: MessageType): string {
-  switch (type) {
-    case MessageType.ATTACK_FAILED:
-      return "ATTACK_FAILED";
-    case MessageType.ATTACK_CANCELLED:
-      return "ATTACK_CANCELLED";
-    case MessageType.ATTACK_REQUEST:
-      return "ATTACK_REQUEST";
-    case MessageType.CONQUERED_PLAYER:
-      return "CONQUERED_PLAYER";
-    case MessageType.MIRV_INBOUND:
-      return "MIRV_INBOUND";
-    case MessageType.NUKE_INBOUND:
-      return "NUKE_INBOUND";
-    case MessageType.HYDROGEN_BOMB_INBOUND:
-      return "HYDROGEN_BOMB_INBOUND";
-    case MessageType.NAVAL_INVASION_INBOUND:
-      return "NAVAL_INVASION_INBOUND";
-    case MessageType.SAM_MISS:
-      return "SAM_MISS";
-    case MessageType.SAM_HIT:
-      return "SAM_HIT";
-    case MessageType.CAPTURED_ENEMY_UNIT:
-      return "CAPTURED_ENEMY_UNIT";
-    case MessageType.UNIT_CAPTURED_BY_ENEMY:
-      return "UNIT_CAPTURED_BY_ENEMY";
-    case MessageType.UNIT_DESTROYED:
-      return "UNIT_DESTROYED";
-    case MessageType.ALLIANCE_ACCEPTED:
-      return "ALLIANCE_ACCEPTED";
-    case MessageType.ALLIANCE_REJECTED:
-      return "ALLIANCE_REJECTED";
-    case MessageType.ALLIANCE_REQUEST:
-      return "ALLIANCE_REQUEST";
-    case MessageType.ALLIANCE_BROKEN:
-      return "ALLIANCE_BROKEN";
-    case MessageType.ALLIANCE_EXPIRED:
-      return "ALLIANCE_EXPIRED";
-    case MessageType.SENT_GOLD_TO_PLAYER:
-      return "SENT_GOLD_TO_PLAYER";
-    case MessageType.RECEIVED_GOLD_FROM_PLAYER:
-      return "RECEIVED_GOLD_FROM_PLAYER";
-    case MessageType.RECEIVED_GOLD_FROM_TRADE:
-      return "RECEIVED_GOLD_FROM_TRADE";
-    case MessageType.SENT_TROOPS_TO_PLAYER:
-      return "SENT_TROOPS_TO_PLAYER";
-    case MessageType.RECEIVED_TROOPS_FROM_PLAYER:
-      return "RECEIVED_TROOPS_FROM_PLAYER";
-    case MessageType.CHAT:
-      return "CHAT";
-    case MessageType.RENEW_ALLIANCE:
-      return "RENEW_ALLIANCE";
-  }
+// Helper functions
+
+async function processDisplayEvents(
+    ups: GameUpdate[],
+    gameId: string,
+    tick: number,
+    pool: Pool,
+) {
+    for (const up of ups) {
+        const displayUpdate = up as DisplayMessageUpdate;
+        const messageType = MessageType[displayUpdate.messageType];
+        (up as any).messageType = messageType;
+
+        const d = await pool.query(INSERT_DISPLAY_EVENT, [
+            gameId,
+            tick,
+            displayUpdate.messageType,
+            displayUpdate.message,
+            displayUpdate.playerID,
+            displayUpdate.goldAmount,
+        ]);
+
+        if (d?.rows[0].tick !== tick) {
+            throw new Error(
+                `Failed to insert display event for game ${gameId} at tick ${tick}`,
+            );
+        }
+    }
+}
+
+async function processPlayerUpdates(
+    ups: GameUpdate[],
+    gameId: string,
+    tick: number,
+    pool: Pool,
+    extraData: ExtraData,
+) {
+    if (tick % 10 !== 0) {
+        return;
+    }
+
+    for (const up of ups) {
+        const update = up as PlayerUpdate;
+        const isAliveBit = update.isAlive ? 1 : 0;
+        const isConnectedBit = !update.isDisconnected ? 1 : 0;
+        const playerStatus = isAliveBit | (isConnectedBit << 1);
+
+        const disconnectedAt =
+            extraData.players_disconnected_on_turn[update.id];
+        const playerIsLongDisconnected =
+            disconnectedAt && disconnectedAt + 15 < tick;
+        const shouldTrackDisconnection =
+            tick > 301 && update.isDisconnected && !disconnectedAt;
+        const shouldIgnoreBot =
+            tick > 15 && update.playerType === PlayerType.Bot;
+
+        if (playerIsLongDisconnected) {
+            continue;
+        }
+
+        if (shouldTrackDisconnection) {
+            extraData.players_disconnected_on_turn[update.id] = tick;
+        }
+
+        if (tick === 300) {
+            await pool.query(INSERT_PLAYER, [
+                gameId,
+                update.id,
+                update.clientID,
+                update.smallID,
+                update.playerType,
+                update.name,
+                null,
+                typeof update.team === "string" ? null : update.team,
+            ]);
+        }
+
+        if (shouldIgnoreBot) {
+            continue;
+        }
+
+        const d = await pool.query(INSERT_PLAYER_UPDATE, [
+            gameId,
+            update.id,
+            playerStatus,
+            update.smallID,
+            update.tilesOwned,
+            update.gold,
+            Math.floor(update.workers),
+            Math.floor(update.troops),
+            Math.floor(update.targetTroopRatio * 1000),
+            tick,
+        ]);
+
+        if (d?.rows[0].tick !== tick) {
+            throw new Error(
+                `Failed to insert player update for game ${gameId} at tick ${tick}`,
+            );
+        }
+    }
+}
+
+async function processGeneralEvents(
+    ups: GameUpdate[],
+    gameId: string,
+    tick: number,
+    pool: Pool,
+    key: string,
+) {
+    for (const up of ups) {
+        delete (up as any).type;
+
+        try {
+            const d = await pool.query(INSERT_GENERAL_EVENT, [
+                gameId,
+                tick,
+                key,
+                change_big_int_to_string_recursively(up),
+            ]);
+
+            if (d?.rows[0].tick !== tick) {
+                throw new Error(`No rows from DB updated`);
+            }
+        } catch (e) {
+            console.error(
+                `Error inserting general event for game ${gameId} at tick ${tick}:`,
+                e,
+            );
+        }
+    }
 }
 
 function change_big_int_to_string_recursively(obj: any): any {
-  if (typeof obj === "bigint") {
-    return String(obj);
-  }
-  if (typeof obj !== "object" || obj === null) {
-    return obj;
-  }
-  if (Array.isArray(obj)) {
-    return obj.map(change_big_int_to_string_recursively);
-  }
-  let newObj: any = {};
-  for (let [k, v] of Object.entries(obj)) {
-    newObj[k] = change_big_int_to_string_recursively(v);
-  }
-  return newObj;
+    if (typeof obj === "bigint") {
+        return String(obj);
+    }
+    if (typeof obj !== "object" || obj === null) {
+        return obj;
+    }
+    if (Array.isArray(obj)) {
+        return obj.map(change_big_int_to_string_recursively);
+    }
+    const newObj: any = {};
+    for (const [k, v] of Object.entries(obj)) {
+        newObj[k] = change_big_int_to_string_recursively(v);
+    }
+    return newObj;
 }
 
-export let base_log = new Logger();
+// ===== Main entry point =====
+export const base_log = new Logger();
+
+async function processPendingGames(pool: Pool): Promise<void> {
+    // Select 1 job from DB by updating a single row from the analysis_queue table (INNER JOIN with finished_games)
+    // We set the analysis_status to 'Running' and then select the game_id and result_json
+    const res = await pool.query(SELECT_AND_UPDATE_JOB);
+
+    for (const game of res.rows) {
+        console.log("Game ID: ", game.game_id);
+        const r = game.result_json as GameRecord;
+        const record = decompressGameRecord(r);
+
+        let new_state = "Completed";
+        const time_now = Date.now();
+        try {
+            const analysis = await simgame(game.game_id, record, pool);
+        } catch (e) {
+            console.log("The analysis failed for game", game.game_id, e);
+            new_state = "Failed";
+        } finally {
+            const time_taken = Date.now() - time_now;
+
+            console.log(
+                `Analysis for game ${game.game_id} = ${new_state} in ${time_taken} ms. Game winner:`,
+                record.info.winner,
+            );
+        }
+
+        // Update analysis_queue table with the game_id and status 'Completed'
+        await pool.query(UPDATE_ANALYSIS_QUEUE_STATUS, [
+            game.game_id,
+            new_state,
+        ]);
+    }
+}
 
 async function main() {
     try {
@@ -638,7 +802,7 @@ async function main() {
             port: Number(dbUrl.port) || 5432,
             user: dbUrl.username,
             password: dbUrl.password,
-            database: dbUrl.pathname.replace(/^\//, "")
+            database: dbUrl.pathname.replace(/^\//, ""),
         };
 
         const p = new Pool(poolConfig);
@@ -646,74 +810,8 @@ async function main() {
         await p.connect();
         console.log("Connected to database");
 
-        for(;;) {
-            // Old query: Select 10 jobs from the db
-            // SELECT
-            //     fg.game_id, fg.result_json
-            // FROM
-            //     finished_games fg
-            //     INNER JOIN analysis_queue aq
-            // ON
-            //     aq.game_id = fg.game_id
-            // LIMIT 10`,
-            //
-            // Select 1 job from DB by updating a single row from the analysis_queue table (INNER JOIN with finished_games)
-            // We set the analysis_status to 'Running' and then select the game_id and result_json
-            let res = await p.query(
-                `
-                WITH my_job AS (
-                    SELECT
-                    fg.game_id, fg.result_json
-                    FROM
-                    finished_games fg
-                    INNER JOIN analysis_queue aq
-                    ON aq.game_id = fg.game_id
-                    WHERE
-                    aq.status = 'Pending'
-                    LIMIT 1
-                )
-                UPDATE analysis_queue aq
-                SET
-                status = 'Running',
-                    started_unix_sec = EXTRACT(EPOCH FROM NOW())
-                FROM my_job
-                WHERE aq.game_id = my_job.game_id
-                RETURNING my_job.game_id, my_job.result_json
-                `
-            );
-
-            for (let game of res.rows) {
-                console.log("Game ID: ", game.game_id);
-                let r = game.result_json as GameRecord;
-                let record = decompressGameRecord(r);
-
-                let new_state = "Completed";
-                let time_now = Date.now();
-                try {
-                    let analysis = await simgame(game.game_id, record, p);
-                } catch (e) {
-                    console.log("The analysis failed for game", game.game_id, e);
-                    new_state = "Failed";
-                } finally {
-                    let time_taken = Date.now() - time_now;
-
-                    console.log(
-                        `Analysis for game ${game.game_id} = ${new_state} in ${time_taken} ms. Game winner:`,
-                            record.info.winner
-                    );
-                }
-
-                // Update analysis_queue table with the game_id and status 'Completed'
-                await p.query(
-                    `
-                    UPDATE analysis_queue
-                    SET
-                    status = $2
-                    WHERE game_id = $1
-                    `,
-                    [game.game_id, new_state],
-                );
-            }
+        for (;;) {
+            await processPendingGames(p);
             await new Promise((resolve) => setTimeout(resolve, 5000));
         }
     } catch (e) {

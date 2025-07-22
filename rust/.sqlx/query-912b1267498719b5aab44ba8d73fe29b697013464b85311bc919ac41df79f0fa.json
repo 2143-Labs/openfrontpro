@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO analysis_queue (game_id)\n         VALUES ($1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Bpchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "912b1267498719b5aab44ba8d73fe29b697013464b85311bc919ac41df79f0fa"
+}
