@@ -32,3 +32,12 @@ CREATE TABLE analysis_1.troop_ratio_change (
    client_id CHAR(8) NOT NULL,
    target_troop_ratio REAL NOT NULL
 );
+
+CREATE TABLE social.discord_link (
+   user_id CHAR(10) NOT NULL PRIMARY KEY,
+   discord_user_id TEXT NOT NULL UNIQUE,
+   discord_username TEXT NOT NULL,
+   discord_discriminator TEXT,
+   discord_avatar TEXT,
+   created_at_unix_sec BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())
+);

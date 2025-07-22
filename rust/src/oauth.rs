@@ -55,7 +55,7 @@ pub struct DiscordUser {
 
 pub fn authorization_url(state: &str, cfg: &DiscordOAuthConfig) -> String {
     format!(
-        "https://discord.com/api/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope=identify+openid+gateway.connect+sdk.social_layer_presence&state={}",
+        "https://discord.com/api/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope=identify+openid&state={}",
         cfg.client_id,
         urlencoding::encode(&cfg.redirect_uri),
         urlencoding::encode(state)
@@ -108,6 +108,24 @@ fn basic_error_response(error: &str) -> Response {
         .unwrap()
 }
 
+/*
+CREATE TABLE social.registered_users (
+    id CHAR(10) NOT NULL PRIMARY KEY DEFAULT social.generate_user_uid(10),
+    username TEXT NOT NULL UNIQUE,
+    openfront_player_id TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE social.discord_link (
+   user_id CHAR(10) NOT NULL PRIMARY KEY,
+   discord_user_id BIGINT NOT NULL UNIQUE,
+   discord_username TEXT NOT NULL,
+   discord_discriminator TEXT,
+   discord_avatar TEXT,
+   created_at_unix_sec BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()),
+);
+*/
+
 async fn callback_api_handler(
     Extension(database): Extension<PgPool>,
     Extension(config): Extension<Arc<Config>>,
@@ -121,8 +139,6 @@ async fn callback_api_handler(
         return Err(basic_error_response("Missing 'code' parameter in callback"));
     };
 
-    //TODO check state
-
     let cfg = DiscordOAuthConfig::from_env(&config);
     let token_response = exchange_code(&code, &cfg).await.map_err(|e| {
         basic_error_response(&format!("Failed to exchange code: {}", e))
@@ -131,7 +147,27 @@ async fn callback_api_handler(
         basic_error_response(&format!("Failed to fetch user: {}", e))
     })?;
 
-    // Process the user information as needed
+    println!("{:?}", token_response);
+
+    // Check if we have this user,
+    let res = sqlx::query!(
+        r#"
+        INSERT INTO social.discord_link (user_id, discord_user_id, discord_username, discord_discriminator)
+        VALUES (social.generate_user_uid(10), $1, $2, $3)
+        ON CONFLICT (discord_user_id) DO NOTHING
+        RETURNING user_id
+        "#, 
+        user.id,
+        user.username,
+        user.discriminator,
+    ).fetch_one(&database)
+        .await
+        .map_err(|e| {
+            basic_error_response(&format!("Failed to insert or fetch user: {}", e))
+        })?;
+
+    let user_id = res.user_id;
+    // Add users to db:
 
     let res = Response::builder()
         .status(axum::http::StatusCode::FOUND)
@@ -143,7 +179,7 @@ async fn callback_api_handler(
         .header(
             axum::http::header::SET_COOKIE,
             format!(
-                "todo_DELETE_THIS_discord_user_id={}; Path=/; HttpOnly; Secure; SameSite=Strict",
+                "discord_user_id={}; Path=/; HttpOnly; Secure; SameSite=Strict",
                 user.id
             ),
         )

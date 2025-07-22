@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use crate::{
     Config,
-    database::{APIFinishedGame, APIGetLobby, APIGetLobbyWithConfig, GameConfig},
+    database::{APIAnalysisQueueEntry, APIFinishedGame, APIGetLobby, APIGetLobbyWithConfig, AnalysisQueueStatus, GameConfig},
 };
 use anyhow::Result;
 
@@ -229,6 +229,42 @@ async fn game_analyze_handler_delete(
             )))
             .expect("Failed to build response for error message")),
     }
+}
+
+async fn analysis_queue_handler(
+    Extension(database): Extension<PgPool>,
+) -> Result<Json<Vec<APIAnalysisQueueEntry>>, Response> {
+    // current unix time
+    let now = crate::database::now_unix_sec();
+
+    let rows = sqlx::query!(
+        r#"
+        SELECT game_id, requested_unix_sec
+        FROM analysis_queue
+        WHERE status = ANY($1)
+        ORDER BY requested_unix_sec ASC
+        "#,
+        &[
+            AnalysisQueueStatus::Pending,
+            AnalysisQueueStatus::Running
+        ] as &[AnalysisQueueStatus]
+    )
+    .fetch_all(&database)
+    .await
+    .map_err(|e| axum::response::Response::builder()
+        .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+        .body(axum::body::Body::from(format!("Database query failed: {}", e)))
+        .expect("Failed to build response"))?;
+
+    let resp = rows
+        .into_iter()
+        .map(|r| APIAnalysisQueueEntry {
+            game_id: r.game_id,
+            queued_for_sec: now - r.requested_unix_sec,
+        })
+        .collect();
+
+    Ok(Json(resp))
 }
 
 pub async fn open_api_json(Extension(api): Extension<OpenApi>) -> impl aide::axum::IntoApiResponse {

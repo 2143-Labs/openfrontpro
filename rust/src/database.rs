@@ -140,6 +140,14 @@ pub struct APIFinishedGame {
     pub inserted_at_unix_sec: i64,
 }
 
+/// API response struct for analysis queue entries
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
+pub struct APIAnalysisQueueEntry {
+    pub game_id: String,
+    /// Seconds the job has been in the queue
+    pub queued_for_sec: i64,
+}
+
 /// Returns the current Unix timestamp in seconds
 pub fn now_unix_sec() -> i64 {
     std::time::SystemTime::now()
