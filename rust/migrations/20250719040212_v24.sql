@@ -20,7 +20,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql VOLATILE;
 
-CREATE TABLE social.discord_link (
+CREATE TABLE IF NOT EXISTS social.discord_link (
    user_id CHAR(10) NOT NULL PRIMARY KEY,
    discord_user_id TEXT NOT NULL UNIQUE,
    discord_username TEXT NOT NULL,
@@ -29,14 +29,14 @@ CREATE TABLE social.discord_link (
    created_at_unix_sec BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())
 );
 
-CREATE TABLE social.registered_users (
+CREATE TABLE IF NOT EXISTS social.registered_users (
     id CHAR(10) NOT NULL PRIMARY KEY DEFAULT social.generate_user_uid(10),
     username TEXT NOT NULL UNIQUE,
     openfront_player_id TEXT UNIQUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE social.friends (
+CREATE TABLE IF NOT EXISTS social.friends (
     user_id CHAR(10) NOT NULL,
     friend_id CHAR(10) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -46,7 +46,7 @@ CREATE TABLE social.friends (
 );
 
 -- "Alliances" in webapp
-CREATE TABLE social.friend_requests (
+CREATE TABLE IF NOT EXISTS social.friend_requests (
     id SERIAL PRIMARY KEY,
     sender_id CHAR(10) NOT NULL,
     receiver_id CHAR(10) NOT NULL,
@@ -67,7 +67,7 @@ CREATE TYPE analysis_queue_status AS ENUM (
     'CompletedAlready'
 );
 
-CREATE TABLE public.analysis_queue (
+CREATE TABLE IF NOT EXISTS public.analysis_queue (
     game_id CHAR(8) NOT NULL,
     requesting_user_id CHAR(10),
     requested_unix_sec BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()),
@@ -77,7 +77,7 @@ CREATE TABLE public.analysis_queue (
 );
 
 -- When a user logs in, they get a session token.
-CREATE TABLE social.user_sessions (
+CREATE TABLE IF NOT EXISTS social.user_sessions (
     session_id SERIAL PRIMARY KEY,
     created_at_unix_sec BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()),
     expires_at_unix_sec BIGINT NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()) + 3600 * 24), -- 1 day

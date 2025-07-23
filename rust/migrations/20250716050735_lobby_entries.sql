@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS finished_games (
 
 -- Game Analysis
 
-CREATE SCHEMA analysis_1;
+CREATE SCHEMA IF NOT EXISTS analysis_1;
 
 CREATE TABLE analysis_1.completed_analysis (
    game_id CHAR(8) NOT NULL PRIMARY KEY,
