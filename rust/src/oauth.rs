@@ -1,9 +1,14 @@
 #![allow(unused)]
 use std::sync::Arc;
 
-use aide::{axum::ApiRouter,  IntoApi};
+use aide::{IntoApi, axum::ApiRouter};
 use anyhow::Result;
-use axum::{extract::Query, response::Response, Extension};
+use axum::{
+    Extension, RequestPartsExt,
+    extract::{FromRequestParts, OptionalFromRequestParts, Query},
+    response::Response,
+};
+use axum_extra::extract::CookieJar;
 use reqwest::Client;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -45,12 +50,34 @@ pub struct TokenResponse {
     pub scope: String,
 }
 
+//{
+//"id": "262351348534738945",
+//"username": "john2143",
+//"avatar": "f3e0bba6767b9bbb3e724bf75e4b34a2",
+//"discriminator": "0",
+//"public_flags": 0,
+//"flags": 0,
+//"banner": null,
+//"accent_color": 11753991,
+//"global_name": "John2143",
+//"avatar_decoration_data": null,
+//"collectibles": null,
+//"display_name_styles": null,
+//"banner_color": "#b35a07",
+//"clan": null,
+//"primary_guild": null,
+//"mfa_enabled": false,
+//"locale": "en-US",
+//"premium_type": 3
+//}
 #[derive(Debug, Clone, Deserialize)]
 pub struct DiscordUser {
     pub id: String,
     pub username: String,
-    pub discriminator: String,
-    pub email: Option<String>,
+    pub avatar: Option<String>,
+    pub banner: Option<String>,
+    pub accent_color: Option<u32>,
+    pub global_name: Option<String>,
 }
 
 pub fn authorization_url(state: &str, cfg: &DiscordOAuthConfig) -> String {
@@ -109,22 +136,82 @@ fn basic_error_response(error: &str) -> Response {
 }
 
 /*
-CREATE TABLE social.registered_users (
-    id CHAR(10) NOT NULL PRIMARY KEY DEFAULT social.generate_user_uid(10),
-    username TEXT NOT NULL UNIQUE,
-    openfront_player_id TEXT NOT NULL UNIQUE,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE social.discord_link (
-   user_id CHAR(10) NOT NULL PRIMARY KEY,
-   discord_user_id BIGINT NOT NULL UNIQUE,
-   discord_username TEXT NOT NULL,
-   discord_discriminator TEXT,
-   discord_avatar TEXT,
-   created_at_unix_sec BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()),
+CREATE TABLE social.user_sessions (
+    session_id SERIAL PRIMARY KEY,
+    created_at_unix_sec BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()),
+    expires_at_unix_sec BIGINT NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()) + 3600 * 24), -- 1 day
+    user_id CHAR(10) NOT NULL REFERENCES social.registered_users(id) ON DELETE CASCADE,
+    session_token_hash TEXT NOT NULL UNIQUE,
 );
 */
+
+pub struct APIUser {
+    pub user_id: String,
+    pub username: String,
+}
+
+impl<S: Sync> FromRequestParts<S> for APIUser {
+    type Rejection = axum::response::Response;
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        state: &S,
+    ) -> std::result::Result<Self, Self::Rejection> {
+        let cookies = CookieJar::from_headers(&parts.headers);
+        let session_token = cookies
+            .get("session_token")
+            .map(|c| c.value().to_string())
+            .or_else(|| {
+                parts
+                    .headers
+                    .get("Authorization")
+                    .and_then(|h| h.to_str().ok())
+                    .and_then(|s| s.strip_prefix("Bearer "))
+                    .map(|s| s.to_string())
+            });
+
+        let rejection = |msg: &str| {
+            Response::builder()
+                .status(axum::http::StatusCode::UNAUTHORIZED)
+                //as text/plain
+                .header(axum::http::header::CONTENT_TYPE, "text/plain")
+                .header(axum::http::header::CACHE_CONTROL, "no-cache")
+                .body(axum::body::Body::from(msg.to_string()))
+                .unwrap()
+        };
+
+        let Some(their_token) = session_token else {
+            return Err(rejection(
+                "Sorry, to call this API you need either an discord login or session token.",
+            ));
+        };
+
+        let Extension(db_extension) = parts.extract::<Extension<PgPool>>().await.map_err(|_| {
+            rejection("Sorry, authorization is currently unavailable. Try again later.")
+        })?;
+
+        let user = sqlx::query_as!(
+            APIUser,
+            r#"
+            SELECT u.id AS user_id, u.username
+            FROM social.registered_users u
+            JOIN social.user_sessions s ON s.user_id = u.id
+            WHERE
+                s.session_token_hash = encode(digest($1, 'sha256'), 'hex')
+                AND s.expires_at_unix_sec > EXTRACT(EPOCH FROM NOW())
+            "#,
+            their_token
+        )
+        .fetch_optional(&db_extension)
+        .await
+        .map_err(|_| rejection("Sorry, authorization is currently unavailable. Try again later."))?
+        .ok_or_else(|| {
+            rejection("Invalid session token or session expired. Please log in with discord again.")
+        })?;
+
+        Ok(user)
+    }
+}
 
 async fn callback_api_handler(
     Extension(database): Extension<PgPool>,
@@ -140,26 +227,35 @@ async fn callback_api_handler(
     };
 
     let cfg = DiscordOAuthConfig::from_env(&config);
-    let token_response = exchange_code(&code, &cfg).await.map_err(|e| {
-        basic_error_response(&format!("Failed to exchange code: {}", e))
-    })?;
-    let user = fetch_user(&token_response.access_token).await.map_err(|e| {
-        basic_error_response(&format!("Failed to fetch user: {}", e))
-    })?;
+    let token_response = exchange_code(&code, &cfg)
+        .await
+        .map_err(|e| basic_error_response(&format!("Failed to exchange code: {}", e)))?;
+    let user = fetch_user(&token_response.access_token)
+        .await
+        .map_err(|e| basic_error_response(&format!("Failed to fetch user: {}", e)))?;
 
     println!("{:?}", token_response);
+
+    let global_name = user
+        .global_name
+        .as_deref()
+        .unwrap_or(user.username.as_str());
 
     // Check if we have this user,
     let res = sqlx::query!(
         r#"
-        INSERT INTO social.discord_link (user_id, discord_user_id, discord_username, discord_discriminator)
-        VALUES (social.generate_user_uid(10), $1, $2, $3)
-        ON CONFLICT (discord_user_id) DO NOTHING
+        INSERT INTO social.discord_link (user_id, discord_user_id, discord_username, discord_avatar, discord_global_name)
+        VALUES (social.generate_user_uid(10), $1, $2, $3, $4)
+        ON CONFLICT (discord_user_id)
+        DO UPDATE SET
+            discord_avatar = EXCLUDED.discord_avatar,
+            discord_global_name = EXCLUDED.discord_global_name
         RETURNING user_id
-        "#, 
+        "#,
         user.id,
         user.username,
-        user.discriminator,
+        user.avatar,
+        global_name,
     ).fetch_one(&database)
         .await
         .map_err(|e| {
@@ -167,7 +263,44 @@ async fn callback_api_handler(
         })?;
 
     let user_id = res.user_id;
-    // Add users to db:
+    let res = sqlx::query!(
+        r#"
+        INSERT INTO social.registered_users (id, username)
+        VALUES ($1, $2)
+        ON CONFLICT (id) DO NOTHING
+        returning username, id
+        "#,
+        user_id,
+        user.username,
+    )
+    .fetch_one(&database)
+    .await
+    .map_err(|e| {
+        basic_error_response(&format!("Failed to insert or fetch registered user: {}", e))
+    })?;
+
+    let seen_username = res.username;
+
+    let api_token = sqlx::query!(
+        r#"
+        WITH new_token AS (
+            SELECT encode(gen_random_bytes(20), 'base64') AS token
+        )
+        INSERT INTO social.user_sessions (user_id, session_token_hash)
+        VALUES ($1, encode(digest((SELECT token FROM new_token), 'sha256'), 'hex'))
+        RETURNING (
+            SELECT token FROM new_token
+        ) AS session_token
+        "#,
+        user_id
+    )
+    .fetch_one(&database)
+    .await
+    .map_err(|e| basic_error_response(&format!("Failed to create user session: {}", e)))?;
+
+    let api_token = api_token
+        .session_token
+        .expect("How is is possible to not have a session token?");
 
     let res = Response::builder()
         .status(axum::http::StatusCode::FOUND)
@@ -176,6 +309,8 @@ async fn callback_api_handler(
         // Send them back to /
         .header(axum::http::header::LOCATION, "/")
         // Add logged in cookies
+        //   1. discord user id
+        //   2. api token
         .header(
             axum::http::header::SET_COOKIE,
             format!(
@@ -183,20 +318,23 @@ async fn callback_api_handler(
                 user.id
             ),
         )
+        .header(
+            axum::http::header::SET_COOKIE,
+            format!(
+                "session_token={}; Path=/; HttpOnly; Secure; SameSite=Strict",
+                api_token
+            ),
+        )
         .body(axum::body::Body::from(format!(
-            "User {}#{} authenticated successfully",
-            user.username, user.discriminator
+            "User {} (discord {} = {}) authenticated successfully",
+            seen_username, user.username, global_name
         )))
-        .map_err(|e| {
-            basic_error_response(&format!("Failed to build response: {}", e))
-        })?;
+        .map_err(|e| basic_error_response(&format!("Failed to build response: {}", e)))?;
 
     Ok(res)
 }
 
-async fn login_redir_handler(
-    Extension(config): Extension<Arc<Config>>,
-) -> Response {
+async fn login_redir_handler(Extension(config): Extension<Arc<Config>>) -> Response {
     let state = "some_random_state"; // This should be a securely generated random state
 
     let cfg = DiscordOAuthConfig::from_env(&config);

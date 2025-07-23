@@ -2,7 +2,10 @@
 
 use aide::{axum::ApiRouter, openapi::OpenApi, redoc::Redoc};
 use axum::{
-    extract::{Path, Query}, response::Response, routing::{get, post}, Extension, Json
+    Extension, Json,
+    extract::{Path, Query},
+    response::Response,
+    routing::{get, post},
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -15,7 +18,10 @@ use std::sync::Arc;
 
 use crate::{
     Config,
-    database::{APIAnalysisQueueEntry, APIFinishedGame, APIGetLobby, APIGetLobbyWithConfig, AnalysisQueueStatus, GameConfig},
+    database::{
+        APIAnalysisQueueEntry, APIFinishedGame, APIGetLobby, APIGetLobbyWithConfig, GameConfig,
+    },
+    oauth::APIUser,
 };
 use anyhow::Result;
 
@@ -185,6 +191,7 @@ async fn game_handler(
 async fn game_analyze_handler(
     Extension(database): Extension<PgPool>,
     Path(game_id): Path<String>,
+    _user: APIUser,
 ) -> Result<(), Response> {
     //Insert into analysis_queue
     let res = sqlx::query!(
@@ -210,6 +217,7 @@ async fn game_analyze_handler(
 async fn game_analyze_handler_delete(
     Extension(database): Extension<PgPool>,
     Path(game_id): Path<String>,
+    _user: APIUser,
 ) -> Result<(), Response> {
     // Set status to cancelled
     let res = sqlx::query!(
@@ -241,20 +249,20 @@ async fn analysis_queue_handler(
         r#"
         SELECT game_id, requested_unix_sec
         FROM analysis_queue
-        WHERE status = ANY($1)
         ORDER BY requested_unix_sec ASC
         "#,
-        &[
-            AnalysisQueueStatus::Pending,
-            AnalysisQueueStatus::Running
-        ] as &[AnalysisQueueStatus]
     )
     .fetch_all(&database)
     .await
-    .map_err(|e| axum::response::Response::builder()
-        .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
-        .body(axum::body::Body::from(format!("Database query failed: {}", e)))
-        .expect("Failed to build response"))?;
+    .map_err(|e| {
+        axum::response::Response::builder()
+            .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+            .body(axum::body::Body::from(format!(
+                "Database query failed: {}",
+                e
+            )))
+            .expect("Failed to build response")
+    })?;
 
     let resp = rows
         .into_iter()

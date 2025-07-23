@@ -5,7 +5,7 @@ use anyhow::Context;
 use axum::Extension;
 use clap::Parser;
 use schemars::JsonSchema;
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 
 use database::AnalysisQueueStatus;
 
@@ -97,7 +97,6 @@ impl Config {
             None
         }
     }
-
 }
 
 #[derive(
@@ -170,8 +169,10 @@ async fn main() -> anyhow::Result<()> {
         //.without_time()
         .init();
 
-
-    tracing::info!(config.frontend_folder, "Starting OpenFront API server! Connecting to database...");
+    tracing::info!(
+        config.frontend_folder,
+        "Starting OpenFront API server! Connecting to database..."
+    );
 
     if config.get_discord_oauth().is_some() {
         tracing::info!("Discord OAuth is enabled");

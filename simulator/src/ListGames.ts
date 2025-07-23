@@ -370,6 +370,7 @@ async function initializeGame(
     console.log("Winner: ", winner);
     const winner_player = humans.find((p) => p.clientID === winner)!;
     console.log("Winner Player: ", winner_player);
+    console.log("Number of turns: ", record.turns.length);
     //let winner_id = winner_player.id;
     //process.exit(1)
 

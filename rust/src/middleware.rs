@@ -5,7 +5,7 @@ use tracing::{Span, info};
 
 /// Current date and time as YYYY/MM/DD HH:MM:SST00:00 using chrono crate
 //fn ts_formatted() -> String {
-    //Utc::now().format("%Y/%m/%d %H:%M:%ST%z").to_string()
+//Utc::now().format("%Y/%m/%d %H:%M:%ST%z").to_string()
 //}
 
 #[derive(Clone)]

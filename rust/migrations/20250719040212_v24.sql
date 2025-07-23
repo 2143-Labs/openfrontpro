@@ -1,5 +1,7 @@
 CREATE SCHEMA social;
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Create a function to generate a random user ID
 -- From stackoverflow
 CREATE OR REPLACE FUNCTION social.generate_user_uid(size INT) RETURNS TEXT AS $$
@@ -18,10 +20,19 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql VOLATILE;
 
+CREATE TABLE social.discord_link (
+   user_id CHAR(10) NOT NULL PRIMARY KEY,
+   discord_user_id TEXT NOT NULL UNIQUE,
+   discord_username TEXT NOT NULL,
+   discord_avatar TEXT,
+   discord_global_name TEXT,
+   created_at_unix_sec BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())
+);
+
 CREATE TABLE social.registered_users (
     id CHAR(10) NOT NULL PRIMARY KEY DEFAULT social.generate_user_uid(10),
     username TEXT NOT NULL UNIQUE,
-    openfront_player_id TEXT NOT NULL UNIQUE,
+    openfront_player_id TEXT UNIQUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -63,4 +74,13 @@ CREATE TABLE public.analysis_queue (
     started_unix_sec BIGINT,
     status analysis_queue_status NOT NULL DEFAULT 'Pending',
     FOREIGN KEY (requesting_user_id) REFERENCES social.registered_users(id) ON DELETE CASCADE
+);
+
+-- When a user logs in, they get a session token.
+CREATE TABLE social.user_sessions (
+    session_id SERIAL PRIMARY KEY,
+    created_at_unix_sec BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()),
+    expires_at_unix_sec BIGINT NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()) + 3600 * 24), -- 1 day
+    user_id CHAR(10) NOT NULL REFERENCES social.registered_users(id) ON DELETE CASCADE,
+    session_token_hash TEXT NOT NULL UNIQUE
 );

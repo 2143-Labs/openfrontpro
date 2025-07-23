@@ -112,10 +112,10 @@ impl<'a> sqlx::FromRow<'a, sqlx::postgres::PgRow> for APIGetLobby {
 }
 
 //impl APIGetLobbyWithConfig {
-    //pub fn lobby_config(&self) -> GameConfig {
-        //serde_json::from_value(self.lobby_config_json.clone())
-            //.expect("Invalid lobby config JSON in database")
-    //}
+//pub fn lobby_config(&self) -> GameConfig {
+//serde_json::from_value(self.lobby_config_json.clone())
+//.expect("Invalid lobby config JSON in database")
+//}
 //}
 
 /// Enum representing the status of analysis queue entries: TODO implement all these

@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        WITH new_token AS (\n            SELECT encode(gen_random_bytes(20), 'base64') AS token\n        )\n        INSERT INTO social.user_sessions (user_id, session_token_hash)\n        VALUES ($1, encode(digest((SELECT token FROM new_token), 'sha256'), 'hex'))\n        RETURNING (\n            SELECT token FROM new_token\n        ) AS session_token\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_token",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Bpchar"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "464d64fb4acaa9ffe87dcaeb32f3da4f0300494af5b78bfa9c455e888239ff63"
+}
