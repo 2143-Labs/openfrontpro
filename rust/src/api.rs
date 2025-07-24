@@ -17,11 +17,9 @@ use std::future::Future;
 use std::sync::Arc;
 
 use crate::{
-    Config,
     database::{
         APIAnalysisQueueEntry, APIFinishedGame, APIGetLobby, APIGetLobbyWithConfig, GameConfig,
-    },
-    oauth::APIUser,
+    }, oauth::APIUser, AnalysisQueueStatus, Config
 };
 use anyhow::Result;
 
@@ -249,7 +247,7 @@ async fn analysis_queue_handler(
 
     let rows = sqlx::query!(
         r#"
-        SELECT game_id, requested_unix_sec, status, started_unix_sec
+        SELECT game_id, requested_unix_sec, status as "status: AnalysisQueueStatus", started_unix_sec
         FROM analysis_queue
         ORDER BY requested_unix_sec ASC
         "#,
@@ -271,7 +269,7 @@ async fn analysis_queue_handler(
         .map(|r| APIAnalysisQueueEntry {
             game_id: r.game_id,
             queued_for_sec: now - r.requested_unix_sec,
-            status: r.status.into(),
+            status: r.status,
             started_at_unix_sec: r.started_unix_sec,
         })
         .collect();

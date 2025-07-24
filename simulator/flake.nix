@@ -50,7 +50,9 @@
 
           installPhase = ''
             mkdir -p $out/OpenFrontIO/
-            cp -r ${openfrontio_b593034755c404977edbf8ea318f71a16e661e67}/* $out/OpenFrontIO/
+            cp -r ${openfrontio_b593034755c404977edbf8ea318f71a16e661e67}/src/ $out/OpenFrontIO/src/
+            cp -r ${openfrontio_b593034755c404977edbf8ea318f71a16e661e67}/resources/ $out/OpenFrontIO/resources/
+            cp -r ${openfrontio_b593034755c404977edbf8ea318f71a16e661e67}/package.json $out/OpenFrontIO/package.json
             cp -r * $out/
             jq 'del(.scripts.prepare)' $out/OpenFrontIO/package.json > $out/OpenFrontIO/package.json.tmp
             mv $out/OpenFrontIO/package.json.tmp $out/OpenFrontIO/package.json

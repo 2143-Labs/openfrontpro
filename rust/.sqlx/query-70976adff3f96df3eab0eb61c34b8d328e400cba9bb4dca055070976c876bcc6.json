@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT game_id, requested_unix_sec, status, started_unix_sec\n        FROM analysis_queue\n        ORDER BY requested_unix_sec ASC\n        ",
+  "query": "\n        SELECT game_id, requested_unix_sec, status as \"status: AnalysisQueueStatus\", started_unix_sec\n        FROM analysis_queue\n        ORDER BY requested_unix_sec ASC\n        ",
   "describe": {
     "columns": [
       {
@@ -15,7 +15,7 @@
       },
       {
         "ordinal": 2,
-        "name": "status",
+        "name": "status: AnalysisQueueStatus",
         "type_info": {
           "Custom": {
             "name": "analysis_queue_status",
@@ -50,5 +50,5 @@
       true
     ]
   },
-  "hash": "051e9e6a5cb0a5459414e885643d6560e53a962153f969515f846f6b88d940c1"
+  "hash": "70976adff3f96df3eab0eb61c34b8d328e400cba9bb4dca055070976c876bcc6"
 }
