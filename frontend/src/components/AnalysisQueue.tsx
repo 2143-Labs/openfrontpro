@@ -5,12 +5,12 @@ import ErrorMessage from './ErrorMessage';
 interface QueueItem {
   game_id: string;
   status: string;
-  queued_for: number; // seconds
+  queued_for_sec: number; // seconds - note the API uses queued_for_sec
+  started_at_unix_sec?: number | null;
 }
 
-interface AnalysisQueueResponse {
-  queue: QueueItem[];
-}
+// The API returns an array directly, not wrapped in an object
+type AnalysisQueueResponse = QueueItem[];
 
 const AnalysisQueue: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -35,7 +35,10 @@ const AnalysisQueue: React.FC = () => {
       }
       
       const data: AnalysisQueueResponse = await response.json();
-      setQueueData(data.queue || []);
+      const filteredData = (data || []).filter(
+        item => item.status.toLowerCase() !== 'completed'
+      );
+      setQueueData(filteredData);
     } catch (err) {
       console.error('Error fetching analysis queue:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch analysis queue');
@@ -77,97 +80,95 @@ const AnalysisQueue: React.FC = () => {
     }
 
     return (
-      <div style={{ overflow: 'auto' }}>
-        <table style={{ 
-          width: '100%', 
-          borderCollapse: 'collapse',
-          fontSize: '14px'
-        }}>
-          <thead>
-            <tr style={{ backgroundColor: '#f8f9fa' }}>
-              <th style={{ 
-                padding: '12px 16px', 
-                textAlign: 'left', 
-                borderBottom: '2px solid #dee2e6',
+      <table style={{ 
+        width: '100%', 
+        borderCollapse: 'collapse',
+        fontSize: '14px'
+      }}>
+        <thead>
+          <tr style={{ backgroundColor: '#f8f9fa' }}>
+            <th style={{ 
+              padding: '12px 16px', 
+              textAlign: 'left', 
+              borderBottom: '2px solid #dee2e6',
+              fontWeight: '600',
+              color: '#495057'
+            }}>
+              Game ID
+            </th>
+            <th style={{ 
+              padding: '12px 16px', 
+              textAlign: 'left', 
+              borderBottom: '2px solid #dee2e6',
+              fontWeight: '600',
+              color: '#495057'
+            }}>
+              Status
+            </th>
+            <th style={{ 
+              padding: '12px 16px', 
+              textAlign: 'left', 
+              borderBottom: '2px solid #dee2e6',
+              fontWeight: '600',
+              color: '#495057'
+            }}>
+              Queued for
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {queueData.map((item, index) => (
+            <tr 
+              key={`${item.game_id}-${index}`}
+              style={{ 
+                borderBottom: '1px solid #dee2e6',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f8f9fa';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <td style={{ 
+                padding: '12px 16px',
+                fontFamily: 'monospace',
                 fontWeight: '600',
-                color: '#495057'
+                color: '#007bff'
               }}>
-                Game ID
-              </th>
-              <th style={{ 
-                padding: '12px 16px', 
-                textAlign: 'left', 
-                borderBottom: '2px solid #dee2e6',
-                fontWeight: '600',
-                color: '#495057'
+                {item.game_id}
+              </td>
+              <td style={{ 
+                padding: '12px 16px',
+                textTransform: 'capitalize'
               }}>
-                Status
-              </th>
-              <th style={{ 
-                padding: '12px 16px', 
-                textAlign: 'left', 
-                borderBottom: '2px solid #dee2e6',
-                fontWeight: '600',
-                color: '#495057'
+                <span style={{
+                  padding: '4px 8px',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  backgroundColor: item.status.toLowerCase() === 'pending' ? '#fff3cd' : 
+                                 item.status.toLowerCase() === 'running' ? '#d1ecf1' : 
+                                 item.status.toLowerCase() === 'completed' ? '#d4edda' : '#f8d7da',
+                  color: item.status.toLowerCase() === 'pending' ? '#856404' :
+                         item.status.toLowerCase() === 'running' ? '#0c5460' :
+                         item.status.toLowerCase() === 'completed' ? '#155724' : '#721c24'
+                }}>
+                  {item.status}
+                </span>
+              </td>
+              <td style={{ 
+                padding: '12px 16px',
+                fontFamily: 'monospace',
+                color: '#6c757d'
               }}>
-                Queued for
-              </th>
+                {formatTime(item.queued_for_sec)}
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {queueData.map((item, index) => (
-              <tr 
-                key={`${item.game_id}-${index}`}
-                style={{ 
-                  borderBottom: '1px solid #dee2e6',
-                  transition: 'background-color 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f8f9fa';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-              >
-                <td style={{ 
-                  padding: '12px 16px',
-                  fontFamily: 'monospace',
-                  fontWeight: '600',
-                  color: '#007bff'
-                }}>
-                  {item.game_id}
-                </td>
-                <td style={{ 
-                  padding: '12px 16px',
-                  textTransform: 'capitalize'
-                }}>
-                  <span style={{
-                    padding: '4px 8px',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    fontWeight: '500',
-                    backgroundColor: item.status === 'pending' ? '#fff3cd' : 
-                                   item.status === 'processing' ? '#d1ecf1' : 
-                                   item.status === 'completed' ? '#d4edda' : '#f8d7da',
-                    color: item.status === 'pending' ? '#856404' :
-                           item.status === 'processing' ? '#0c5460' :
-                           item.status === 'completed' ? '#155724' : '#721c24'
-                  }}>
-                    {item.status}
-                  </span>
-                </td>
-                <td style={{ 
-                  padding: '12px 16px',
-                  fontFamily: 'monospace',
-                  color: '#6c757d'
-                }}>
-                  {formatTime(item.queued_for)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
     );
   };
 
@@ -178,6 +179,7 @@ const AnalysisQueue: React.FC = () => {
       borderRadius: '8px',
       padding: '20px',
       height: '400px', // Match the existing single-game card height
+      overflow: 'hidden',          // NEW
       display: 'flex',
       flexDirection: 'column'
     }}>
@@ -215,7 +217,7 @@ const AnalysisQueue: React.FC = () => {
         </div>
       </div>
       
-      <div style={{ flex: 1, minHeight: 0 }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
         {renderContent()}
       </div>
     </div>

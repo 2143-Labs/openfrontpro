@@ -843,12 +843,12 @@ async function processPendingGames(pool: Pool): Promise<void> {
 
     for (const game of res.rows) {
         console.log("Game ID: ", game.game_id);
-        const r = game.result_json as GameRecord;
-        const record = decompressGameRecord(r);
 
         let new_state = "Completed";
         const time_now = Date.now();
         try {
+            const r = game.result_json as GameRecord;
+            const record = decompressGameRecord(r);
             const analysis = await simgame(game.game_id, record, pool);
         } catch (e) {
             console.log("The analysis failed for game", game.game_id, e);
@@ -857,8 +857,7 @@ async function processPendingGames(pool: Pool): Promise<void> {
             const time_taken = Date.now() - time_now;
 
             console.log(
-                `Analysis for game ${game.game_id} = ${new_state} in ${time_taken} ms. Game winner:`,
-                record.info.winner,
+                `Analysis for game ${game.game_id} = ${new_state} in ${time_taken} ms.`,
             );
         }
 

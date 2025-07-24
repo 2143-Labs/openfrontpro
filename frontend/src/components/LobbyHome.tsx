@@ -1,6 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLobbies } from '../hooks/useLobbies';
 import { FilterControls, SortControls, LobbiesTable, LoadingSpinner, ErrorMessage, AnalysisQueue } from './';
+
+// Utility function to get cookie value
+const getCookie = (name: string): string | null => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) {
+    return parts.pop()?.split(';').shift() || null;
+  }
+  return null;
+};
+
+// Utility function to delete cookie
+const deleteCookie = (name: string) => {
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+};
 
 function LobbyHome() {
   const {
@@ -69,6 +84,18 @@ function LobbyHome() {
     setAnalysisSuccess('');
   };
 
+const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const sessionToken = getCookie('session_token');
+    setIsAuthenticated(Boolean(sessionToken));
+  }, []);
+
+  const handleLogout = () => {
+    deleteCookie('session_token');
+    setIsAuthenticated(false);
+  };
+
   return (
     <div className="App">
       <header className="App-header">
@@ -123,13 +150,24 @@ function LobbyHome() {
               </div>
             </div>
             <div className="analysis-right">
-              <a
-                href="/oauth/discord/login"
-                className="discord-login-btn"
-                role="button"
-              >
-                🎮 Login with Discord
-              </a>
+              {isAuthenticated ? (
+                <div>
+                  <div className="logged-in-message">
+                    🎉 You are logged in!
+                  </div>
+                  <button onClick={handleLogout} className="logout-btn">
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <a
+                  href="/oauth/discord/login"
+                  className="discord-login-btn"
+                  role="button"
+                >
+                  🎮 Login with Discord
+                </a>
+              )}
               
               <div style={{ marginTop: '1rem' }}>
                 <button 

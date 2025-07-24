@@ -101,9 +101,18 @@ impl Config {
 )]
 /// Disable these tasks by passing them with the `-d` flag
 pub enum ActiveTasks {
+    /// Read the current public lobbies and look for new games
     LookForNewGames,
+    /// Look for the lobbies to each complete so we can download the game data
     LookForLobbyGames,
+    /// Download game data for the games that are in the analysis queue
     LookForNewGamesInAnalysisQueue,
+    /// TODO If analysis takes longer than 30 minutes, then we update state = Stalled
+    LookForOldRunningGames,
+    /// TODO If a session has expired, we can delete it from db
+    LookForOldSessions,
+    /// TODO For every registered player we have with an openfront ID, look for their games
+    LookForTrackedPlayerGames,
 }
 
 /// Spawn the background worker tasks
@@ -152,6 +161,23 @@ async fn launch_tasks(config: Arc<Config>, database: PgPool) -> anyhow::Result<(
             },
         );
     }
+
+    if !config
+        .disable_tasks
+        .contains(&ActiveTasks::LookForLobbyGames)
+    {
+        let db = database.clone();
+        let cfg = config.clone();
+        let ofapi = config.clone();
+        keep_task_alive(
+            move || look_for_lobby_games(ofapi.clone(), db.clone(), cfg.clone()),
+            TaskSettings {
+                sleep_time: Duration::from_secs(60 * 5),
+                ..Default::default()
+            },
+        );
+    }
+
 
     Ok(())
 }

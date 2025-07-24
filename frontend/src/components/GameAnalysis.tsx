@@ -23,7 +23,7 @@ const GameAnalysis: React.FC<GameAnalysisProps> = ({ gameId }) => {
   const [generalEvents, setGeneralEvents] = useState<GeneralEvent[]>([]);
   const [displayEvents, setDisplayEvents] = useState<DisplayEvent[]>([]);
   const [players, setPlayers] = useState<GamePlayer[]>([]);
-  const [selectedMetric, setSelectedMetric] = useState<'troops' | 'gold' | 'workers' | 'tiles_owned'>('troops');
+  const [selectedMetric, setSelectedMetric] = useState<'troops' | 'gold' | 'workers' | 'tiles_owned'>('tiles_owned');
 
   useEffect(() => {
     fetchAnalysisData();

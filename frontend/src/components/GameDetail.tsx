@@ -381,23 +381,13 @@ function GameDetail() {
               boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
             }}>
               <h2>💰 All Players by Gold</h2>
-              <div style={{ 
-                maxHeight: '300px', 
-                overflowY: 'auto',
-                border: '1px solid #e9ecef',
-                borderRadius: '4px',
-                backgroundColor: '#f8f9fa'
-              }}>
+              <div className="player-ranking-container">
                 {getAllPlayers(game.info?.players || [], 'gold').map((player, index) => {
                   const goldValue = Array.isArray(player.stats.gold) ? player.stats.gold[0] : player.stats.gold;
+                  const itemClass = index === 0 ? 'player-ranking-item first-place' : 
+                                   index % 2 === 0 ? 'player-ranking-item even' : 'player-ranking-item odd';
                   return (
-                    <div key={player.clientID} style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between',
-                      padding: '12px 16px',
-                      backgroundColor: index === 0 ? '#fff3cd' : index % 2 === 0 ? 'white' : '#f8f9fa',
-                      borderBottom: '1px solid #e9ecef'
-                    }}>
+                    <div key={player.clientID} className={itemClass}>
                       <span>{index + 1}. {player.username}</span>
                       <span style={{ fontWeight: 'bold' }}>{formatNumber(goldValue)}</span>
                     </div>
@@ -435,23 +425,13 @@ function GameDetail() {
               boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
             }}>
               <h2>⚔️ All Combat Players</h2>
-              <div style={{ 
-                maxHeight: '300px', 
-                overflowY: 'auto',
-                border: '1px solid #e9ecef',
-                borderRadius: '4px',
-                backgroundColor: '#f8f9fa'
-              }}>
+              <div className="player-ranking-container">
                 {getAllPlayers(game.info?.players || [], 'attacks').map((player, index) => {
                   const attackValue = Array.isArray(player.stats.attacks) ? player.stats.attacks[0] : player.stats.attacks;
+                  const itemClass = index === 0 ? 'player-ranking-item combat-first' : 
+                                   index % 2 === 0 ? 'player-ranking-item even' : 'player-ranking-item odd';
                   return (
-                    <div key={player.clientID} style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between',
-                      padding: '12px 16px',
-                      backgroundColor: index === 0 ? '#f8d7da' : index % 2 === 0 ? 'white' : '#f8f9fa',
-                      borderBottom: '1px solid #e9ecef'
-                    }}>
+                    <div key={player.clientID} className={itemClass}>
                       <span>{index + 1}. {player.username}</span>
                       <span style={{ fontWeight: 'bold' }}>{formatNumber(attackValue)} attacks</span>
                     </div>
@@ -470,13 +450,7 @@ function GameDetail() {
               boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
             }}>
               <h2>☢️ All Nuclear Warfare</h2>
-              <div style={{ 
-                maxHeight: '300px', 
-                overflowY: 'auto',
-                border: '1px solid #e9ecef',
-                borderRadius: '4px',
-                backgroundColor: '#f8f9fa'
-              }}>
+              <div className="player-ranking-container">
                 {game.info?.players
                   .filter((p: any) => p.stats?.bombs)
                   .sort((a: any, b: any) => {
@@ -489,14 +463,10 @@ function GameDetail() {
                   .map((player: any, index: number) => {
                     const abombs = player.stats.bombs.abomb?.[0] ? parseInt(player.stats.bombs.abomb[0]) : 0;
                     const hbombs = player.stats.bombs.hbomb?.[0] ? parseInt(player.stats.bombs.hbomb[0]) : 0;
+                    const itemClass = index === 0 ? 'player-ranking-item first-place' : 
+                                     index % 2 === 0 ? 'player-ranking-item even' : 'player-ranking-item odd';
                     return (
-                      <div key={player.clientID} style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between',
-                        padding: '12px 16px',
-                        backgroundColor: index === 0 ? '#fff3cd' : index % 2 === 0 ? 'white' : '#f8f9fa',
-                        borderBottom: '1px solid #e9ecef'
-                      }}>
+                      <div key={player.clientID} className={itemClass}>
                         <span>{index + 1}. {player.username}</span>
                         <span style={{ fontWeight: 'bold' }}>
                           {abombs > 0 && `${abombs} A-bombs`}
