@@ -17,9 +17,11 @@ use std::future::Future;
 use std::sync::Arc;
 
 use crate::{
-    analysis, database::{
+    AnalysisQueueStatus, Config, analysis,
+    database::{
         APIAnalysisQueueEntry, APIFinishedGame, APIGetLobby, APIGetLobbyWithConfig, GameConfig,
-    }, oauth::APIUser, AnalysisQueueStatus, Config
+    },
+    oauth::APIUser,
 };
 use anyhow::Result;
 
@@ -372,10 +374,7 @@ pub fn routes(database: PgPool, _openapi: OpenApi, cors: CorsLayer) -> ApiRouter
             "/games/{game_id}/analyze",
             post(game_analyze_handler).delete(game_analyze_handler_delete),
         )
-        .nest(
-            "/analysis/",
-            analysis::api::analysis_api_router(),
-        );
+        .nest("/analysis/", analysis::api::analysis_api_router());
 
     ApiRouter::new()
         .route("/health", get(|| async { "ok!" }))

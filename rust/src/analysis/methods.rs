@@ -1,4 +1,3 @@
-
 //
 // This is the database schema for the analysis tables.
 // CREATE TABLE analysis_1.completed_analysis (
@@ -7,13 +6,13 @@
 //    analysis_engine_version TEXT NOT NULL,
 //    FOREIGN KEY (game_id) REFERENCES public.finished_games(game_id) ON DELETE CASCADE
 // );
-// 
+//
 // CREATE TYPE analysis_1.player_type AS ENUM (
 //    'BOT',
 //    'FAKEHUMAN',
 //    'HUMAN'
 // );
-// 
+//
 // CREATE TABLE analysis_1.players (
 //    game_id CHAR(8) NOT NULL,
 //    id CHAR(8) NOT NULL,
@@ -26,7 +25,7 @@
 //    FOREIGN KEY (game_id) REFERENCES public.finished_games(game_id) ON DELETE CASCADE,
 //    PRIMARY KEY (game_id, id)
 // );
-// 
+//
 // CREATE TABLE analysis_1.display_events (
 //   game_id CHAR(8) NOT NULL,
 //   tick SMALLINT NOT NULL,
@@ -36,7 +35,7 @@
 //   gold_amount INTEGER,
 //   FOREIGN KEY (game_id) REFERENCES public.finished_games(game_id) ON DELETE CASCADE
 // );
-// 
+//
 // CREATE TYPE analysis_1.event_type AS ENUM (
 //   'Tile',
 //   'Unit',
@@ -56,7 +55,7 @@
 //   'BonusEvent',
 //   'RailroadEvent'
 // );
-// 
+//
 // CREATE TABLE analysis_1.general_events (
 //   game_id CHAR(8) NOT NULL,
 //   tick SMALLINT NOT NULL,
@@ -64,7 +63,7 @@
 //   data JSONB NOT NULL,
 //   FOREIGN KEY (game_id) REFERENCES public.finished_games(game_id) ON DELETE CASCADE
 // );
-// 
+//
 // CREATE TABLE analysis_1.spawn_locations (
 //     game_id CHAR(8) NOT NULL,
 //     tick SMALLINT NOT NULL,
@@ -75,11 +74,11 @@
 //     PRIMARY KEY (game_id, client_id),
 //     FOREIGN KEY (game_id) REFERENCES public.finished_games(game_id) ON DELETE CASCADE
 // );
-// 
-// 
+//
+//
 // -- These tables are a follow up from the original analysis_1.player_updates.
 // -- The goal is to store less data.
-// 
+//
 // -- one game = 3 stages @ 10 ticks per second
 // ---   - 50 player for 10 minutes:
 // --         about 50 players, 1 update per second, 6000 ticks = 300,000 rows
@@ -102,7 +101,7 @@
 //    FOREIGN KEY (game_id) REFERENCES public.finished_games(game_id) ON DELETE CASCADE,
 //    PRIMARY KEY (game_id, tick, small_id)
 // );
-// 
+//
 // -- When a user changes their target troop ratio, we want to store that. Cause
 // -- it's uncommon, we don't want to store it for every frame like before
 // CREATE TABLE analysis_1.troop_ratio_change (
@@ -165,7 +164,8 @@ pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<R
             ply_upds.game_id = $1
         "#,
         game_id
-    ).fetch(&db);
+    )
+    .fetch(&db);
 
     let mut players_on_tick: HashMap<u16, PlayerStatsOnTick> = HashMap::new();
 
@@ -182,7 +182,7 @@ pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<R
             troops: row.troops,
         };
 
-        players_on_tick.entry(tick).or_insert(player_stats); 
+        players_on_tick.entry(tick).or_insert(player_stats);
     }
 
     Ok(ResStatsOverGame {
@@ -202,7 +202,10 @@ struct GeneralEvent {
     data: serde_json::Value,
 }
 
-pub async fn get_general_events_over_game(db: PgPool, game_id: &str) -> anyhow::Result<ResGeneralEventsOverGame> {
+pub async fn get_general_events_over_game(
+    db: PgPool,
+    game_id: &str,
+) -> anyhow::Result<ResGeneralEventsOverGame> {
     let mut res = sqlx::query!(
         r#"
         SELECT
@@ -215,7 +218,8 @@ pub async fn get_general_events_over_game(db: PgPool, game_id: &str) -> anyhow::
             game_id = $1
         "#,
         game_id
-    ).fetch(&db);
+    )
+    .fetch(&db);
 
     let mut events = Vec::new();
 

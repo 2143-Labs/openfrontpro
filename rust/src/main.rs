@@ -21,13 +21,13 @@ use utils::serve_file;
 
 use crate::oauth::OAuthBundle;
 
+mod analysis;
 mod api;
 mod database;
 mod middleware;
 mod oauth;
 mod tasks;
 mod utils;
-mod analysis;
 
 #[derive(Debug, Clone, clap::Parser)]
 pub struct Config {
