@@ -475,6 +475,74 @@ tr:hover {
   color: #212529;
 }
 
+/* Team Badge Styles for Victory Display */
+.team-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: bold;
+  font-size: 0.9em;
+  text-transform: capitalize;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Team colors */
+.team-badge.red {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+}
+
+.team-badge.blue {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+}
+
+.team-badge.green {
+  background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+}
+
+.team-badge.yellow {
+  background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+  color: #333; /* darker text for yellow background */
+  text-shadow: 0 1px 2px rgba(255,255,255,0.3);
+}
+
+.team-badge.orange {
+  background: linear-gradient(135deg, #fd7e14 0%, #dc6105 100%);
+}
+
+.team-badge.purple {
+  background: linear-gradient(135deg, #6f42c1 0%, #5a2d91 100%);
+}
+
+.team-badge.pink {
+  background: linear-gradient(135deg, #e83e8c 0%, #d91a72 100%);
+}
+
+.team-badge.cyan {
+  background: linear-gradient(135deg, #20c997 0%, #1aa179 100%);
+}
+
+.team-badge.gray,
+.team-badge.grey {
+  background: linear-gradient(135deg, #6c757d 0%, #545b62 100%);
+}
+
+.team-badge.brown {
+  background: linear-gradient(135deg, #8b4513 0%, #6b3410 100%);
+}
+
+.team-badge.white {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  color: #333;
+  text-shadow: none;
+  border: 1px solid #dee2e6;
+}
+
+.team-badge.black {
+  background: linear-gradient(135deg, #343a40 0%, #1d2124 100%);
+}
+
 /* Responsive adjustments for charts */
 @media (max-width: 768px) {
   .line-chart svg {
@@ -493,5 +561,10 @@ tr:hover {
   
   .player-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .team-badge {
+    font-size: 0.85em;
+    padding: 3px 8px;
   }
 }

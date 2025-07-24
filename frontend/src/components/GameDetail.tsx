@@ -11,6 +11,8 @@ function GameDetail() {
   const [game, setGame] = useState<Lobby | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [gameCompleted, setGameCompleted] = useState(false);
+  const [gameNotFound, setGameNotFound] = useState(false);
 
   useEffect(() => {
     const fetchGameDetails = async () => {
@@ -19,18 +21,37 @@ function GameDetail() {
       try {
         setLoading(true);
         setError(null);
+        setGameNotFound(false);
+        setGameCompleted(false);
         
         const response = await fetch(`/api/v1/games/${gameID}`);
+        
+        if (response.status === 404) {
+          // Game not found = still in progress
+          setGameNotFound(true);
+          setGameCompleted(false);
+          setError('Game is still in progress or does not exist.');
+          return;
+        }
         
         if (!response.ok) {
           throw new Error(`Failed to fetch game details: ${response.status}`);
         }
         
         const gameData = await response.json();
+        // If we successfully fetched game data, the game is completed
+        setGameCompleted(true);
+        setGameNotFound(false);
         setGame(gameData);
       } catch (err) {
         console.error('Error fetching game details:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch game details');
+        if (err instanceof Error && err.message.includes('404')) {
+          setGameNotFound(true);
+          setGameCompleted(false);
+          setError('Game is still in progress or does not exist.');
+        } else {
+          setError(err instanceof Error ? err.message : 'Failed to fetch game details');
+        }
       } finally {
         setLoading(false);
       }
@@ -137,7 +158,17 @@ function GameDetail() {
   }
 
   const playerTeams = game.teams || { group: 'FFA' }; // Default to FFA if null
-  const status = getGameStatus(game, 0);
+  
+  // Determine status based on API availability rather than game fields
+  const getActualGameStatus = (): 'completed' | 'analyzed' | 'in-progress' => {
+    if (gameNotFound) return 'in-progress';
+    if (!gameCompleted) return 'in-progress';
+    // If we have game data (gameCompleted = true), check for analysis
+    if (game?.analysis_complete) return 'analyzed';
+    return 'completed';
+  };
+  
+  const status = getActualGameStatus();
   
   // Helper functions for displaying game data
   const formatDuration = (seconds: number) => {
@@ -164,6 +195,26 @@ function GameDetail() {
       })
       .slice(0, 3);
   };
+
+  // Destructure winner tuple with graceful fallbacks
+  const winnerInfo = game.info?.winner;
+  let victoryLabel = '';
+  let victoryValue: React.ReactNode = null;
+
+  if (winnerInfo && Array.isArray(winnerInfo) && winnerInfo.length >= 2) {
+    const victoryType = winnerInfo[0];   // "team" | "player"
+    const primaryWinner = winnerInfo[1]; // team colour or clientID
+
+    if (victoryType === 'team' && primaryWinner) {
+      victoryLabel = 'Winning Team:';
+      victoryValue =
+        (<span className={`team-badge ${primaryWinner.toLowerCase()}`}>{primaryWinner}</span>);
+    } else if (victoryType === 'player' && primaryWinner) {
+      victoryLabel = 'Winner:';
+      const p = game.info?.players?.find(pl => pl.clientID === primaryWinner);
+      victoryValue = p ? p.username : primaryWinner || 'Unknown';
+    }
+  }
 
   return (
     <div className="App">
@@ -250,13 +301,13 @@ function GameDetail() {
             }}>
               <h2>⚙️ Game Settings</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div><strong>Bots:</strong> {game.info.config.bots}</div>
-                <div><strong>Teams:</strong> {game.info.config.playerTeams}</div>
-                <div><strong>NPCs:</strong> {game.info.config.disableNPCs ? '❌ Disabled' : '✅ Enabled'}</div>
-                <div><strong>Infinite Gold:</strong> {game.info.config.infiniteGold ? '✅ Yes' : '❌ No'}</div>
-                <div><strong>Infinite Troops:</strong> {game.info.config.infiniteTroops ? '✅ Yes' : '❌ No'}</div>
-                <div><strong>Instant Build:</strong> {game.info.config.instantBuild ? '✅ Yes' : '❌ No'}</div>
-                {game.info.config.disabledUnits && game.info.config.disabledUnits.length > 0 && (
+                <div><strong>Bots:</strong> {game.info?.config?.bots}</div>
+                <div><strong>Teams:</strong> {game.info?.config?.playerTeams}</div>
+                <div><strong>NPCs:</strong> {game.info?.config?.disableNPCs ? '❌ Disabled' : '✅ Enabled'}</div>
+                <div><strong>Infinite Gold:</strong> {game.info?.config?.infiniteGold ? '✅ Yes' : '❌ No'}</div>
+                <div><strong>Infinite Troops:</strong> {game.info?.config?.infiniteTroops ? '✅ Yes' : '❌ No'}</div>
+                <div><strong>Instant Build:</strong> {game.info?.config?.instantBuild ? '✅ Yes' : '❌ No'}</div>
+                {game.info?.config?.disabledUnits && game.info.config.disabledUnits.length > 0 && (
                   <div><strong>Disabled Units:</strong> {game.info.config.disabledUnits.join(', ')}</div>
                 )}
               </div>
@@ -273,10 +324,10 @@ function GameDetail() {
             }}>
               <h2>📊 Game Statistics</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div><strong>Duration:</strong> {formatDuration(game.info.duration)}</div>
-                <div><strong>Total Turns:</strong> {formatNumber(game.info.num_turns)}</div>
-                <div><strong>Started:</strong> {new Date(game.info.start).toLocaleString()}</div>
-                <div><strong>Ended:</strong> {new Date(game.info.end).toLocaleString()}</div>
+                <div><strong>Duration:</strong> {formatDuration(game.info?.duration || 0)}</div>
+                <div><strong>Total Turns:</strong> {formatNumber(game.info?.num_turns || 0)}</div>
+                <div><strong>Started:</strong> {game.info?.start ? new Date(game.info.start).toLocaleString() : 'Unknown'}</div>
+                <div><strong>Ended:</strong> {game.info?.end ? new Date(game.info.end).toLocaleString() : 'Unknown'}</div>
                 <div><strong>Domain:</strong> {game.domain}</div>
                 <div><strong>Subdomain:</strong> {game.subdomain}</div>
                 <div><strong>Version:</strong> {game.version}</div>
@@ -285,7 +336,7 @@ function GameDetail() {
           )}
 
           {/* Winner Information */}
-          {game.info?.winner && (
+          {game.info?.winner && Array.isArray(game.info.winner) && game.info.winner.length > 0 && (
             <section style={{
               backgroundColor: '#d4edda',
               padding: '20px',
@@ -295,25 +346,29 @@ function GameDetail() {
             }}>
               <h2>🏆 Victory</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div><strong>Victory Type:</strong> {game.info.winner[0]} victory</div>
-                <div><strong>Winning Team:</strong> <span style={{
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  backgroundColor: game.info.winner[1].toLowerCase(),
-                  color: 'white',
-                  fontWeight: 'bold'
-                }}>{game.info.winner[1]}</span></div>
-                <div><strong>Winning Players:</strong></div>
-                <div style={{ marginLeft: '20px', fontSize: '0.9em' }}>
-                  {game.info.winner.slice(2).map((playerId: string, index: number) => {
-                    const player = game.info.players.find((p: any) => p.clientID === playerId);
-                    return (
-                      <div key={playerId} style={{ marginBottom: '4px' }}>
-                        • {player?.username || playerId}
-                      </div>
-                    );
-                  })}
-                </div>
+                <div><strong>Victory Type:</strong> {game.info?.winner?.[0] || 'Unknown'} victory</div>
+                {winnerInfo && victoryLabel && victoryValue && (
+                  <div><strong>{victoryLabel}</strong> {victoryValue}</div>
+                )}
+                {game.info.winner.length > 2 && (
+                  <>
+                    <div><strong>Winning Players:</strong></div>
+                    <div style={{ marginLeft: '20px', fontSize: '0.9em' }}>
+                      {game.info.winner.slice(2).map((playerId: string, index: number) => {
+                        if (!playerId) return null;
+                        const player = game.info?.players?.find((p: any) => p.clientID === playerId);
+                        return (
+                          <div key={playerId || index} style={{ marginBottom: '4px' }}>
+                            • {player?.username || playerId || 'Unknown Player'}
+                          </div>
+                        );
+                      }).filter(Boolean)}
+                    </div>
+                  </>
+                )}
+                {game.info.winner.length <= 2 && (
+                  <div style={{ fontSize: '0.9em', color: '#666' }}>No additional player information available.</div>
+                )}
               </div>
             </section>
           )}
@@ -328,7 +383,7 @@ function GameDetail() {
             }}>
               <h2>💰 Top Players by Gold</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {getTopPlayers(game.info.players, 'gold').map((player, index) => {
+                {getTopPlayers(game.info?.players || [], 'gold').map((player, index) => {
                   const goldValue = Array.isArray(player.stats.gold) ? player.stats.gold[0] : player.stats.gold;
                   return (
                     <div key={player.clientID} style={{ 
@@ -357,17 +412,17 @@ function GameDetail() {
             }}>
               <h2>👥 Player Overview</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div><strong>Total Players:</strong> {game.info.players.length}</div>
-                <div><strong>Active Players:</strong> {game.info.players.filter((p: any) => p.stats).length}</div>
-                <div><strong>Players with Combat:</strong> {game.info.players.filter((p: any) => p.stats?.attacks).length}</div>
-                <div><strong>Players with Betrayals:</strong> {game.info.players.filter((p: any) => p.stats?.betrayals).length}</div>
-                <div><strong>Players with Nuclear Weapons:</strong> {game.info.players.filter((p: any) => p.stats?.bombs).length}</div>
+                <div><strong>Total Players:</strong> {game.info?.players?.length || 0}</div>
+                <div><strong>Active Players:</strong> {game.info?.players?.filter((p: any) => p.stats).length || 0}</div>
+                <div><strong>Players with Combat:</strong> {game.info?.players?.filter((p: any) => p.stats?.attacks).length || 0}</div>
+                <div><strong>Players with Betrayals:</strong> {game.info?.players?.filter((p: any) => p.stats?.betrayals).length || 0}</div>
+                <div><strong>Players with Nuclear Weapons:</strong> {game.info?.players?.filter((p: any) => p.stats?.bombs).length || 0}</div>
               </div>
             </section>
           )}
 
           {/* Battle Statistics */}
-          {game.info?.players && getTopPlayers(game.info.players, 'attacks').length > 0 && (
+          {game.info?.players && getTopPlayers(game.info?.players || [], 'attacks').length > 0 && (
             <section style={{
               backgroundColor: 'white',
               padding: '20px',
@@ -376,7 +431,7 @@ function GameDetail() {
             }}>
               <h2>⚔️ Top Combat Players</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {getTopPlayers(game.info.players, 'attacks').map((player, index) => {
+                {getTopPlayers(game.info?.players || [], 'attacks').map((player, index) => {
                   const attackValue = Array.isArray(player.stats.attacks) ? player.stats.attacks[0] : player.stats.attacks;
                   return (
                     <div key={player.clientID} style={{ 
@@ -396,7 +451,7 @@ function GameDetail() {
           )}
 
           {/* Nuclear Warfare Statistics */}
-          {game.info?.players && game.info.players.some((p: any) => p.stats?.bombs) && (
+          {game.info?.players && game.info?.players.some((p: any) => p.stats?.bombs) && (
             <section style={{
               backgroundColor: 'white',
               padding: '20px',
@@ -405,7 +460,7 @@ function GameDetail() {
             }}>
               <h2>☢️ Nuclear Warfare</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {game.info.players
+                {game.info?.players
                   .filter((p: any) => p.stats?.bombs)
                   .sort((a: any, b: any) => {
                     const aTotal = (a.stats.bombs.abomb?.[0] ? parseInt(a.stats.bombs.abomb[0]) : 0) + 
@@ -466,19 +521,11 @@ function GameDetail() {
         </div>
         
         {/* Game Analysis Section */}
-        {game.completed && game.analysis_complete && (
+        {gameCompleted && (
           <GameAnalysis gameId={gameID!} />
         )}
         
-        {game.completed && !game.analysis_complete && (
-          <div style={{ padding: '20px', textAlign: 'center', backgroundColor: '#fff3cd', margin: '20px', borderRadius: '8px' }}>
-            <p style={{ margin: 0, color: '#856404' }}>
-              📊 This game is completed but analysis is not yet available. Analysis may take a few minutes to process.
-            </p>
-          </div>
-        )}
-        
-        {!game.completed && (
+        {!gameCompleted && (
           <div style={{ padding: '20px', textAlign: 'center', backgroundColor: '#d1ecf1', margin: '20px', borderRadius: '8px' }}>
             <p style={{ margin: 0, color: '#0c5460' }}>
               🎮 This game is still in progress. Analysis will be available once the game is completed.
