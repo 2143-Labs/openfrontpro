@@ -4,6 +4,9 @@ import { Lobby } from '../types';
 import { getPlayerTeams, formatPlayerTeams } from '../utils/teams';
 import { getGameStatus, getTimeAgo } from '../utils';
 import GameAnalysis from './GameAnalysis';
+import { GamePlayer, getAllPlayers } from '../utils/charts';
+import SpawnLocationGrid from './SpawnLocationGrid';
+import { humansOnly } from '../utils/players';
 
 function GameDetail() {
   const { gameID } = useParams<{ gameID: string }>();
@@ -13,6 +16,13 @@ function GameDetail() {
   const [error, setError] = useState<string | null>(null);
   const [gameCompleted, setGameCompleted] = useState(false);
   const [gameNotFound, setGameNotFound] = useState(false);
+  const [mapDims, setMapDims] = useState<{width: number; height: number} | null>(null);
+  const [spawnPlayers, setSpawnPlayers] = useState<GamePlayer[] | null>(null);
+  const [spawnDataLoading, setSpawnDataLoading] = useState(false);
+  const [spawnDataError, setSpawnDataError] = useState(false);
+
+  const allPlayers = game?.info?.players ?? [];
+  const humanPlayers = React.useMemo(() => humansOnly(allPlayers), [allPlayers]);
 
   useEffect(() => {
     const fetchGameDetails = async () => {
@@ -59,6 +69,64 @@ function GameDetail() {
 
     fetchGameDetails();
   }, [gameID]);
+
+  // Fetch map manifest and players when gameID or game map changes
+  useEffect(() => {
+    const fetchMapAndPlayers = async () => {
+      if (!gameID || !game?.game_map) return;
+      
+      try {
+        setSpawnDataLoading(true);
+        setSpawnDataError(false);
+        
+        // Fetch map manifest
+        const mapResponse = await fetch(`/api/v1/maps/${game.game_map}/manifest`);
+        let mapFetchFailed = false;
+        if (mapResponse.ok) {
+          const mapData = await mapResponse.json();
+          if (mapData?.map?.width && mapData?.map?.height) {
+            setMapDims({ width: mapData.map.width, height: mapData.map.height });
+          } else {
+            setMapDims(null);
+            mapFetchFailed = true;
+          }
+        } else {
+          setMapDims(null);
+          mapFetchFailed = true;
+        }
+        
+        // Fetch players data
+        const playersResponse = await fetch(`/api/v1/analysis/${gameID}/players`);
+        let playersFetchFailed = false;
+        if (playersResponse.ok) {
+          const playersData = await playersResponse.json();
+          if (playersData?.players && Array.isArray(playersData.players)) {
+            setSpawnPlayers(playersData.players);
+          } else {
+            setSpawnPlayers(null);
+            playersFetchFailed = true;
+          }
+        } else {
+          setSpawnPlayers(null);
+          playersFetchFailed = true;
+        }
+        
+        // Set error state if either fetch failed
+        if (mapFetchFailed || playersFetchFailed) {
+          setSpawnDataError(true);
+        }
+      } catch (err) {
+        console.error('Error fetching map manifest or players:', err);
+        setMapDims(null);
+        setSpawnPlayers(null);
+        setSpawnDataError(true);
+      } finally {
+        setSpawnDataLoading(false);
+      }
+    };
+
+    fetchMapAndPlayers();
+  }, [gameID, game?.game_map]);
 
   const handleBackToLobbies = () => {
     navigate('/');
@@ -185,15 +253,6 @@ function GameDetail() {
     return typeof num === 'string' ? parseInt(num).toLocaleString() : num.toLocaleString();
   };
 
-  const getAllPlayers = (players: any[], metric: string) => {
-    return players
-      .filter(p => p.stats && p.stats[metric])
-      .sort((a, b) => {
-        const aValue = Array.isArray(a.stats[metric]) ? parseInt(a.stats[metric][0]) : parseInt(a.stats[metric]);
-        const bValue = Array.isArray(b.stats[metric]) ? parseInt(b.stats[metric][0]) : parseInt(b.stats[metric]);
-        return bValue - aValue;
-      });
-  };
 
   // Destructure winner tuple with graceful fallbacks
   const winnerInfo = game.info?.winner;
@@ -355,7 +414,7 @@ function GameDetail() {
                     <div style={{ marginLeft: '20px', fontSize: '0.9em' }}>
                       {game.info.winner.slice(2).map((playerId: string, index: number) => {
                         if (!playerId) return null;
-                        const player = game.info?.players?.find((p: any) => p.clientID === playerId);
+                        const player = humanPlayers?.find((p: any) => p.clientID === playerId);
                         return (
                           <div key={playerId || index} style={{ marginBottom: '4px' }}>
                             • {player?.username || playerId || 'Unknown Player'}
@@ -373,7 +432,7 @@ function GameDetail() {
           )}
 
           {/* All Players by Gold */}
-          {game.info?.players && (
+          {humanPlayers && humanPlayers.length > 0 && (
             <section style={{
               backgroundColor: 'white',
               padding: '20px',
@@ -382,7 +441,7 @@ function GameDetail() {
             }}>
               <h2>💰 All Players by Gold</h2>
               <div className="player-ranking-container">
-                {getAllPlayers(game.info?.players || [], 'gold').map((player, index) => {
+                {getAllPlayers(humanPlayers, 'gold').map((player, index) => {
                   const goldValue = Array.isArray(player.stats.gold) ? player.stats.gold[0] : player.stats.gold;
                   const itemClass = index === 0 ? 'player-ranking-item first-place' : 
                                    index % 2 === 0 ? 'player-ranking-item even' : 'player-ranking-item odd';
@@ -398,7 +457,7 @@ function GameDetail() {
           )}
 
           {/* Player Count Summary */}
-          {game.info?.players && (
+          {humanPlayers && humanPlayers.length > 0 && (
             <section style={{
               backgroundColor: 'white',
               padding: '20px',
@@ -407,17 +466,17 @@ function GameDetail() {
             }}>
               <h2>👥 Player Overview</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div><strong>Total Players:</strong> {game.info?.players?.length || 0}</div>
-                <div><strong>Active Players:</strong> {game.info?.players?.filter((p: any) => p.stats).length || 0}</div>
-                <div><strong>Players with Combat:</strong> {game.info?.players?.filter((p: any) => p.stats?.attacks).length || 0}</div>
-                <div><strong>Players with Betrayals:</strong> {game.info?.players?.filter((p: any) => p.stats?.betrayals).length || 0}</div>
-                <div><strong>Players with Nuclear Weapons:</strong> {game.info?.players?.filter((p: any) => p.stats?.bombs).length || 0}</div>
+                <div><strong>Total Players:</strong> {humanPlayers.length}</div>
+                <div><strong>Active Players:</strong> {humanPlayers.filter((p: any) => p.stats).length}</div>
+                <div><strong>Players with Combat:</strong> {humanPlayers.filter((p: any) => p.stats?.attacks).length}</div>
+                <div><strong>Players with Betrayals:</strong> {humanPlayers.filter((p: any) => p.stats?.betrayals).length}</div>
+                <div><strong>Players with Nuclear Weapons:</strong> {humanPlayers.filter((p: any) => p.stats?.bombs).length}</div>
               </div>
             </section>
           )}
 
           {/* Battle Statistics */}
-          {game.info?.players && getAllPlayers(game.info?.players || [], 'attacks').length > 0 && (
+          {humanPlayers && getAllPlayers(humanPlayers, 'attacks').length > 0 && (
             <section style={{
               backgroundColor: 'white',
               padding: '20px',
@@ -426,7 +485,7 @@ function GameDetail() {
             }}>
               <h2>⚔️ All Combat Players</h2>
               <div className="player-ranking-container">
-                {getAllPlayers(game.info?.players || [], 'attacks').map((player, index) => {
+                {getAllPlayers(humanPlayers, 'attacks').map((player, index) => {
                   const attackValue = Array.isArray(player.stats.attacks) ? player.stats.attacks[0] : player.stats.attacks;
                   const itemClass = index === 0 ? 'player-ranking-item combat-first' : 
                                    index % 2 === 0 ? 'player-ranking-item even' : 'player-ranking-item odd';
@@ -441,8 +500,8 @@ function GameDetail() {
             </section>
           )}
 
-          {/* Nuclear Warfare Statistics */}
-          {game.info?.players && game.info?.players.some((p: any) => p.stats?.bombs) && (
+{/* Nuclear Warfare Statistics */}
+          {humanPlayers && humanPlayers.some((p: any) => p.stats?.bombs) && (
             <section style={{
               backgroundColor: 'white',
               padding: '20px',
@@ -451,7 +510,7 @@ function GameDetail() {
             }}>
               <h2>☢️ All Nuclear Warfare</h2>
               <div className="player-ranking-container">
-                {game.info?.players
+                {humanPlayers
                   .filter((p: any) => p.stats?.bombs)
                   .sort((a: any, b: any) => {
                     const aTotal = (a.stats.bombs.abomb?.[0] ? parseInt(a.stats.bombs.abomb[0]) : 0) + 
@@ -479,6 +538,25 @@ function GameDetail() {
               </div>
             </section>
           )}
+
+          {/* Player Spawn Locations */}
+          <section className="stats-section">
+            <h2>Player Spawn Locations</h2>
+            {spawnDataLoading ? (
+              <p style={{textAlign:'center'}}>Loading spawn data...</p>
+            ) : spawnDataError ? (
+              <p style={{textAlign:'center'}}>Error loading spawn data.</p>
+            ) : (!mapDims || !spawnPlayers) ? (
+              <p style={{textAlign:'center'}}>Spawn data not available.</p>
+            ) : (
+              <SpawnLocationGrid 
+                mapWidth={mapDims.width}
+                mapHeight={mapDims.height}
+                players={spawnPlayers}
+                maxRenderWidth={400}
+              />
+            )}
+          </section>
 
           {/* Team Structure Details */}
           <section style={{

@@ -155,8 +155,8 @@ const [isAuthenticated, setIsAuthenticated] = useState(false);
                   <div className="logged-in-message">
                     🎉 You are logged in!
                   </div>
-                  <button onClick={handleLogout} className="logout-btn">
-                    Logout
+                  <button className="set-openfront-id-btn">
+                    🔗 Set Openfront ID
                   </button>
                 </div>
               ) : (

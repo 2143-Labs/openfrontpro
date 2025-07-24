@@ -21,3 +21,16 @@ code {
   width: 100%;
   min-height: 100vh;
 }
+
+.spawn-grid-legend {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px 12px;
+  margin-top:8px;
+  font-size:12px;
+}
+.spawn-grid-legend-item {
+  display:flex;
+  align-items:center;
+  gap:4px;
+}

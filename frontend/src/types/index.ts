@@ -41,6 +41,7 @@ export interface Lobby {
     num_turns: number;
     players: Array<{
       clientID: string;
+      player_type?: string;
       stats?: {
         attacks?: string[];
         betrayals?: string;

@@ -4,12 +4,14 @@ import {
   formatPlayerStatsForChart, 
   calculateGameSummary,
   formatEventsForTimeline,
+  filterStatsByDuration,
   tickToTime,
   formatNumber,
   PlayerStatsOverGame,
   GeneralEvent,
   DisplayEvent,
-  GamePlayer
+  GamePlayer,
+  DurationFilter
 } from '../utils/charts';
 
 interface GameAnalysisProps {
@@ -24,6 +26,15 @@ const GameAnalysis: React.FC<GameAnalysisProps> = ({ gameId }) => {
   const [displayEvents, setDisplayEvents] = useState<DisplayEvent[]>([]);
   const [players, setPlayers] = useState<GamePlayer[]>([]);
   const [selectedMetric, setSelectedMetric] = useState<'troops' | 'gold' | 'workers' | 'tiles_owned'>('tiles_owned');
+  const [selectedDuration, setSelectedDuration] = useState<DurationFilter>('all');
+
+  const durationOptions = [
+    {label: '1 m', value: 1},
+    {label: '3 m', value: 3},
+    {label: '10 m', value: 10},
+    {label: '30 m', value: 30},
+    {label: 'All', value: 'all'}
+  ];
 
   useEffect(() => {
     fetchAnalysisData();
@@ -113,7 +124,9 @@ const GameAnalysis: React.FC<GameAnalysisProps> = ({ gameId }) => {
     );
   }
 
-  const chartData = formatPlayerStatsForChart(statsData, selectedMetric);
+  const effectiveStats = filterStatsByDuration(statsData, selectedDuration);
+
+  const chartData = formatPlayerStatsForChart(effectiveStats, selectedMetric);
   const summary = calculateGameSummary(statsData, players);
   const events = formatEventsForTimeline(generalEvents, displayEvents);
 
@@ -182,6 +195,32 @@ const GameAnalysis: React.FC<GameAnalysisProps> = ({ gameId }) => {
             </p>
           </div>
         )}
+      </div>
+
+{/* Duration Selector */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '10px', 
+        marginBottom: '20px',
+        flexWrap: 'wrap'
+      }}>
+        {durationOptions.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => setSelectedDuration(opt.value as any)}
+            style={{
+              padding: '8px 16px',
+              border: selectedDuration === opt.value ? '2px solid #007bff' : '1px solid #ccc',
+              backgroundColor: selectedDuration === opt.value ? '#007bff' : 'white',
+              color: selectedDuration === opt.value ? 'white' : '#333',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
       {/* Metric Selector */}

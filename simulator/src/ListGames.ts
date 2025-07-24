@@ -889,15 +889,15 @@ async function setup(): Promise<Pool> {
 }
 
 async function main(database: Pool): Promise<void> {
-    try {
-
-        for (;;) {
+    for (;;) {
+        try {
             await processPendingGames(database);
-            await new Promise((resolve) => setTimeout(resolve, 5000));
+        } catch (e) {
+            console.error("Error: ", e);
         }
-    } catch (e) {
-        console.error("Error: ", e);
+        await new Promise((resolve) => setTimeout(resolve, 5000));
     }
+
 }
 
 let db = setup();

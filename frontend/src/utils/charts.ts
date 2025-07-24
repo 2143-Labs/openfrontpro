@@ -1,5 +1,8 @@
 // Chart utilities for processing and formatting game analysis data
 
+// Duration filter type - 'all' for no filtering, or number of minutes
+export type DurationFilter = 'all' | 1 | 3 | 10 | 30;
+
 export interface PlayerStatsOnTick {
   client_id?: string;
   name: string;
@@ -160,6 +163,44 @@ export const calculateGameSummary = (
   };
 };
 
+// Filter stats data by duration (last N minutes)
+export const filterStatsByDuration = (
+  statsData: PlayerStatsOverGame,
+  duration: DurationFilter
+): PlayerStatsOverGame => {
+  // If duration is 'all', return the original object
+  if (duration === 'all') {
+    return statsData;
+  }
+
+  // Determine maxTick (largest key)
+  const ticks = Object.keys(statsData.player_stats_ticks).map(Number);
+  if (ticks.length === 0) {
+    return statsData;
+  }
+  
+  const maxTick = Math.max(...ticks);
+  
+  // Compute threshold = maxTick - duration * 60 * 10 (10 ticks ≈ 1 s)
+  const threshold = maxTick - duration * 60 * 10;
+  
+  // Build and return a shallow-copy object where player_stats_ticks
+  // only contains entries whose numeric key >= threshold
+  const filteredPlayerStatsTicks: Record<number, PlayerStatsOnTick[]> = {};
+  
+  for (const [tickStr, playerStats] of Object.entries(statsData.player_stats_ticks)) {
+    const tickNum = Number(tickStr);
+    if (tickNum >= threshold) {
+      filteredPlayerStatsTicks[tickNum] = playerStats;
+    }
+  }
+  
+  return {
+    ...statsData,
+    player_stats_ticks: filteredPlayerStatsTicks,
+  };
+};
+
 // Convert tick to time (assuming 10 ticks per second)
 export const tickToTime = (tick: number): string => {
   const seconds = Math.floor(tick / 10);
@@ -181,4 +222,15 @@ export const formatNumber = (num: number): string => {
     return `${(num / 1000).toFixed(1)}K`;
   }
   return num.toString();
+};
+
+// Get all players sorted by a specific metric - assumes caller passes pre-filtered list
+export const getAllPlayers = (players: any[], metric: string) => {
+  return players
+    .filter(p => p.stats && p.stats[metric])
+    .sort((a, b) => {
+      const aValue = Array.isArray(a.stats[metric]) ? parseInt(a.stats[metric][0]) : parseInt(a.stats[metric]);
+      const bValue = Array.isArray(b.stats[metric]) ? parseInt(b.stats[metric][0]) : parseInt(b.stats[metric]);
+      return bValue - aValue;
+    });
 };
