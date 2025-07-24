@@ -85,6 +85,9 @@
             cp -r ./node_modules/ $out/node_modules/
             #ln -s ./node_modules $out/node_modules
 
+            mkdir -p $out/OpenFrontIO/resources/maps/
+            cp -r OpenFrontIO/resources/maps/ $out/OpenFrontIO/resources/maps/
+
             cat > $out/bin/openfronter-sim <<EOF
             #!/bin/sh
             ${pkgs.nodejs_24}/bin/npm start
