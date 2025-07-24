@@ -249,7 +249,7 @@ async fn analysis_queue_handler(
 
     let rows = sqlx::query!(
         r#"
-        SELECT game_id, requested_unix_sec
+        SELECT game_id, requested_unix_sec, status, started_unix_sec
         FROM analysis_queue
         ORDER BY requested_unix_sec ASC
         "#,
@@ -271,6 +271,8 @@ async fn analysis_queue_handler(
         .map(|r| APIAnalysisQueueEntry {
             game_id: r.game_id,
             queued_for_sec: now - r.requested_unix_sec,
+            status: r.status.into(),
+            started_at_unix_sec: r.started_unix_sec,
         })
         .collect();
 
@@ -364,6 +366,7 @@ pub fn routes(database: PgPool, _openapi: OpenApi, cors: CorsLayer) -> ApiRouter
     let api_routes = ApiRouter::new()
         .route("/lobbies", get(lobbies_handler))
         .route("/lobbies/{id}", get(lobbies_id_handler))
+        .route("/analysis_queue", get(analysis_queue_handler))
         .route("/games/{game_id}", get(game_handler))
         .route(
             "/games/{game_id}/analyze",

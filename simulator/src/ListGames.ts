@@ -64,9 +64,13 @@ import fs from "fs/promises";
 import { Pool } from "pg";
 
 // ===== Constants / Types =====
-const { DATABASE_URL } = process.env;
+let { DATABASE_URL, MAP_FOLDER } = process.env;
 if (!DATABASE_URL) {
     throw new Error("Missing DATABASE_URL environment variable");
+}
+
+if (!MAP_FOLDER) {
+    MAP_FOLDER = "./OpenFrontIO/resources/maps";
 }
 
 type MapData = {
@@ -321,7 +325,7 @@ async function initializeGame(
 
     // Load terrain
     const map_data = await load_map_data(
-        "./OpenFrontIO/resources/maps",
+        MAP_FOLDER!,
         record.info.config.gameMap,
     );
     console.log("Map data loaded", map_data.manifest.name);

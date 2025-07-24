@@ -23,13 +23,14 @@
 
     #bun2nix.url = "github:baileyluTCD/bun2nix";
 
-    #openfrontio_98420c = {
-        #url = "github:OpenFrontIO/OpenFrontIO/98420ccf97f4a5917a9fb2baf6ef2d12d6a2558c";
-        #flake = false;
-    #};
+    openfrontio_b593034755c404977edbf8ea318f71a16e661e67 = {
+        url = "github:OpenFrontIO/OpenFrontIO/b593034755c404977edbf8ea318f71a16e661e67";
+        flake = false;
+    };
+
   };
 
-  outputs = { nixpkgs, utils, rust, simulator, frontend, ... }:
+  outputs = { nixpkgs, utils, rust, simulator, frontend, openfrontio_b593034755c404977edbf8ea318f71a16e661e67, ... }:
     utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
@@ -83,6 +84,7 @@
           name = "openfrontpro-simulator";
           contents = [
             packages.simulator
+            simulator.outputs.packages.${system}.simulator-base
             pkgs.nodejs_24
             #simulator.outputs.packages.${system}.default
             pkgs.fish
@@ -96,7 +98,7 @@
             EntryPoint = [ "${packages.simulator}/bin/openfronter-sim" ];
             Env = [
               #"RUST_LOG=info"
-              #"FRONTEND_FOLDER=${frontend.outputs.packages.${system}.default}"
+              "MAP_FOLDER=${simulator.outputs.packages.${system}.simulator-base}/OpenFrontIO/resources/maps"
             ];
             #Cmd = [ "-c" "${packages.simulator}/bin/openfronter-sim" ];
           };

@@ -267,8 +267,10 @@ async fn callback_api_handler(
         r#"
         INSERT INTO social.registered_users (id, username)
         VALUES ($1, $2)
-        ON CONFLICT (id) DO NOTHING
-        returning username, id
+        ON CONFLICT (id) DO UPDATE
+        -- no real change; just keep existing values
+        SET username = registered_users.username
+        RETURNING username, id
         "#,
         user_id,
         user.username,

@@ -146,6 +146,8 @@ pub struct APIAnalysisQueueEntry {
     pub game_id: String,
     /// Seconds the job has been in the queue
     pub queued_for_sec: i64,
+    pub status: AnalysisQueueStatus,
+    pub started_at_unix_sec: Option<i64>,
 }
 
 /// Returns the current Unix timestamp in seconds
