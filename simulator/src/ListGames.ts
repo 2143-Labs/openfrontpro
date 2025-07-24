@@ -239,7 +239,6 @@ async function cleanupPreviousAnalysis(
 ): Promise<void> {
     const tableNames = [
         "general_events",
-        "player_updates",
         "display_events",
         "completed_analysis",
         "players",
