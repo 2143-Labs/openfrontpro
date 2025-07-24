@@ -18,27 +18,10 @@ use crate::Config;
 
 /// Discord OAuth configuration extracted from the main Config
 #[derive(Debug, Clone)]
-pub struct DiscordOAuthConfig {
+pub struct OAuthBundle {
     pub client_id: String,
-    pub secret: String,
+    pub client_secret: String,
     pub redirect_uri: String,
-}
-
-impl DiscordOAuthConfig {
-    /// Create DiscordOAuthConfig from the main application Config
-    pub fn from_env(config: &Config) -> Self {
-        Self {
-            client_id: config
-                .discord_client_id
-                .clone()
-                .expect("Discord client ID must be configured"),
-            secret: config
-                .discord_client_secret
-                .clone()
-                .expect("Discord client secret must be configured"),
-            redirect_uri: config.discord_redirect_uri.clone(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -80,7 +63,7 @@ pub struct DiscordUser {
     pub global_name: Option<String>,
 }
 
-pub fn authorization_url(state: &str, cfg: &DiscordOAuthConfig) -> String {
+pub fn authorization_url(state: &str, cfg: &OAuthBundle) -> String {
     format!(
         "https://discord.com/api/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope=identify+openid&state={}",
         cfg.client_id,
@@ -89,10 +72,10 @@ pub fn authorization_url(state: &str, cfg: &DiscordOAuthConfig) -> String {
     )
 }
 
-pub async fn exchange_code(code: &str, cfg: &DiscordOAuthConfig) -> Result<TokenResponse> {
+pub async fn exchange_code(code: &str, cfg: &OAuthBundle) -> Result<TokenResponse> {
     let params = [
         ("client_id", cfg.client_id.as_str()),
-        ("client_secret", cfg.secret.as_str()),
+        ("client_secret", cfg.client_secret.as_str()),
         ("grant_type", "authorization_code"),
         ("code", code),
         ("redirect_uri", cfg.redirect_uri.as_str()),
@@ -226,7 +209,10 @@ async fn callback_api_handler(
         return Err(basic_error_response("Missing 'code' parameter in callback"));
     };
 
-    let cfg = DiscordOAuthConfig::from_env(&config);
+    let cfg = config
+        .get_discord_oauth()
+        .expect("Discord OAuth configuration not found");
+
     let token_response = exchange_code(&code, &cfg)
         .await
         .map_err(|e| basic_error_response(&format!("Failed to exchange code: {}", e)))?;
@@ -339,7 +325,9 @@ async fn callback_api_handler(
 async fn login_redir_handler(Extension(config): Extension<Arc<Config>>) -> Response {
     let state = "some_random_state"; // This should be a securely generated random state
 
-    let cfg = DiscordOAuthConfig::from_env(&config);
+    let cfg = config
+        .get_discord_oauth()
+        .expect("Discord OAuth configuration not found on prod?");
     let url = authorization_url(state, &cfg);
     Response::builder()
         .status(axum::http::StatusCode::FOUND)

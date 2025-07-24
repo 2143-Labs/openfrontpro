@@ -7,9 +7,9 @@ edition = "2024"
 default = []
 
 [dependencies]
-aide = { version = "0.15.0", features = ["axum", "axum-extra", "axum-json", "axum-query", "axum-multipart", "axum-form", "macros", "redoc", "axum-extra-query", "axum-extra-headers", "axum-extra-cookie", "axum-extra-typed-routing", "axum-tokio", "axum-matched-path"] }
+aide = { version = "0.15.0", features = ["axum", "axum-extra", "axum-json", "axum-query", "axum-multipart", "axum-form", "macros", "redoc", "axum-extra-query", "axum-extra-headers", "axum-extra-cookie", "axum-extra-typed-routing", "axum-tokio", "axum-matched-path", "serde_qs"] }
 anyhow = { version = "1.0.98", features = ["backtrace"] }
-axum = { version = "0.8.4", features = ["tracing", "multipart", "json", "ws"] }
+axum = { version = "0.8.4", features = ["tracing", "multipart", "json", "ws", "macros"] }
 axum-extra = { version = "0.10.1", features = ["cookie", "multipart", "query"] }
 base64 = "0.22.1"
 chrono = "0.4.41"

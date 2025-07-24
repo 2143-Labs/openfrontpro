@@ -1,0 +1,35 @@
+use aide::axum::ApiRouter;
+use axum::{extract::Path, http::Response, routing::get, Extension, Json};
+use schemars::JsonSchema;
+use sqlx::PgPool;
+
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
+struct JErrorResponse {
+    error: String,
+}
+
+fn error_response(statuscode: u16, message: &str) -> Json<JErrorResponse> { 
+    Json(JErrorResponse {
+        error: message.to_string(),
+    })
+}
+
+#[axum::debug_handler]
+async fn player_stats_handler(
+    Extension(db): Extension<PgPool>,
+    Path(game_id): Path<String>,
+) -> axum::response::Result<Json<super::methods::ResStatsOverGame>> {
+    let res = super::methods::get_troops_over_game(db, &game_id)
+        .await
+        .map_err(|e| error_response(500, &format!("Failed to get player stats: {}", e)))?;
+
+    Ok(Json(res))
+}
+
+
+pub fn analysis_api_router() -> ApiRouter {
+    ApiRouter::new()
+        .route("/{game_id}/get_player_stats", get(player_stats_handler))
+        //.route("/{game_id}/get_general_events", get(get_general_events))
+}

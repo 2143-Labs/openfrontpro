@@ -19,12 +19,15 @@ use tokio::time::Duration;
 use tower_http::services::ServeDir;
 use utils::serve_file;
 
+use crate::oauth::OAuthBundle;
+
 mod api;
 mod database;
 mod middleware;
 mod oauth;
 mod tasks;
 mod utils;
+mod analysis;
 
 #[derive(Debug, Clone, clap::Parser)]
 pub struct Config {
@@ -74,12 +77,6 @@ pub struct Config {
 
     #[clap(long, env, short = 'd')]
     pub disable_tasks: Vec<ActiveTasks>,
-}
-
-pub struct OAuthBundle {
-    client_id: String,
-    client_secret: String,
-    redirect_uri: String,
 }
 
 impl Config {
