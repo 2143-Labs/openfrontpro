@@ -238,3 +238,111 @@ pub async fn get_general_events_over_game(
 
     Ok(ResGeneralEventsOverGame { events })
 }
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
+pub struct ResPlayer {
+    players: Vec<GamePlayer>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
+struct GamePlayer {
+   //     from analysis_1.players
+   //game_id CHAR(8) NOT NULL,
+   //id CHAR(8) NOT NULL,
+   //client_id CHAR(8),
+   //small_id SMALLINT NOT NULL,
+   //player_type analysis_1.player_type NOT NULL,
+   //name TEXT NOT NULL,
+   //flag TEXT,
+   //team SMALLINT,
+   id: String,
+   client_id: Option<String>,
+   small_id: u16,
+    player_type: String,
+    name: String,
+    flag: Option<String>,
+    team: Option<i16>,
+
+
+   //     from analysis_1.spawn_locations
+//     game_id CHAR(8) NOT NULL,
+//     tick SMALLINT NOT NULL, //spawn_selection_tick
+//     client_id CHAR(8) NOT NULL,
+//     x INTEGER NOT NULL,
+//     y INTEGER NOT NULL,
+//     previous_spawns JSONB DEFAULT '[]',
+    spawn_info: Option<SpawnInfo>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
+struct SpawnInfo {
+    tick: u16,
+    x: i32,
+    y: i32,
+    previous_spawns: serde_json::Value, // JSONB
+}
+
+// This is going to return both the players and their spawn locations
+pub async fn get_game_players(
+    db: PgPool,
+    game_id: &str,
+) -> anyhow::Result<ResPlayer> {
+    let mut res = sqlx::query!(
+        r#"
+        SELECT
+            p.id,
+            p.client_id,
+            p.small_id,
+            p.player_type as "player_type: String",
+            p.name,
+            p.flag,
+            p.team,
+            s.tick as "spawn_tick: Option<i16>",
+            s.x as "spawn_x: Option<i32>",
+            s.y as "spawn_y: Option<i32>",
+            s.previous_spawns as "previous_spawns: serde_json::Value"
+        FROM
+            analysis_1.players p
+            LEFT JOIN analysis_1.spawn_locations s
+                ON  p.game_id = s.game_id
+                AND p.client_id = s.client_id
+        WHERE
+            p.game_id = $1
+        "#,
+        game_id
+    )
+    .fetch(&db);
+
+    let mut players = Vec::new();
+
+    while let Some(row) = res.next().await {
+        let row = row?;
+        let spawn_info = if let (Some(tick), Some(x), Some(y)) =
+            (row.spawn_tick, row.spawn_x, row.spawn_y)
+        {
+            Some(SpawnInfo {
+                tick: tick as u16,
+                x,
+                y,
+                previous_spawns: row.previous_spawns.unwrap_or(serde_json::Value::Null),
+            })
+        } else {
+            None
+        };
+
+        let player = GamePlayer {
+            id: row.id,
+            client_id: row.client_id,
+            small_id: row.small_id as u16,
+            player_type: row.player_type,
+            name: row.name,
+            flag: row.flag,
+            team: row.team.map(|t| t as i16),
+            spawn_info,
+        };
+        players.push(player);
+    }
+
+    Ok(ResPlayer { players })
+
+}

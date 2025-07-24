@@ -8,7 +8,7 @@ struct JErrorResponse {
     error: String,
 }
 
-fn error_response(statuscode: u16, message: &str) -> Json<JErrorResponse> {
+fn error_response(_statuscode: u16, message: &str) -> Json<JErrorResponse> {
     Json(JErrorResponse {
         error: message.to_string(),
     })
@@ -37,8 +37,20 @@ async fn general_events_handler(
     Ok(Json(res))
 }
 
+async fn players_handler(
+    Extension(db): Extension<PgPool>,
+    Path(game_id): Path<String>,
+) -> axum::response::Result<Json<super::methods::ResPlayer>> {
+    let res = super::methods::get_game_players(db, &game_id)
+        .await
+        .map_err(|e| error_response(500, &format!("Failed to get players: {}", e)))?;
+
+    Ok(Json(res))
+}
+
 pub fn analysis_api_router() -> ApiRouter {
     ApiRouter::new()
         .route("/{game_id}/get_player_stats", get(player_stats_handler))
         .route("/{game_id}/get_general_events", get(general_events_handler))
+        .route("/{game_id}/players", get(players_handler))
 }

@@ -1,8 +1,8 @@
-async function runSimulation(runner, record, analysis, pool, extraData) {
+async function runSimulation(runner, record, analysis, pool, extraData, mapImpl: GameMapImpl) {
     runner.init();
     let simulation_turns_left = -1;
     for (const turn of record.turns) {
-        await analyze_intents(turn, pool, record, analysis);
+        await analyze_intents(turn, pool, record, analysis, mapImpl);
         runner.addTurn(turn);
         runner.executeNextTick();
         await new Promise((resolve) => setTimeout(resolve, 10));
@@ -62,6 +62,7 @@ import { Logger } from "winston";
 
 import fs from "fs/promises";
 import { Pool } from "pg";
+import { on } from "events";
 
 // ===== Constants / Types =====
 let { DATABASE_URL, MAP_FOLDER } = process.env;
@@ -232,9 +233,9 @@ function compress_value_for_db(value: number | bigint): number {
     return turn_u16_to_i16(encode_float_to_u16(value));
 }
 
-for (let v of [0, 1, 10, 100, 1000, 100_000, 5_000_000, 1_000_000_000]) {
-    console.log(`Value: ${v}, Encoded: ${encode_float_to_u16(v)}, Compressed: ${compress_value_for_db(v)}`);
-}
+//for (let v of [0, 1, 10, 100, 1000, 100_000, 5_000_000, 1_000_000_000]) {
+    //console.log(`Value: ${v}, Encoded: ${encode_float_to_u16(v)}, Compressed: ${compress_value_for_db(v)}`);
+//}
 
 // ===== Database cleanup helpers =====
 async function cleanupPreviousAnalysis(
@@ -544,6 +545,8 @@ async function simgame(gameId: string, record: GameRecord, p: Pool) {
         },
     );
 
+    game
+
     const analysis: Analysis = {
         gameId: gameId,
         players: humans,
@@ -551,7 +554,7 @@ async function simgame(gameId: string, record: GameRecord, p: Pool) {
     };
 
     // Run the simulation
-    await runSimulation(runner, record, analysis, p, extra_data);
+    await runSimulation(runner, record, analysis, p, extra_data, map_impl);
     console.log("Simulation complete. Finalizing analysis.");
 
     return await finalizeAnalysis(p, analysis);
@@ -562,6 +565,7 @@ async function analyze_intents(
     p: Pool,
     record: GameRecord,
     analysis: Analysis,
+    map_impl: GameMapImpl,
 ): Promise<void> {
     for (const intent of turn.intents) {
         if (intent.type !== "spawn") {
@@ -569,8 +573,9 @@ async function analyze_intents(
         }
 
         const client_id = intent.clientID;
-        const x = intent.x;
-        const y = intent.y;
+        let tile = intent.tile;
+        const x = map_impl.x(tile)
+        const y = map_impl.y(tile);
 
         const prev_spawns = analysis.spawns[client_id]?.previous_spawns || [];
 
@@ -744,6 +749,10 @@ async function processPlayerUpdates(
 
         if (shouldIgnoreBot) {
             continue;
+        }
+
+        if(update.tilesOwned == 0 && update.gold == 0n && !update.clientID) {
+            continue; // Ignore Nations that have no tiles and no gold
         }
 
         const d = await pool.query(INSERT_PLAYER_UPDATE_NEW, [
