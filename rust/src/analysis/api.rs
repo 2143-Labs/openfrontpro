@@ -26,7 +26,19 @@ async fn player_stats_handler(
     Ok(Json(res))
 }
 
+async fn general_events_handler(
+    Extension(db): Extension<PgPool>,
+    Path(game_id): Path<String>,
+) -> axum::response::Result<Json<super::methods::ResGeneralEventsOverGame>> {
+    let res = super::methods::get_general_events_over_game(db, &game_id)
+        .await
+        .map_err(|e| error_response(500, &format!("Failed to get general events: {}", e)))?;
+
+    Ok(Json(res))
+}
+
 pub fn analysis_api_router() -> ApiRouter {
-    ApiRouter::new().route("/{game_id}/get_player_stats", get(player_stats_handler))
-    //.route("/{game_id}/get_general_events", get(get_general_events))
+    ApiRouter::new()
+        .route("/{game_id}/get_player_stats", get(player_stats_handler))
+        .route("/{game_id}/get_general_events", get(general_events_handler))
 }

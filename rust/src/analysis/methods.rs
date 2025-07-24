@@ -119,17 +119,17 @@ use sqlx::PgPool;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
 pub struct ResStatsOverGame {
-    pub player_stats_ticks: HashMap<u16, PlayerStatsOnTick>,
+    pub player_stats_ticks: HashMap<u16, Vec<PlayerStatsOnTick>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
-struct PlayerStatsOnTick {
+pub struct PlayerStatsOnTick {
     client_id: Option<String>,
     name: String,
-    tiles_owned: i16,
-    gold: i16,
-    workers: i16,
-    troops: i16,
+    tiles_owned: u64,
+    gold: u64,
+    workers: u64,
+    troops: u64,
 }
 
 // Other palyer fields
@@ -167,7 +167,7 @@ pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<R
     )
     .fetch(&db);
 
-    let mut players_on_tick: HashMap<u16, PlayerStatsOnTick> = HashMap::new();
+    let mut players_on_tick: HashMap<u16, Vec<PlayerStatsOnTick>> = HashMap::new();
 
     while let Some(row) = res.next().await {
         let row = row?;
@@ -176,13 +176,16 @@ pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<R
         let player_stats = PlayerStatsOnTick {
             client_id: row.client_id,
             name: row.name,
-            tiles_owned: row.tiles_owned,
-            gold: row.gold,
-            workers: row.workers,
-            troops: row.troops,
+            tiles_owned: super::decompress_value_from_db(row.tiles_owned),
+            gold: super::decompress_value_from_db(row.gold),
+            workers: super::decompress_value_from_db(row.workers),
+            troops: super::decompress_value_from_db(row.troops),
         };
 
-        players_on_tick.entry(tick).or_insert(player_stats);
+        players_on_tick
+            .entry(tick)
+            .and_modify(|v| v.push(player_stats.clone()))
+            .or_insert_with(|| vec![player_stats]);
     }
 
     Ok(ResStatsOverGame {

@@ -232,6 +232,10 @@ function compress_value_for_db(value: number | bigint): number {
     return turn_u16_to_i16(encode_float_to_u16(value));
 }
 
+for (let v of [0, 1, 10, 100, 1000, 100_000, 5_000_000, 1_000_000_000]) {
+    console.log(`Value: ${v}, Encoded: ${encode_float_to_u16(v)}, Compressed: ${compress_value_for_db(v)}`);
+}
+
 // ===== Database cleanup helpers =====
 async function cleanupPreviousAnalysis(
     pool: Pool,
