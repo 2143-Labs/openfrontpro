@@ -77,82 +77,85 @@ function LobbyHome() {
         </div>
         <h1>openfront.pro</h1>
         <p>Match replay analysis for OpenFront</p>
-        
-        <div style={{ marginBottom: '1rem' }}>
-          <a
-            href="/oauth/discord/login"
-            className="discord-login-btn"
-            role="button"
-          >
-            🎮 Login with Discord
-          </a>
-        </div>
-        
-        <div style={{ marginTop: '1rem' }}>
-          <button 
-            onClick={refreshLobbies}
-            disabled={loading}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: loading ? '#6c757d' : '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              fontSize: '1rem'
-            }}
-          >
-            {loading ? 'Refreshing...' : '🔄 Refresh Lobbies'}
-          </button>
-        </div>
-        <a
-          href="https://openfront.io"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="origin-btn"
-        >
-          ▶️ Play the original game
-        </a>
       </header>
       
       <main className="App-main">
         <section className="analysis-section">
-          <h2>Analyze Single Game</h2>
-          <p style={{ color: '#666', marginBottom: '1.5rem' }}>
-            Enter a game ID (8 characters) to request analysis
-          </p>
-          
-          <div className="game-analysis-form">
-            <div className="input-group">
-              <input
-                type="text"
-                value={gameId}
-                onChange={handleGameIdChange}
-                placeholder="e.g., DNXzJrw9"
-                maxLength={8}
-                className="game-id-input"
-                disabled={analysisLoading}
-              />
-              <button
-                onClick={handleAnalyzeGame}
-                disabled={analysisLoading || gameId.length !== 8}
-                className="analyze-btn"
-              >
-                {analysisLoading ? '🔄 Analyzing...' : '🔍 Request Analysis'}
-              </button>
+          <div className="analysis-wrapper">
+            <div className="analysis-left">
+              <h2>Analyze Single Game</h2>
+              <p style={{ color: '#666', marginBottom: '1.5rem' }}>
+                Enter a game ID (8 characters) to request analysis
+              </p>
+              
+              <div className="game-analysis-form">
+                <div className="input-group">
+                  <input
+                    type="text"
+                    value={gameId}
+                    onChange={handleGameIdChange}
+                    placeholder="e.g., DNXzJrw9"
+                    maxLength={8}
+                    className="game-id-input"
+                    disabled={analysisLoading}
+                  />
+                  <button
+                    onClick={handleAnalyzeGame}
+                    disabled={analysisLoading || gameId.length !== 8}
+                    className="analyze-btn"
+                  >
+                    {analysisLoading ? '🔄 Analyzing...' : '🔍 Request Analysis'}
+                  </button>
+                </div>
+                
+                {analysisError && (
+                  <div className="analysis-message error-message">
+                    ❌ {analysisError}
+                  </div>
+                )}
+                
+                {analysisSuccess && (
+                  <div className="analysis-message success-message">
+                    ✅ {analysisSuccess}
+                  </div>
+                )}
+              </div>
             </div>
-            
-            {analysisError && (
-              <div className="analysis-message error-message">
-                ❌ {analysisError}
+            <div className="analysis-right">
+              <a
+                href="/oauth/discord/login"
+                className="discord-login-btn"
+                role="button"
+              >
+                🎮 Login with Discord
+              </a>
+              
+              <div style={{ marginTop: '1rem' }}>
+                <button 
+                  onClick={refreshLobbies}
+                  disabled={loading}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: loading ? '#6c757d' : '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontSize: '1rem'
+                  }}
+                >
+                  {loading ? 'Refreshing...' : '🔄 Refresh Lobbies'}
+                </button>
               </div>
-            )}
-            
-            {analysisSuccess && (
-              <div className="analysis-message success-message">
-                ✅ {analysisSuccess}
-              </div>
-            )}
+              <a
+                href="https://openfront.io"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="origin-btn"
+              >
+                ▶️ Play the original game
+              </a>
+            </div>
           </div>
         </section>
         

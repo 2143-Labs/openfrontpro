@@ -363,8 +363,6 @@ where
 }
 
 pub fn routes(database: PgPool, _openapi: OpenApi, cors: CorsLayer) -> ApiRouter {
-    let analysis_routes = analysis::api::analysis_api_router();
-
     let api_routes = ApiRouter::new()
         .route("/lobbies", get(lobbies_handler))
         .route("/lobbies/{id}", get(lobbies_id_handler))

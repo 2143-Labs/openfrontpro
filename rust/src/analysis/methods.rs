@@ -239,6 +239,68 @@ pub async fn get_general_events_over_game(
     Ok(ResGeneralEventsOverGame { events })
 }
 
+pub async fn get_display_events_over_game(
+    db: PgPool,
+    game_id: &str,
+) -> anyhow::Result<ResDisplayEventsOverGame> {
+    let mut res = sqlx::query!(
+        r#"
+        SELECT
+            de.tick,
+            de.message_type,
+            de.message,
+            de.player_id as "small_id: i16",
+            de.gold_amount,
+            ply.client_id,
+            ply.name
+        FROM
+            analysis_1.display_events de
+            JOIN analysis_1.players ply
+                ON de.game_id = ply.game_id
+                AND de.player_id = ply.small_id
+        WHERE
+            de.game_id = $1
+        ORDER BY tick, player_id
+        "#,
+        game_id
+    )
+    .fetch(&db);
+
+    let mut events = Vec::new();
+
+    while let Some(row) = res.next().await {
+        let row = row?;
+        let event = DisplayEvent {
+            tick: row.tick as u16,
+            message_type: row.message_type,
+            message: row.message,
+            small_id: row.small_id as u16,
+            client_id: row.client_id,
+            name: row.name,
+            gold_amount: row.gold_amount,
+        };
+        events.push(event);
+    }
+
+    Ok(ResDisplayEventsOverGame { events })
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
+pub struct ResDisplayEventsOverGame {
+    pub events: Vec<DisplayEvent>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
+pub struct DisplayEvent {
+    pub tick: u16,
+    pub message_type: String,
+    pub message: String,
+    pub small_id: u16,
+    pub gold_amount: Option<i32>,
+    pub client_id: Option<String>,
+    pub name: String,
+}
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
 pub struct ResPlayer {
     players: Vec<GamePlayer>,

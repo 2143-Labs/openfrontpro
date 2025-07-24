@@ -1,7 +1,10 @@
-export { default as LoadingSpinner } from './LoadingSpinner';
 export { default as ErrorMessage } from './ErrorMessage';
+export { default as EventsTimeline } from './EventsTimeline';
 export { default as FilterControls } from './FilterControls';
-export { default as LobbiesTable } from './LobbiesTable';
-export { default as SortControls } from './SortControls';
-export { default as LobbyHome } from './LobbyHome';
 export { default as GameDetail } from './GameDetail';
+export { default as GameAnalysis } from './GameAnalysis';
+export { default as LineChart } from './LineChart';
+export { default as LoadingSpinner } from './LoadingSpinner';
+export { default as LobbiesTable } from './LobbiesTable';
+export { default as LobbyHome } from './LobbyHome';
+export { default as SortControls } from './SortControls';

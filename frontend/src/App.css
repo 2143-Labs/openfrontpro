@@ -184,13 +184,13 @@ tr:hover {
 
 /* Single Game Analysis Styles */
 .analysis-section {
-  max-width: 600px;
+  max-width: 800px;       /* increased for two-column layout */
   margin: 3rem auto 0;
   padding: 2rem;
   background: #f8f9fa;
   border-radius: 8px;
   border: 1px solid #e9ecef;
-  text-align: center;
+  text-align: left;       /* left-align for better column layout */
 }
 
 .analysis-section h2 {
@@ -282,6 +282,36 @@ tr:hover {
   border: 1px solid #f5c6cb;
 }
 
+/* Analysis Wrapper - Two Column Layout */
+.analysis-wrapper {
+  display: flex;
+  gap: 2rem;            /* space between columns */
+  flex-wrap: wrap;      /* stack on small screens */
+}
+
+.analysis-left {
+  flex: 1 1 300px;      /* grow/shrink, min-width */
+}
+
+.analysis-right {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: flex-start; /* left-align buttons */
+  flex: 0 0 250px;      /* fixed-ish width column */
+}
+
+.analysis-right a,
+.analysis-right button {
+  width: 100%;          /* full-width buttons for neat column */
+}
+
+@media (max-width: 600px) {
+  .analysis-right {
+    flex: 1 1 100%;
+  }
+}
+
 @media (max-width: 768px) {
   .analysis-section {
     margin: 2rem auto 0;
@@ -305,5 +335,163 @@ tr:hover {
   .analyze-btn {
     width: 100%;
     max-width: 200px;
+  }
+}
+
+/* Chart Styles */
+.line-chart {
+  margin: 20px 0;
+  display: flex;
+  justify-content: center;
+}
+
+.game-analysis {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin: 20px;
+}
+
+.chart-container {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+.metric-selector {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.metric-button {
+  padding: 8px 16px;
+  border: 1px solid #ccc;
+  background: white;
+  color: #333;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.metric-button:hover {
+  background-color: #f0f0f0;
+}
+
+.metric-button.active {
+  border: 2px solid #007bff;
+  background-color: #007bff;
+  color: white;
+}
+
+.player-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 15px;
+}
+
+.player-card {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border: 1px solid #dee2e6;
+}
+
+.player-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.player-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.events-container {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.event-item {
+  padding: 10px 15px;
+  border-bottom: 1px solid #f1f3f4;
+  font-size: 14px;
+}
+
+.event-item:last-child {
+  border-bottom: none;
+}
+
+.event-category {
+  font-weight: bold;
+  margin-right: 8px;
+}
+
+.event-category.general {
+  color: #007bff;
+}
+
+.event-category.display {
+  color: #28a745;
+}
+
+.event-time {
+  color: #6c757d;
+  font-size: 12px;
+  min-width: 60px;
+  text-align: right;
+}
+
+.game-summary {
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.summary-item h4 {
+  margin: 0 0 5px 0;
+  color: #495057;
+  font-size: 14px;
+}
+
+.summary-item p {
+  margin: 0;
+  font-size: 18px;
+  font-weight: bold;
+  color: #212529;
+}
+
+/* Responsive adjustments for charts */
+@media (max-width: 768px) {
+  .line-chart svg {
+    width: 100% !important;
+    height: 300px !important;
+  }
+  
+  .game-analysis {
+    margin: 10px;
+    padding: 10px;
+  }
+  
+  .metric-selector {
+    justify-content: center;
+  }
+  
+  .player-grid {
+    grid-template-columns: 1fr;
   }
 }
