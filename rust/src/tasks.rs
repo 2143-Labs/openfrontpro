@@ -282,8 +282,9 @@ where
         let mut backoff = 0;
         loop {
             if let Err(e) = task().await {
-                tracing::error!("Task failed: {}", e);
-                tokio::time::sleep(task_settings.backoff_strategy.next_backoff(backoff)).await;
+                let next_backoff_dur = task_settings.backoff_strategy.next_backoff(backoff);
+                tracing::error!(wait_sec=next_backoff_dur.as_secs(), "Task failed: {}", e);
+                tokio::time::sleep(next_backoff_dur).await;
                 backoff += 1;
             } else {
                 backoff = 0;

@@ -185,15 +185,14 @@ function GameDetail() {
     return typeof num === 'string' ? parseInt(num).toLocaleString() : num.toLocaleString();
   };
 
-  const getTopPlayers = (players: any[], metric: string) => {
+  const getAllPlayers = (players: any[], metric: string) => {
     return players
       .filter(p => p.stats && p.stats[metric])
       .sort((a, b) => {
         const aValue = Array.isArray(a.stats[metric]) ? parseInt(a.stats[metric][0]) : parseInt(a.stats[metric]);
         const bValue = Array.isArray(b.stats[metric]) ? parseInt(b.stats[metric][0]) : parseInt(b.stats[metric]);
         return bValue - aValue;
-      })
-      .slice(0, 3);
+      });
   };
 
   // Destructure winner tuple with graceful fallbacks
@@ -373,7 +372,7 @@ function GameDetail() {
             </section>
           )}
 
-          {/* Top Players by Gold */}
+          {/* All Players by Gold */}
           {game.info?.players && (
             <section style={{
               backgroundColor: 'white',
@@ -381,17 +380,23 @@ function GameDetail() {
               borderRadius: '8px',
               boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
             }}>
-              <h2>💰 Top Players by Gold</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {getTopPlayers(game.info?.players || [], 'gold').map((player, index) => {
+              <h2>💰 All Players by Gold</h2>
+              <div style={{ 
+                maxHeight: '300px', 
+                overflowY: 'auto',
+                border: '1px solid #e9ecef',
+                borderRadius: '4px',
+                backgroundColor: '#f8f9fa'
+              }}>
+                {getAllPlayers(game.info?.players || [], 'gold').map((player, index) => {
                   const goldValue = Array.isArray(player.stats.gold) ? player.stats.gold[0] : player.stats.gold;
                   return (
                     <div key={player.clientID} style={{ 
                       display: 'flex', 
                       justifyContent: 'space-between',
-                      padding: '8px',
-                      backgroundColor: index === 0 ? '#fff3cd' : 'transparent',
-                      borderRadius: '4px'
+                      padding: '12px 16px',
+                      backgroundColor: index === 0 ? '#fff3cd' : index % 2 === 0 ? 'white' : '#f8f9fa',
+                      borderBottom: '1px solid #e9ecef'
                     }}>
                       <span>{index + 1}. {player.username}</span>
                       <span style={{ fontWeight: 'bold' }}>{formatNumber(goldValue)}</span>
@@ -422,24 +427,30 @@ function GameDetail() {
           )}
 
           {/* Battle Statistics */}
-          {game.info?.players && getTopPlayers(game.info?.players || [], 'attacks').length > 0 && (
+          {game.info?.players && getAllPlayers(game.info?.players || [], 'attacks').length > 0 && (
             <section style={{
               backgroundColor: 'white',
               padding: '20px',
               borderRadius: '8px',
               boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
             }}>
-              <h2>⚔️ Top Combat Players</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {getTopPlayers(game.info?.players || [], 'attacks').map((player, index) => {
+              <h2>⚔️ All Combat Players</h2>
+              <div style={{ 
+                maxHeight: '300px', 
+                overflowY: 'auto',
+                border: '1px solid #e9ecef',
+                borderRadius: '4px',
+                backgroundColor: '#f8f9fa'
+              }}>
+                {getAllPlayers(game.info?.players || [], 'attacks').map((player, index) => {
                   const attackValue = Array.isArray(player.stats.attacks) ? player.stats.attacks[0] : player.stats.attacks;
                   return (
                     <div key={player.clientID} style={{ 
                       display: 'flex', 
                       justifyContent: 'space-between',
-                      padding: '8px',
-                      backgroundColor: index === 0 ? '#f8d7da' : 'transparent',
-                      borderRadius: '4px'
+                      padding: '12px 16px',
+                      backgroundColor: index === 0 ? '#f8d7da' : index % 2 === 0 ? 'white' : '#f8f9fa',
+                      borderBottom: '1px solid #e9ecef'
                     }}>
                       <span>{index + 1}. {player.username}</span>
                       <span style={{ fontWeight: 'bold' }}>{formatNumber(attackValue)} attacks</span>
@@ -458,8 +469,14 @@ function GameDetail() {
               borderRadius: '8px',
               boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
             }}>
-              <h2>☢️ Nuclear Warfare</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <h2>☢️ All Nuclear Warfare</h2>
+              <div style={{ 
+                maxHeight: '300px', 
+                overflowY: 'auto',
+                border: '1px solid #e9ecef',
+                borderRadius: '4px',
+                backgroundColor: '#f8f9fa'
+              }}>
                 {game.info?.players
                   .filter((p: any) => p.stats?.bombs)
                   .sort((a: any, b: any) => {
@@ -469,7 +486,6 @@ function GameDetail() {
                                    (b.stats.bombs.hbomb?.[0] ? parseInt(b.stats.bombs.hbomb[0]) : 0);
                     return bTotal - aTotal;
                   })
-                  .slice(0, 5)
                   .map((player: any, index: number) => {
                     const abombs = player.stats.bombs.abomb?.[0] ? parseInt(player.stats.bombs.abomb[0]) : 0;
                     const hbombs = player.stats.bombs.hbomb?.[0] ? parseInt(player.stats.bombs.hbomb[0]) : 0;
@@ -477,9 +493,9 @@ function GameDetail() {
                       <div key={player.clientID} style={{ 
                         display: 'flex', 
                         justifyContent: 'space-between',
-                        padding: '8px',
-                        backgroundColor: index === 0 ? '#fff3cd' : 'transparent',
-                        borderRadius: '4px'
+                        padding: '12px 16px',
+                        backgroundColor: index === 0 ? '#fff3cd' : index % 2 === 0 ? 'white' : '#f8f9fa',
+                        borderBottom: '1px solid #e9ecef'
                       }}>
                         <span>{index + 1}. {player.username}</span>
                         <span style={{ fontWeight: 'bold' }}>

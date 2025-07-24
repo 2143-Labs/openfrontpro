@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLobbies } from '../hooks/useLobbies';
-import { FilterControls, SortControls, LobbiesTable, LoadingSpinner, ErrorMessage } from './';
+import { FilterControls, SortControls, LobbiesTable, LoadingSpinner, ErrorMessage, AnalysisQueue } from './';
 
 function LobbyHome() {
   const {
@@ -82,6 +82,7 @@ function LobbyHome() {
       <main className="App-main">
         <section className="analysis-section">
           <div className="analysis-wrapper">
+            <AnalysisQueue />
             <div className="analysis-left">
               <h2>Analyze Single Game</h2>
               <p style={{ color: '#666', marginBottom: '1.5rem' }}>

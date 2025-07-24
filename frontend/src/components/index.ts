@@ -1,3 +1,4 @@
+export { default as AnalysisQueue } from './AnalysisQueue';
 export { default as ErrorMessage } from './ErrorMessage';
 export { default as EventsTimeline } from './EventsTimeline';
 export { default as FilterControls } from './FilterControls';
