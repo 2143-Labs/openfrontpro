@@ -3,13 +3,13 @@
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     bun2nix.url = "github:baileyluTCD/bun2nix";
-    openfrontio_b593034755c404977edbf8ea318f71a16e661e67 = {
+    openfrontio_cur = {
         url = "github:OpenFrontIO/OpenFrontIO/b593034755c404977edbf8ea318f71a16e661e67";
         flake = false;
     };
   };
 
-  outputs = { nixpkgs, bun2nix, openfrontio_b593034755c404977edbf8ea318f71a16e661e67, flake-utils, ... } @ inputs:
+  outputs = { nixpkgs, bun2nix, openfrontio_cur, flake-utils, ... } @ inputs:
     inputs.flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = (import (nixpkgs) { inherit system; });
@@ -50,9 +50,9 @@
 
           installPhase = ''
             mkdir -p $out/OpenFrontIO/
-            cp -r ${openfrontio_b593034755c404977edbf8ea318f71a16e661e67}/src/ $out/OpenFrontIO/src/
-            cp -r ${openfrontio_b593034755c404977edbf8ea318f71a16e661e67}/resources/ $out/OpenFrontIO/resources/
-            cp -r ${openfrontio_b593034755c404977edbf8ea318f71a16e661e67}/package.json $out/OpenFrontIO/package.json
+            cp -r ${openfrontio_cur}/src/ $out/OpenFrontIO/src/
+            cp -r ${openfrontio_cur}/resources/ $out/OpenFrontIO/resources/
+            cp -r ${openfrontio_cur}/package.json $out/OpenFrontIO/package.json
             cp -r * $out/
             jq 'del(.scripts.prepare)' $out/OpenFrontIO/package.json > $out/OpenFrontIO/package.json.tmp
             mv $out/OpenFrontIO/package.json.tmp $out/OpenFrontIO/package.json

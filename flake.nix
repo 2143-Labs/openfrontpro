@@ -23,14 +23,14 @@
 
     #bun2nix.url = "github:baileyluTCD/bun2nix";
 
-    openfrontio_b593034755c404977edbf8ea318f71a16e661e67 = {
+    openfrontio_cur = {
         url = "github:OpenFrontIO/OpenFrontIO/b593034755c404977edbf8ea318f71a16e661e67";
         flake = false;
     };
 
   };
 
-  outputs = { nixpkgs, utils, rust, simulator, frontend, openfrontio_b593034755c404977edbf8ea318f71a16e661e67, ... }:
+  outputs = { nixpkgs, utils, rust, simulator, frontend, openfrontio_cur, ... }:
     utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };

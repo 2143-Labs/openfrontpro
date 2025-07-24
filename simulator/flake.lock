@@ -82,11 +82,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1752950548,
-        "narHash": "sha256-NS6BLD0lxOrnCiEOcvQCDVPXafX1/ek1dfJHX1nUIzc=",
+        "lastModified": 1753250450,
+        "narHash": "sha256-i+CQV2rPmP8wHxj0aq4siYyohHwVlsh40kV89f3nw1s=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "c87b95e25065c028d31a94f06a62927d18763fdf",
+        "rev": "fc02ee70efb805d3b2865908a13ddd4474557ecf",
         "type": "github"
       },
       "original": {
@@ -96,7 +96,7 @@
         "type": "github"
       }
     },
-    "openfrontio_b593034755c404977edbf8ea318f71a16e661e67": {
+    "openfrontio_cur": {
       "flake": false,
       "locked": {
         "lastModified": 1753287486,
@@ -118,7 +118,7 @@
         "bun2nix": "bun2nix",
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs_2",
-        "openfrontio_b593034755c404977edbf8ea318f71a16e661e67": "openfrontio_b593034755c404977edbf8ea318f71a16e661e67"
+        "openfrontio_cur": "openfrontio_cur"
       }
     },
     "systems": {

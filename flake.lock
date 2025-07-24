@@ -174,7 +174,7 @@
         "type": "github"
       }
     },
-    "openfrontio_b593034755c404977edbf8ea318f71a16e661e67": {
+    "openfrontio_cur": {
       "flake": false,
       "locked": {
         "lastModified": 1753287486,
@@ -191,7 +191,7 @@
         "type": "github"
       }
     },
-    "openfrontio_b593034755c404977edbf8ea318f71a16e661e67_2": {
+    "openfrontio_cur_2": {
       "flake": false,
       "locked": {
         "lastModified": 1753287486,
@@ -212,7 +212,7 @@
       "inputs": {
         "frontend": "frontend",
         "nixpkgs": "nixpkgs",
-        "openfrontio_b593034755c404977edbf8ea318f71a16e661e67": "openfrontio_b593034755c404977edbf8ea318f71a16e661e67",
+        "openfrontio_cur": "openfrontio_cur",
         "rust": "rust",
         "simulator": "simulator",
         "utils": "utils_2"
@@ -262,7 +262,7 @@
         "nixpkgs": [
           "nixpkgs"
         ],
-        "openfrontio_b593034755c404977edbf8ea318f71a16e661e67": "openfrontio_b593034755c404977edbf8ea318f71a16e661e67_2"
+        "openfrontio_cur": "openfrontio_cur_2"
       },
       "locked": {
         "path": "./simulator",
