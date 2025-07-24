@@ -276,6 +276,7 @@ async function load_map_data(
     const map_file_name = map_name.replace(/ /g, "").toLowerCase();
 
     const map_file = fs.readFile(`${maps_path}/${map_file_name}/map.bin`);
+    console.log(`Loading map file: ${map_file}`);
     const mini_map_file = fs.readFile(
         `${maps_path}/${map_file_name}/mini_map.bin`,
     );
