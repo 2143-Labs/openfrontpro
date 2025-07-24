@@ -68,7 +68,7 @@ pub struct Config {
     #[clap(
         long,
         env,
-        default_value = "http://localhost:3000/auth/discord/callback"
+        default_value = "http://localhost:3000/oauth/discord/callback"
     )]
     pub discord_redirect_uri: String,
 

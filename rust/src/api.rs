@@ -191,13 +191,14 @@ async fn game_handler(
 async fn game_analyze_handler(
     Extension(database): Extension<PgPool>,
     Path(game_id): Path<String>,
-    _user: APIUser,
+    user: APIUser,
 ) -> Result<(), Response> {
     //Insert into analysis_queue
     let res = sqlx::query!(
-        "INSERT INTO analysis_queue (game_id)
-         VALUES ($1)",
+        "INSERT INTO analysis_queue (game_id, requesting_user_id)
+         VALUES ($1, $2)",
         game_id,
+        user.id,
     )
     .execute(&database)
     .await;
@@ -217,12 +218,13 @@ async fn game_analyze_handler(
 async fn game_analyze_handler_delete(
     Extension(database): Extension<PgPool>,
     Path(game_id): Path<String>,
-    _user: APIUser,
+    user: APIUser,
 ) -> Result<(), Response> {
     // Set status to cancelled
     let res = sqlx::query!(
-        "UPDATE analysis_queue SET status = 'Cancelled' WHERE game_id = $1",
+        "UPDATE analysis_queue SET status = 'Cancelled' WHERE game_id = $1 AND requesting_user_id = $2",
         game_id,
+        user.id,
     )
     .execute(&database)
     .await;
