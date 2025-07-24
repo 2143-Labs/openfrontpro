@@ -198,7 +198,7 @@ async fn game_analyze_handler(
         "INSERT INTO analysis_queue (game_id, requesting_user_id)
          VALUES ($1, $2)",
         game_id,
-        user.id,
+        user.user_id,
     )
     .execute(&database)
     .await;
@@ -224,7 +224,7 @@ async fn game_analyze_handler_delete(
     let res = sqlx::query!(
         "UPDATE analysis_queue SET status = 'Cancelled' WHERE game_id = $1 AND requesting_user_id = $2",
         game_id,
-        user.id,
+        user.user_id,
     )
     .execute(&database)
     .await;
