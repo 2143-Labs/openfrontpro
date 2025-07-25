@@ -21,6 +21,54 @@ pub enum GameStatus {
     NotFound,
 }
 
+pub async fn insert_new_game(
+    first: &Lobby,
+    database: &PgPool,
+) -> anyhow::Result<u64> {
+    let player_teams_as_int: i32 = first.game_config.teams().into();
+
+    sqlx::query!(
+        "INSERT INTO
+            lobbies (game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec, lobby_config_json)
+        VALUES
+            ($1, $2, $3, $4, $5, $6, $6, $7)
+        ON CONFLICT (game_id)
+        DO UPDATE
+            SET approx_num_players = $5
+            , last_seen_unix_sec = $6
+        ",
+        first.game_id,
+        player_teams_as_int,
+        first.game_config.max_players,
+        first.game_config.game_map,
+        first.num_clients,
+        now_unix_sec(),
+        serde_json::to_value(&first.game_config).unwrap()
+    ).execute(database).await?;
+
+    let num_players_left = (first.game_config.max_players - first.num_clients).max(0);
+
+    // Wait between 3 and 15 seconds before checking again.
+    let next_time = (first.ms_until_start)
+        .min(15500)
+        .min(num_players_left as u64 * 1000)
+        .max(3500)
+        - 500;
+
+    tracing::info!(
+        "Lobby {} {} ({}) has {}/{} players. Starts in {}ms. Next check in {}ms.",
+        first.game_id,
+        first.game_config.game_map,
+        first.game_config.teams(),
+        first.num_clients,
+        first.game_config.max_players,
+        first.ms_until_start,
+        next_time
+    );
+
+    Ok(next_time)
+}
+
 pub async fn look_for_new_games(
     ofapi: impl OpenFrontAPI,
     database: PgPool,
@@ -50,48 +98,9 @@ pub async fn look_for_new_games(
             last_game_id = first.game_id.clone();
         }
 
-        let player_teams_as_int: i32 = first.game_config.teams().into();
-
-        sqlx::query!(
-            "INSERT INTO
-                lobbies (game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec, lobby_config_json)
-            VALUES
-                ($1, $2, $3, $4, $5, $6, $6, $7)
-            ON CONFLICT (game_id)
-            DO UPDATE
-                SET approx_num_players = $5
-                , last_seen_unix_sec = $6
-            ",
-            first.game_id,
-            player_teams_as_int,
-            first.game_config.max_players,
-            first.game_config.game_map,
-            first.num_clients,
-            now_unix_sec(),
-            serde_json::to_value(&first.game_config).unwrap()
-        ).execute(&database).await?;
-
-        let num_players_left = (first.game_config.max_players - first.num_clients).max(0);
-
-        // Wait between 3 and 15 seconds before checking again.
-        let next_time = (first.ms_until_start)
-            .min(15500)
-            .min(num_players_left as u64 * 1000)
-            .max(3500)
-            - 500;
+        let next_time = insert_new_game(first, &database).await?;
 
         expected_to_be_new_game_next_check = next_time > first.ms_until_start;
-
-        tracing::info!(
-            "Lobby {} {} ({}) has {}/{} players. Starts in {}ms. Next check in {}ms.",
-            first.game_id,
-            first.game_config.game_map,
-            first.game_config.teams(),
-            first.num_clients,
-            first.game_config.max_players,
-            first.ms_until_start,
-            next_time
-        );
         tokio::time::sleep(tokio::time::Duration::from_millis(next_time)).await;
     }
 }

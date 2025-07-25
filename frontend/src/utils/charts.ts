@@ -163,7 +163,7 @@ export const calculateGameSummary = (
   };
 };
 
-// Filter stats data by duration (last N minutes)
+// Filter stats data by duration (first N minutes)
 export const filterStatsByDuration = (
   statsData: PlayerStatsOverGame,
   duration: DurationFilter
@@ -173,24 +173,24 @@ export const filterStatsByDuration = (
     return statsData;
   }
 
-  // Determine maxTick (largest key)
+  // Determine minTick (smallest key)
   const ticks = Object.keys(statsData.player_stats_ticks).map(Number);
   if (ticks.length === 0) {
     return statsData;
   }
   
-  const maxTick = Math.max(...ticks);
+  const minTick = Math.min(...ticks);
   
-  // Compute threshold = maxTick - duration * 60 * 10 (10 ticks ≈ 1 s)
-  const threshold = maxTick - duration * 60 * 10;
+  // Compute threshold = minTick + duration * 60 * 10 (10 ticks ≈ 1 s)
+  const threshold = minTick + duration * 60 * 10;
   
   // Build and return a shallow-copy object where player_stats_ticks
-  // only contains entries whose numeric key >= threshold
+  // only contains entries whose numeric key <= threshold
   const filteredPlayerStatsTicks: Record<number, PlayerStatsOnTick[]> = {};
   
   for (const [tickStr, playerStats] of Object.entries(statsData.player_stats_ticks)) {
     const tickNum = Number(tickStr);
-    if (tickNum >= threshold) {
+    if (tickNum <= threshold) {
       filteredPlayerStatsTicks[tickNum] = playerStats;
     }
   }

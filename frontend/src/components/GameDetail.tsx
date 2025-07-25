@@ -8,6 +8,35 @@ import { GamePlayer, getAllPlayers } from '../utils/charts';
 import SpawnLocationGrid from './SpawnLocationGrid';
 import { humansOnly } from '../utils/players';
 
+// Static map dimensions data
+const MAP_DIMENSIONS: Record<string, { width: number; height: number }> = {
+  'Africa': { width: 1950, height: 2032 },
+  'Asia': { width: 2000, height: 1200 },
+  'Australia': { width: 2000, height: 1500 },
+  'Baikal': { width: 2500, height: 1564 },
+  'BetweenTwoSeas': { width: 1778, height: 1062 },
+  'BlackSea': { width: 1500, height: 1100 },
+  'Britannia': { width: 2000, height: 1396 },
+  'Deglaciated Antarctica': { width: 2300, height: 1840 },
+  'East Asia': { width: 1562, height: 1646 },
+  'Europe': { width: 2350, height: 1674 },
+  'Falkland Islands': { width: 2100, height: 1400 },
+  'Faroe Islands': { width: 1600, height: 2000 },
+  'GatewayToTheAtlantic': { width: 2216, height: 1968 },
+  'Giant_World_Map': { width: 4110, height: 1948 },
+  'Halkidiki': { width: 2200, height: 1760 },
+  'Iceland': { width: 2000, height: 1500 },
+  'Italia': { width: 1360, height: 1272 },
+  'Mars': { width: 2000, height: 1000 },
+  'MENA': { width: 2200, height: 964 },
+  'NorthAmerica': { width: 2800, height: 1448 },
+  'Oceania': { width: 2000, height: 1000 },
+  'Pangaea': { width: 1000, height: 1000 },
+  'Americas': { width: 1746, height: 2378 },
+  'Strait of Gibraltar': { width: 2902, height: 1476 },
+  'World': { width: 2000, height: 1000 }
+};
+
 function GameDetail() {
   const { gameID } = useParams<{ gameID: string }>();
   const navigate = useNavigate();
@@ -72,48 +101,62 @@ function GameDetail() {
 
   // Fetch map manifest and players when gameID or game map changes
   useEffect(() => {
+    console.log('Debug: useEffect triggered, gameID =', gameID, ', game =', !!game);
     const fetchMapAndPlayers = async () => {
-      if (!gameID || !game?.game_map) return;
+      console.log('Debug: fetchMapAndPlayers called, gameID =', gameID, ', game =', !!game);
+      if (!gameID || !game) {
+        console.log('Debug: Early return - gameID or game is missing');
+        return;
+      }
       
       try {
         setSpawnDataLoading(true);
         setSpawnDataError(false);
         
-        // Fetch map manifest
-        const mapResponse = await fetch(`/api/v1/maps/${game.game_map}/manifest`);
+        // Get map dimensions from static lookup
         let mapFetchFailed = false;
-        if (mapResponse.ok) {
-          const mapData = await mapResponse.json();
-          if (mapData?.map?.width && mapData?.map?.height) {
-            setMapDims({ width: mapData.map.width, height: mapData.map.height });
-          } else {
-            setMapDims(null);
-            mapFetchFailed = true;
-          }
+        const mapName = game.info?.config?.gameMap || game.game_map;
+        console.log('Debug: mapName =', mapName);
+        console.log('Debug: MAP_DIMENSIONS has mapName =', mapName && MAP_DIMENSIONS[mapName]);
+        if (mapName && MAP_DIMENSIONS[mapName]) {
+          setMapDims(MAP_DIMENSIONS[mapName]);
+          console.log('Debug: Set mapDims to', MAP_DIMENSIONS[mapName]);
         } else {
           setMapDims(null);
           mapFetchFailed = true;
+          console.log('Debug: mapFetchFailed = true, mapName =', mapName);
         }
         
         // Fetch players data
         const playersResponse = await fetch(`/api/v1/analysis/${gameID}/players`);
         let playersFetchFailed = false;
+        console.log('Debug: playersResponse.ok =', playersResponse.ok);
+        console.log('Debug: playersResponse.status =', playersResponse.status);
         if (playersResponse.ok) {
           const playersData = await playersResponse.json();
+          console.log('Debug: playersData.players length =', playersData?.players?.length);
+          console.log('Debug: playersData.players isArray =', Array.isArray(playersData?.players));
           if (playersData?.players && Array.isArray(playersData.players)) {
             setSpawnPlayers(playersData.players);
+            console.log('Debug: Set spawnPlayers to', playersData.players.length, 'players');
           } else {
             setSpawnPlayers(null);
             playersFetchFailed = true;
+            console.log('Debug: playersFetchFailed = true, invalid data structure');
           }
         } else {
           setSpawnPlayers(null);
           playersFetchFailed = true;
+          console.log('Debug: playersFetchFailed = true, response not ok');
         }
         
         // Set error state if either fetch failed
+        console.log('Debug: mapFetchFailed =', mapFetchFailed, ', playersFetchFailed =', playersFetchFailed);
         if (mapFetchFailed || playersFetchFailed) {
           setSpawnDataError(true);
+          console.log('Debug: Setting spawnDataError = true');
+        } else {
+          console.log('Debug: Both fetches succeeded');
         }
       } catch (err) {
         console.error('Error fetching map manifest or players:', err);
@@ -126,7 +169,7 @@ function GameDetail() {
     };
 
     fetchMapAndPlayers();
-  }, [gameID, game?.game_map]);
+  }, [gameID, game?.info?.config?.gameMap, game?.game_map]);
 
   const handleBackToLobbies = () => {
     navigate('/');

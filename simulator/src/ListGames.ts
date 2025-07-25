@@ -73,6 +73,43 @@ if (!DATABASE_URL) {
 if (!MAP_FOLDER) {
     MAP_FOLDER = "./OpenFrontIO/resources/maps";
 }
+let maps = [
+    "africa",
+    "asia",
+    "australia",
+    "baikal",
+    "betweentwoseas",
+    "blacksea",
+    "britannia",
+    "deglaciatedantarctica",
+    "eastasia",
+    "europe",
+    "europeclassic",
+    "falklandislands",
+    "faroeislands",
+    "gatewaytotheatlantic",
+    "giantworldmap",
+    "halkidiki",
+    "iceland",
+    "italia",
+    "mars",
+    "mena",
+    "northamerica",
+    "oceania",
+    "pangaea",
+    "southamerica",
+    "straitofgibraltar",
+    "world",
+];
+
+
+for(let map of maps) {
+    const map_data = await load_map_data(
+        MAP_FOLDER!,
+        map,
+    );
+    console.log(`Map ${map_data.manifest.name} = ${map_data.manifest.map.width}x${map_data.manifest.map.height}`);
+}
 
 type MapData = {
     minimap: Uint8Array;

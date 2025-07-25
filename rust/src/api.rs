@@ -17,11 +17,9 @@ use std::future::Future;
 use std::sync::Arc;
 
 use crate::{
-    AnalysisQueueStatus, Config, analysis,
-    database::{
+    analysis, database::{
         APIAnalysisQueueEntry, APIFinishedGame, APIGetLobby, APIGetLobbyWithConfig, GameConfig,
-    },
-    oauth::APIUser,
+    }, oauth::APIUser, tasks, AnalysisQueueStatus, Config
 };
 use anyhow::Result;
 
@@ -63,6 +61,24 @@ async fn lobbies_id_handler(
     })?;
 
     Ok(Json(lobby))
+}
+async fn new_lobbies_handler(
+    Extension(database): Extension<PgPool>,
+    Json(body): Json<PublicLobbiesResponse>,
+) -> Result<String, Response> {
+    if let Some(lobby) = body.lobbies.first() {
+        tasks::insert_new_game(&lobby, &database).await.map_err(|e| {
+            axum::response::Response::builder()
+                .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+                .body(axum::body::Body::from(format!(
+                    "Failed to insert new game: {}",
+                    e
+                )))
+                .expect("Failed to build response for error message")
+        })?;
+    }
+
+    Ok("Lobbies processed successfully".to_string())
 }
 
 async fn lobbies_handler(
@@ -364,7 +380,7 @@ where
 
 pub fn routes(database: PgPool, _openapi: OpenApi, cors: CorsLayer) -> ApiRouter {
     let api_routes = ApiRouter::new()
-        .route("/lobbies", get(lobbies_handler))
+        .route("/lobbies", get(lobbies_handler).post(new_lobbies_handler))
         .route("/lobbies/{id}", get(lobbies_id_handler))
         .route("/analysis_queue", get(analysis_queue_handler))
         .route("/games/{game_id}", get(game_handler))
