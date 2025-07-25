@@ -1,5 +1,7 @@
 #![allow(clippy::all)]
 
+use std::sync::Arc;
+
 use aide::{axum::ApiRouter, openapi::OpenApi, redoc::Redoc};
 use axum::{
     Extension, Json,
@@ -12,18 +14,20 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::PgPool;
 use tower_http::cors::CorsLayer;
+use tracing::info;
 
-use std::future::Future;
-use std::sync::Arc;
+pub mod openfrontapi;
 
 use crate::{
-    analysis, database::{
-        APIAnalysisQueueEntry, APIFinishedGame, APIGetLobby, APIGetLobbyWithConfig, GameConfig,
-    }, oauth::APIUser, tasks, AnalysisQueueStatus, Config
+    AnalysisQueueStatus, analysis,
+    api::openfrontapi::{OpenFrontAPI, PublicLobbiesResponse},
+    database::{
+        APIAnalysisQueueEntry, APIFinishedGame, APIGetLobby, APIGetLobbyWithConfig, now_unix_sec,
+    },
+    oauth::APIUser,
+    tasks,
 };
 use anyhow::Result;
-
-use crate::utils::ReqwestErrorHandlingExtension;
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 struct LobbyQueryParams {
@@ -67,15 +71,17 @@ async fn new_lobbies_handler(
     Json(body): Json<PublicLobbiesResponse>,
 ) -> Result<String, Response> {
     if let Some(lobby) = body.lobbies.first() {
-        tasks::insert_new_game(&lobby, &database).await.map_err(|e| {
-            axum::response::Response::builder()
-                .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
-                .body(axum::body::Body::from(format!(
-                    "Failed to insert new game: {}",
-                    e
-                )))
-                .expect("Failed to build response for error message")
-        })?;
+        tasks::insert_new_game(&lobby, &database)
+            .await
+            .map_err(|e| {
+                axum::response::Response::builder()
+                    .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+                    .body(axum::body::Body::from(format!(
+                        "Failed to insert new game: {}",
+                        e
+                    )))
+                    .expect("Failed to build response for error message")
+            })?;
     }
 
     Ok("Lobbies processed successfully".to_string())
@@ -265,10 +271,19 @@ async fn analysis_queue_handler(
 
     let rows = sqlx::query!(
         r#"
-        SELECT game_id, requested_unix_sec, status as "status: AnalysisQueueStatus", started_unix_sec
+        SELECT
+            game_id, requested_unix_sec,
+            status as "status: AnalysisQueueStatus",
+            started_unix_sec
         FROM analysis_queue
+        WHERE
+            status IN ('Pending', 'Running', 'NotFound', 'Failed', 'Stalled')
+            AND (requested_unix_sec > $1 OR status = 'Pending' OR status = 'Running')
+
         ORDER BY requested_unix_sec ASC
         "#,
+        // 3 hours ago
+        now_unix_sec() - (3 * 60 * 60)
     )
     .fetch_all(&database)
     .await
@@ -295,87 +310,94 @@ async fn analysis_queue_handler(
     Ok(Json(resp))
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+struct SingleUserResponse {
+    user_id: String,
+    username: String,
+    friends: Vec<String>,
+    openfront_player_data: Option<Value>,
+}
+
+async fn get_users_handler(
+    Extension(database): Extension<PgPool>,
+    Extension(cfg): Extension<Arc<crate::Config>>,
+    _user: APIUser,
+    Path(user_id): Path<String>,
+) -> Result<Json<SingleUserResponse>, Response> {
+    let user = sqlx::query!(
+        "SELECT
+            u.id, u.username, u.openfront_player_id
+        FROM
+            social.registered_users u
+        WHERE
+            u.id = $1
+        ",
+        user_id
+    )
+    .fetch_one(&database)
+    .await
+    .map_err(|e| {
+        axum::response::Response::builder()
+            .status(axum::http::StatusCode::NOT_FOUND)
+            .body(axum::body::Body::from(format!("User not found: {}", e)))
+            .expect("Failed to build response for error message")
+    })?;
+
+    let mut user_res = SingleUserResponse {
+        user_id: user.id.clone(),
+        username: user.username.clone(),
+        friends: Vec::new(),
+        openfront_player_data: None,
+    };
+
+    // Fetch friends
+    let friends_res = sqlx::query!(
+        "SELECT friend_id, user_id FROM social.friends WHERE user_id = $1 OR friend_id = $1",
+        user.id
+    )
+    .fetch_all(&database)
+    .await
+    .map_err(|e| {
+        axum::response::Response::builder()
+            .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+            .body(axum::body::Body::from(format!(
+                "Failed to fetch friends: {}",
+                e
+            )))
+            .expect("Failed to build response for error message")
+    })?;
+
+    user_res.friends = friends_res
+        .into_iter()
+        .map(|f| {
+            if f.user_id == user.id {
+                f.friend_id
+            } else {
+                f.user_id
+            }
+        })
+        .collect();
+
+    // Fetch recent games
+    if let Some(ofpid) = user.openfront_player_id {
+        info!("Fetching OpenFront player data for user: {}", ofpid);
+        user_res.openfront_player_data = Some(cfg.get_player_data(&ofpid).await.map_err(|e| {
+            axum::response::Response::builder()
+                .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+                .body(axum::body::Body::from(format!(
+                    "Failed to fetch OpenFront player data: {}",
+                    e
+                )))
+                .expect("Failed to build response for error message")
+        })?);
+    }
+
+    Ok(Json(user_res))
+}
+
 pub async fn open_api_json(Extension(api): Extension<OpenApi>) -> impl aide::axum::IntoApiResponse {
     dbg!(&api);
     Json(api)
-}
-
-/// Response from openfront.io/public/lobbies
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct PublicLobbiesResponse {
-    pub lobbies: Vec<Lobby>,
-}
-
-/// See [`PublicLobbiesResponse`]
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct Lobby {
-    #[serde(rename = "gameID")]
-    pub game_id: String,
-    pub num_clients: i32,
-    pub game_config: GameConfig,
-    pub ms_until_start: u64,
-}
-
-#[mockall::automock]
-/// Trait for OpenFront API interactions
-pub trait OpenFrontAPI {
-    fn get_game_json(&self, game_id: &str) -> impl Future<Output = Result<Value>> + Send;
-    fn get_lobbies(&self) -> impl Future<Output = Result<PublicLobbiesResponse>> + Send;
-}
-
-impl OpenFrontAPI for Config {
-    async fn get_game_json(&self, game_id: &str) -> Result<Value> {
-        let url = format!("{}/game/{}", self.openfront_api_url, game_id);
-
-        let finished = reqwest::get(url).await?.json::<Value>().await?;
-
-        Ok(finished)
-    }
-
-    async fn get_lobbies(&self) -> Result<PublicLobbiesResponse> {
-        let mut base = reqwest::Client::new().get(&self.openfront_lobby_url);
-        if let Some(ref useragent) = self.useragent {
-            base = base.header(reqwest::header::USER_AGENT, useragent);
-        }
-        if let Some(ref cookie) = self.cookie {
-            base = base.header(reqwest::header::COOKIE, cookie);
-        }
-
-        let new_games = base
-            .send()
-            .await?
-            .anyhow_error_json::<PublicLobbiesResponse>()
-            .await?;
-
-        Ok(new_games)
-    }
-}
-
-impl<T> OpenFrontAPI for &T
-where
-    T: OpenFrontAPI + ?Sized,
-{
-    fn get_game_json(&self, game_id: &str) -> impl Future<Output = Result<Value>> + Send {
-        T::get_game_json(self, game_id)
-    }
-
-    fn get_lobbies(&self) -> impl Future<Output = Result<PublicLobbiesResponse>> + Send {
-        T::get_lobbies(self)
-    }
-}
-
-impl<T> OpenFrontAPI for Arc<T>
-where
-    T: OpenFrontAPI + ?Sized,
-{
-    fn get_game_json(&self, game_id: &str) -> impl Future<Output = Result<Value>> + Send {
-        T::get_game_json(self, game_id)
-    }
-
-    fn get_lobbies(&self) -> impl Future<Output = Result<PublicLobbiesResponse>> + Send {
-        T::get_lobbies(self)
-    }
 }
 
 pub fn routes(database: PgPool, _openapi: OpenApi, cors: CorsLayer) -> ApiRouter {
@@ -383,6 +405,7 @@ pub fn routes(database: PgPool, _openapi: OpenApi, cors: CorsLayer) -> ApiRouter
         .route("/lobbies", get(lobbies_handler).post(new_lobbies_handler))
         .route("/lobbies/{id}", get(lobbies_id_handler))
         .route("/analysis_queue", get(analysis_queue_handler))
+        .route("/users/{user_id}", get(get_users_handler))
         .route("/games/{game_id}", get(game_handler))
         .route(
             "/games/{game_id}/analyze",

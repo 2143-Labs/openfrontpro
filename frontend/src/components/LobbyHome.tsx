@@ -86,9 +86,50 @@ function LobbyHome() {
 
 const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  useEffect(() => {
+  // Check authentication status
+  const checkAuthStatus = () => {
     const sessionToken = getCookie('session_token');
-    setIsAuthenticated(Boolean(sessionToken));
+    const isAuth = Boolean(sessionToken);
+    setIsAuthenticated(isAuth);
+    return isAuth;
+  };
+
+  useEffect(() => {
+    // Initial auth check
+    checkAuthStatus();
+  }, []);
+
+  // Optional: Reactive cookie change detection for cross-tab sync
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    
+    // Check auth status when tab becomes visible (user switches back)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        checkAuthStatus();
+      }
+    };
+
+    // Periodic check as fallback (every 30 seconds when tab is active)
+    const startPeriodicCheck = () => {
+      intervalId = setInterval(() => {
+        if (!document.hidden) {
+          checkAuthStatus();
+        }
+      }, 30000); // 30 seconds
+    };
+
+    // Set up listeners
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    startPeriodicCheck();
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
   }, []);
 
   const handleLogout = () => {
@@ -157,6 +198,12 @@ const [isAuthenticated, setIsAuthenticated] = useState(false);
                   </div>
                   <button className="set-openfront-id-btn">
                     🔗 Set Openfront ID
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="logout-btn"
+                  >
+                    🚪 Logout
                   </button>
                 </div>
               ) : (

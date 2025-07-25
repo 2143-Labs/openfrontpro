@@ -20,15 +20,14 @@ pub mod methods;
 //     const log_value = Math.log10(value + 1);
 //     return Math.round((log_value / log_max) * U16_MAX);
 // }
-// 
+//
 // function turn_u16_to_i16(value: number): number {
 //     return value - 32768;
 // }
-// 
+//
 // function compress_value_for_db(value: number | bigint): number {
 //     return turn_u16_to_i16(encode_float_to_u16(value));
 // }
-
 
 pub fn decompress_value_from_db(value: i16) -> u64 {
     let encoded = ((value as i32) + 32768) as u16;
@@ -63,6 +62,9 @@ mod test {
         assert!(within_1percent(decompress_value_from_db(-16382), 1000));
         assert!(within_1percent(decompress_value_from_db(-5462), 100_000));
         assert!(within_1percent(decompress_value_from_db(3817), 5_000_000));
-        assert!(within_1percent(decompress_value_from_db(16383), 1_000_000_000));
+        assert!(within_1percent(
+            decompress_value_from_db(16383),
+            1_000_000_000
+        ));
     }
 }

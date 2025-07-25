@@ -14,7 +14,6 @@ use tasks::{
     look_for_new_games_in_analysis_queue,
 };
 
-use api::OpenFrontAPI;
 use tokio::time::Duration;
 use tower_http::services::ServeDir;
 use utils::serve_file;
@@ -162,15 +161,16 @@ async fn launch_tasks(config: Arc<Config>, database: PgPool) -> anyhow::Result<(
         );
     }
 
+    /// TODO If analysis takes longer than 30 minutes, then we update state = Stalled
+    /// LookForOldRunningGames,
     if !config
         .disable_tasks
-        .contains(&ActiveTasks::LookForLobbyGames)
+        .contains(&ActiveTasks::LookForOldRunningGames)
     {
         let db = database.clone();
         let cfg = config.clone();
-        let ofapi = config.clone();
         keep_task_alive(
-            move || look_for_lobby_games(ofapi.clone(), db.clone(), cfg.clone()),
+            move || tasks::look_for_old_running_games(db.clone(), cfg.clone()),
             TaskSettings {
                 sleep_time: Duration::from_secs(60 * 5),
                 ..Default::default()
@@ -178,6 +178,25 @@ async fn launch_tasks(config: Arc<Config>, database: PgPool) -> anyhow::Result<(
         );
     }
 
+    // TODO If a session has expired, we can delete it from db
+    // LookForOldSessions,
+    //
+    // TODO For every registered player we have with an openfront ID, look for their games
+    // LookForTrackedPlayerGames,
+    if !config
+        .disable_tasks
+        .contains(&ActiveTasks::LookForTrackedPlayerGames)
+    {
+        let db = database.clone();
+        let cfg = config.clone();
+        keep_task_alive(
+            move || tasks::look_for_tracked_player_games(db.clone(), cfg.clone()),
+            TaskSettings {
+                sleep_time: Duration::from_secs(60),
+                ..Default::default()
+            },
+        );
+    }
 
     Ok(())
 }
@@ -305,33 +324,4 @@ async fn main() -> anyhow::Result<()> {
     .await?;
 
     unreachable!("Server stopped unexpectedly");
-}
-
-#[cfg(test)]
-mod test1 {
-    use crate::api::PublicLobbiesResponse;
-
-    #[test]
-    fn should_parse_lobby() {
-        let jsons = [
-            r#"{"lobbies":[{"gameID":"mieEQtXo","numClients":1,"gameConfig":{"gameMap":"World","gameType":"Public","difficulty":"Medium","disableNPCs":false,"infiniteGold":false,"infiniteTroops":false,"instantBuild":false,"gameMode":"Free For All","bots":400,"disabledUnits":[],"maxPlayers":50},"msUntilStart":57198}]}"#,
-            r#"{"lobbies":[{"gameID":"Q7GMHhAv","numClients":16,"gameConfig":{"gameMap":"Africa","gameType":"Public","difficulty":"Medium","disableNPCs":false,"infiniteGold":false,"infiniteTroops":false,"instantBuild":false,"gameMode":"Free For All","bots":400,"disabledUnits":[],"maxPlayers":80},"msUntilStart":31378}]}"#,
-        ];
-
-        for json in jsons {
-            let response: PublicLobbiesResponse = serde_json::from_str(json).unwrap();
-            assert!(
-                !response.lobbies.is_empty(),
-                "Lobby list should not be empty"
-            );
-            assert!(
-                response.lobbies[0].ms_until_start > 0,
-                "ms_until_start should be greater than 0"
-            );
-            assert!(
-                !response.lobbies[0].game_config.game_map.is_empty(),
-                "game_map should not be empty"
-            );
-        }
-    }
 }

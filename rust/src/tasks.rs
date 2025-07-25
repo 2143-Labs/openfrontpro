@@ -5,7 +5,11 @@ use serde_json;
 use sqlx::PgPool;
 use std::time::Duration;
 
-use crate::{AnalysisQueueStatus, Config, OpenFrontAPI, api::Lobby, database::now_unix_sec};
+use crate::{
+    AnalysisQueueStatus, Config,
+    api::openfrontapi::{Lobby, OpenFrontAPI},
+    database::now_unix_sec,
+};
 
 pub async fn get_new_games(ofapi: &impl OpenFrontAPI, _cfg: &Config) -> anyhow::Result<Vec<Lobby>> {
     let new_games = ofapi.get_lobbies().await?;
@@ -21,10 +25,7 @@ pub enum GameStatus {
     NotFound,
 }
 
-pub async fn insert_new_game(
-    first: &Lobby,
-    database: &PgPool,
-) -> anyhow::Result<u64> {
+pub async fn insert_new_game(first: &Lobby, database: &PgPool) -> anyhow::Result<u64> {
     let player_teams_as_int: i32 = first.game_config.teams().into();
 
     sqlx::query!(
@@ -292,7 +293,7 @@ where
         loop {
             if let Err(e) = task().await {
                 let next_backoff_dur = task_settings.backoff_strategy.next_backoff(backoff);
-                tracing::error!(wait_sec=next_backoff_dur.as_secs(), "Task failed: {}", e);
+                tracing::error!(wait_sec = next_backoff_dur.as_secs(), "Task failed: {}", e);
                 tokio::time::sleep(next_backoff_dur).await;
                 backoff += 1;
             } else {
@@ -366,4 +367,38 @@ pub async fn look_for_new_game_in_analysis_queue(
     save_finished_game(database.clone(), result_maybe.clone(), &game.game_id).await?;
 
     Ok(true)
+}
+
+//look_for_old_running_games(db.clone(), cfg.clone())
+pub async fn look_for_old_running_games(
+    db: PgPool,
+    cfg: std::sync::Arc<Config>,
+) -> anyhow::Result<()> {
+    let res = sqlx::query!(
+        r#"
+        UPDATE
+            analysis_queue
+        SET
+            status = 'Stalled'
+        WHERE
+            started_unix_sec < extract(epoch from (NOW() - INTERVAL '30 minutes'))
+            AND status = 'Running'
+        "#
+    )
+    .execute(&db)
+    .await?;
+    let q = res.rows_affected();
+    tracing::info!("Marked {} analysis queue entries as stalled.", q);
+
+    Ok(())
+}
+//look_for_tracked_player_games(db.clone(), cfg.clone())
+pub async fn look_for_tracked_player_games(
+    db: PgPool,
+    cfg: std::sync::Arc<Config>,
+) -> anyhow::Result<()> {
+    // This function is not implemented yet.
+    // It should look for games of tracked players that are not in the finished_games table.
+    // For now, we will just return Ok(()).
+    Ok(())
 }

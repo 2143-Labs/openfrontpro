@@ -270,9 +270,9 @@ function compress_value_for_db(value: number | bigint): number {
     return turn_u16_to_i16(encode_float_to_u16(value));
 }
 
-//for (let v of [0, 1, 10, 100, 1000, 100_000, 5_000_000, 1_000_000_000]) {
-    //console.log(`Value: ${v}, Encoded: ${encode_float_to_u16(v)}, Compressed: ${compress_value_for_db(v)}`);
-//}
+for (let v of [0, 1, 10, 100, 1000, 100_000, 5_000_000, 1_000_000_000]) {
+    console.log(`Value: ${v}, Encoded: ${encode_float_to_u16(v)}, Compressed: ${compress_value_for_db(v)}`);
+}
 
 // ===== Database cleanup helpers =====
 async function cleanupPreviousAnalysis(
@@ -433,6 +433,7 @@ async function initializeGame(
         new Executor(game, gameId, "openfrontpro"),
         async (gu) => {
             const simulation_turns_left = -1;
+            // Data not part of the analysis, but needs to be held between turns
             const extra_data: ExtraData = {
                 players_died_on_turn: {},
                 players_disconnected_on_turn: {},
@@ -696,7 +697,7 @@ async function handle_game_update(
 
             case GameUpdateType.Win:
                 gameIsWon = true;
-                break;
+                // fall through
 
             default:
                 await processGeneralEvents(ups, gameId, gu.tick, pool, key);
@@ -708,7 +709,6 @@ async function handle_game_update(
 }
 
 // Helper functions
-
 async function processDisplayEvents(
     ups: GameUpdate[],
     gameId: string,
