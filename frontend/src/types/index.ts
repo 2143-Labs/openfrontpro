@@ -73,3 +73,26 @@ export interface Lobby {
 export type SortBy = 'last_seen' | 'players' | 'map';
 
 export type GameStatus = 'completed' | 'analyzed' | 'in-progress';
+
+// User-related types
+export interface UserGameSummary {
+  game_id: string;
+  map: string;
+  mode: string;
+  difficulty: string;
+  start_time: number;
+}
+
+export interface UserData {
+  user_id: string;
+  username: string;
+  friends: string[];
+  created_unix_sec: number;
+  stats: {
+    games_played: number;
+    wins: number;
+    losses: number;
+    win_rate: number;
+  };
+  game_history: UserGameSummary[];
+}

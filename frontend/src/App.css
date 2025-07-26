@@ -819,6 +819,48 @@ tr:hover {
   font-weight: 600;
 }
 
+/* User Detail Styles */
+.user-detail .stats-section {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+.user-detail .stats-section h2 {
+  margin: 0 0 15px 0;
+  color: #2c3e50;
+  font-size: 1.4rem;
+  font-weight: 600;
+  border-bottom: 1px solid #dee2e6;
+  padding-bottom: 10px;
+}
+
+.user-detail .stats-section .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.user-detail .stats-section .stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.user-detail .stats-section .stat-item strong {
+  color: #495057;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.user-detail .stats-section .stat-item span {
+  font-size: 18px;
+  font-weight: bold;
+  color: #212529;
+}
+
 /* Responsive adjustments for charts */
 @media (max-width: 768px) {
   .line-chart svg {

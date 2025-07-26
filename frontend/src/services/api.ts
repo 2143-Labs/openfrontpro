@@ -1,4 +1,4 @@
-import { Lobby } from '../types';
+import { Lobby, UserData } from '../types';
 
 export interface FetchLobbiesParams {
   completed?: boolean | null;
@@ -56,4 +56,10 @@ export const unmarkGameForAnalysis = async (gameId: string) => {
   if (!res.ok) {
     throw new Error(`HTTP error! status: ${res.status}`);
   }
+};
+
+export const fetchUser = async (userId: string): Promise<UserData> => {
+  const res = await fetch(`/api/v1/users/${userId}`);
+  if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+  return await res.json();
 };

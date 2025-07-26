@@ -9,3 +9,4 @@ export { default as LoadingSpinner } from './LoadingSpinner';
 export { default as LobbiesTable } from './LobbiesTable';
 export { default as LobbyHome } from './LobbyHome';
 export { default as SortControls } from './SortControls';
+export { default as UserDetail } from './UserDetail';

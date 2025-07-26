@@ -321,7 +321,7 @@ struct SingleUserResponse {
 async fn get_users_handler(
     Extension(database): Extension<PgPool>,
     Extension(cfg): Extension<Arc<crate::Config>>,
-    _user: APIUser,
+    //_user: APIUser,
     Path(user_id): Path<String>,
 ) -> Result<Json<SingleUserResponse>, Response> {
     let user = sqlx::query!(
