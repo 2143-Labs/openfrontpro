@@ -82,11 +82,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1753250450,
-        "narHash": "sha256-i+CQV2rPmP8wHxj0aq4siYyohHwVlsh40kV89f3nw1s=",
+        "lastModified": 1753429684,
+        "narHash": "sha256-9h7+4/53cSfQ/uA3pSvCaBepmZaz/dLlLVJnbQ+SJjk=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "fc02ee70efb805d3b2865908a13ddd4474557ecf",
+        "rev": "7fd36ee82c0275fb545775cc5e4d30542899511d",
         "type": "github"
       },
       "original": {
@@ -99,17 +99,17 @@
     "openfrontio_cur": {
       "flake": false,
       "locked": {
-        "lastModified": 1753399954,
-        "narHash": "sha256-TiIpyzO8TI0DRZvqUa4Bnbwg3XnvX3MuALdsk0pCbSg=",
+        "lastModified": 1753563081,
+        "narHash": "sha256-lpLp+FeDLN1C3O+h02afprMO7K3tLiIfNhIHJg4F1dk=",
         "owner": "OpenFrontIO",
         "repo": "OpenFrontIO",
-        "rev": "d010fdbda009e16cb84264bb79ac0c8fc71d65bd",
+        "rev": "1cd4fdb75d35c729f2060b64d6c096ea57ed9bf3",
         "type": "github"
       },
       "original": {
         "owner": "OpenFrontIO",
+        "ref": "v0.24.10",
         "repo": "OpenFrontIO",
-        "rev": "d010fdbda009e16cb84264bb79ac0c8fc71d65bd",
         "type": "github"
       }
     },

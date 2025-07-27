@@ -18,7 +18,7 @@ use tokio::time::Duration;
 use tower_http::services::ServeDir;
 use utils::serve_file;
 
-use crate::oauth::OAuthBundle;
+use crate::{database::APIGetLobby, oauth::OAuthBundle};
 
 mod analysis;
 mod api;
@@ -76,6 +76,9 @@ pub struct Config {
 
     #[clap(long, env, short = 'd')]
     pub disable_tasks: Vec<ActiveTasks>,
+
+    #[clap(long, env, short = 'e')]
+    pub extra_tasks: Vec<ActiveTasks>,
 }
 
 impl Config {
@@ -101,22 +104,27 @@ impl Config {
 /// Disable these tasks by passing them with the `-d` flag
 pub enum ActiveTasks {
     /// Read the current public lobbies and look for new games
-    LookForNewGames,
+    LookForOpenfrontLobbies,
     /// Look for the lobbies to each complete so we can download the game data
-    LookForLobbyGames,
+    LookForFinishedLobbies,
     /// Download game data for the games that are in the analysis queue
     LookForNewGamesInAnalysisQueue,
-    /// TODO If analysis takes longer than 30 minutes, then we update state = Stalled
+    /// If analysis takes longer than 30 minutes, then we update state = Stalled
     LookForOldRunningGames,
     /// TODO If a session has expired, we can delete it from db
     LookForOldSessions,
-    /// TODO For every registered player we have with an openfront ID, look for their games
+    /// For every registered player we have with an openfront ID, look for their games
     LookForTrackedPlayerGames,
+    /// Extra tasks: pull from prpod
+    PullLobbiesFromPROD,
 }
 
 /// Spawn the background worker tasks
 async fn launch_tasks(config: Arc<Config>, database: PgPool) -> anyhow::Result<()> {
-    if !config.disable_tasks.contains(&ActiveTasks::LookForNewGames) {
+    if !config
+        .disable_tasks
+        .contains(&ActiveTasks::LookForOpenfrontLobbies)
+    {
         let db = database.clone();
         let cfg = config.clone();
         let ofapi = config.clone();
@@ -147,7 +155,7 @@ async fn launch_tasks(config: Arc<Config>, database: PgPool) -> anyhow::Result<(
 
     if !config
         .disable_tasks
-        .contains(&ActiveTasks::LookForLobbyGames)
+        .contains(&ActiveTasks::LookForFinishedLobbies)
     {
         let db = database.clone();
         let cfg = config.clone();
@@ -193,6 +201,30 @@ async fn launch_tasks(config: Arc<Config>, database: PgPool) -> anyhow::Result<(
             move || tasks::look_for_tracked_player_games(db.clone(), cfg.clone()),
             TaskSettings {
                 sleep_time: Duration::from_secs(60),
+                ..Default::default()
+            },
+        );
+    }
+
+    if config
+        .extra_tasks
+        .contains(&ActiveTasks::PullLobbiesFromPROD)
+    {
+        let _db = database.clone();
+        let _cfg = config.clone();
+        keep_task_alive(
+            move || async {
+                let _oldlobbies = reqwest::get("https://openfront.pro/api/v1/lobbies")
+                    .await
+                    .context("Failed to fetch lobbies from openfront.pro")?
+                    .json::<Vec<APIGetLobby>>()
+                    .await
+                    .context("Failed to parse lobbies from openfront.pro")?;
+
+                Ok(())
+            },
+            TaskSettings {
+                sleep_time: Duration::from_secs(60 * 60),
                 ..Default::default()
             },
         );
@@ -282,7 +314,16 @@ async fn main() -> anyhow::Result<()> {
     // just serve the SPA?
     let missing_html = format!("{}/index.html", config.frontend_folder);
 
+    let index_html = axum::routing::get(|| async move {
+        serve_file(std::path::Path::new(&missing_html))
+            .await
+            .unwrap_or(default_missing_response())
+    });
+
     let fin = routes
+        // Frontend routes
+        .route("/game/{game_id}", index_html.clone())
+        .route("/user/{user_id}", index_html.clone())
         .finish_api(&mut openapi)
         .layer(Extension(openapi.clone()))
         .layer(Extension(config.clone()))
@@ -300,11 +341,7 @@ async fn main() -> anyhow::Result<()> {
             ServeDir::new(&*config.frontend_folder)
                 .append_index_html_on_directories(true)
                 // 404 Service
-                .not_found_service(axum::routing::get(|| async move {
-                    serve_file(std::path::Path::new(&missing_html))
-                        .await
-                        .unwrap_or(default_missing_response())
-                })),
+                .not_found_service(index_html),
         ));
 
     // This launches db async tasks. This includes:

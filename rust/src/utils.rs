@@ -6,10 +6,13 @@ use std::future::Future;
 
 /// Serves a file from the filesystem as an HTTP response
 pub async fn serve_file(file_path: &std::path::Path) -> anyhow::Result<Response> {
+    let mime = mime_guess::from_path(file_path)
+        .first_or_octet_stream()
+        .to_string();
     let file_contents = tokio::fs::read(file_path).await?;
 
     let response = Response::builder()
-        .header("Content-Type", "application/octet-stream")
+        .header("Content-Type", mime)
         .body(axum::body::Body::from(file_contents))?;
 
     Ok(response)

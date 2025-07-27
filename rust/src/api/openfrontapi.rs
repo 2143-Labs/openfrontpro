@@ -4,10 +4,7 @@ use serde_json::Value;
 use std::future::Future;
 use std::sync::Arc;
 
-use crate::{
-    Config,
-    database::GameConfig,
-};
+use crate::{Config, database::GameConfig};
 use anyhow::Result;
 
 use crate::utils::ReqwestErrorHandlingExtension;
