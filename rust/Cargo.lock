@@ -1502,6 +1502,7 @@ dependencies = [
  "futures",
  "include_dir",
  "indoc",
+ "mime_guess",
  "mockall",
  "paste",
  "rand 0.9.1",
