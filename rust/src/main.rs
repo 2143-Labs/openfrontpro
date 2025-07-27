@@ -314,7 +314,16 @@ async fn main() -> anyhow::Result<()> {
     // just serve the SPA?
     let missing_html = format!("{}/index.html", config.frontend_folder);
 
+    let index_html = axum::routing::get(|| async move {
+        serve_file(std::path::Path::new(&missing_html))
+            .await
+            .unwrap_or(default_missing_response())
+    });
+
     let fin = routes
+        // Frontend routes
+        .route("/game/{game_id}", index_html.clone())
+        .route("/user/{user_id}", index_html.clone())
         .finish_api(&mut openapi)
         .layer(Extension(openapi.clone()))
         .layer(Extension(config.clone()))
@@ -332,11 +341,7 @@ async fn main() -> anyhow::Result<()> {
             ServeDir::new(&*config.frontend_folder)
                 .append_index_html_on_directories(true)
                 // 404 Service
-                .not_found_service(axum::routing::get(|| async move {
-                    serve_file(std::path::Path::new(&missing_html))
-                        .await
-                        .unwrap_or(default_missing_response())
-                })),
+                .not_found_service(index_html),
         ));
 
     // This launches db async tasks. This includes:
