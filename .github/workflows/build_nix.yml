@@ -8,8 +8,9 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  registry: ghcr.io/john2143
-  repo: openfronter
+  registry: ghcr.io/2143-Labs
+  rsrepo: openfrontpro-rs
+  simrepo: openfrontpro-sim
 
 jobs:
   build:
@@ -38,12 +39,12 @@ jobs:
           RESULT=$(readlink -f ./result)
           echo "Result path: $RESULT"
           IMAGE_TAG=$(date +%Y%m%d_%H%M)
-          skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.repo }}:openfronter-rs-${IMAGE_TAG}
+          skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.rsrepo }}:openfrontpro-${IMAGE_TAG}
           # if not pull request, then also push as latest
           if [ "${{ github.event_name }}" == "pull_request" ]; then
-            skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.repo }}:openfronter-rs-branch-${{ github.head_ref }}
+            skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.rsrepo }}:openfrontpro-branch-${{ github.head_ref }}
           else
-            skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.repo }}:openfronter-rs-latest
+            skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.rsrepo }}:openfrontpro-latest
           fi
 
 
@@ -57,11 +58,11 @@ jobs:
           RESULT=$(readlink -f ./result)
           echo "Result path: $RESULT"
           IMAGE_TAG=$(date +%Y%m%d_%H%M)
-          skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.repo }}:openfronter-sim-${IMAGE_TAG}
+          skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.simrepo }}:openfrontpro-${IMAGE_TAG}
           # if not pull request, then also push as latest
           if [ "${{ github.event_name }}" == "pull_request" ]; then
-            skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.repo }}:openfronter-sim-branch-${{ github.head_ref }}
+            skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.simrepo }}:openfrontpro-branch-${{ github.head_ref }}
           else
-            skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.repo }}:openfronter-sim-latest
+            skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.simrepo }}:openfrontpro-latest
           fi
 

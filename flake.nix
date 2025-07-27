@@ -80,6 +80,7 @@
         };
 
         packages.simulator = simulator.outputs.packages.${system}.default;
+        # https://github.com/moby/docker-image-spec/blob/v1.2.0/v1.2.md
         packages.container-sim = pkgs.dockerTools.buildLayeredImage {
           name = "openfrontpro-simulator";
           contents = [
