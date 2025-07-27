@@ -111,30 +111,6 @@ const SpawnLocationGrid: React.FC<SpawnLocationGridProps> = ({
         })}
       </svg>
 
-      {/* Legend */}
-      <div className="w-full max-w-md">
-        <div className="text-sm font-medium text-gray-700 mb-2">
-          Players ({playersWithSpawns.length})
-        </div>
-        <div className="flex flex-col space-y-1 max-h-32 overflow-y-auto">
-          {playersWithSpawns.map((player, index) => (
-            <div key={player.id} className="flex items-center space-x-2 text-sm">
-              <div
-                className="w-4 h-4 rounded border border-white"
-                style={{ backgroundColor: getPlayerColor(index) }}
-              />
-              <span className="text-gray-700 truncate">
-                {player.name}
-              </span>
-              {player.spawn_info && (
-                <span className="text-gray-500 text-xs ml-auto">
-                  ({Math.round(player.spawn_info.x)}, {Math.round(player.spawn_info.y)})
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* Map info */}
       <div className="text-xs text-gray-500 text-center">
