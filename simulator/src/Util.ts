@@ -37,7 +37,8 @@ import fs from "fs/promises";
 import { Pool } from "pg";
 import { on } from "events";
 
-import { DATABASE_URL, MapData } from "./Types";
+import { DATABASE_URL, MapData, Analysis } from "./Types";
+import { INSERT_SPAWN_LOCATIONS, INSERT_DISPLAY_EVENT, INSERT_PLAYER, INSERT_GENERAL_EVENT, INSERT_PLAYER_UPDATE_NEW, INSERT_PLAYER_TROOP_RATIO_CHANGE, UPSERT_COMPLETED_ANALYSIS } from "./Sql";
 
 export async function load_map_data(
     maps_path: string,
@@ -161,29 +162,44 @@ export async function finalize_and_insert_analysis(
         ]);
     }
 
+    let time_taken = performance.now() - start_time;
+    start_time = performance.now();
+    console.log(`Finished inserting spawn locations for game ${gameId} in ${(time_taken / 1000).toFixed(1)}s.`);
     for (const display_event of analysis.ins_display_event) {
         await pool.query(INSERT_DISPLAY_EVENT, display_event);
     }
 
+    time_taken = performance.now() - start_time;
+    start_time = performance.now();
+    console.log(`Finished inserting display events for game ${gameId} in ${(time_taken / 1000).toFixed(1)}s.`);
     for (const player of analysis.ins_player) {
         await pool.query(INSERT_PLAYER, player);
     }
 
+    time_taken = performance.now() - start_time;
+    start_time = performance.now();
+    console.log(`Finished inserting players for game ${gameId} in ${(time_taken / 1000).toFixed(1)}s.`);
     for (const general_event of analysis.ins_general_event) {
         await pool.query(INSERT_GENERAL_EVENT, general_event);
     }
 
+    time_taken = performance.now() - start_time;
+    start_time = performance.now();
+    console.log(`Finished inserting general events for game ${gameId} in ${(time_taken / 1000).toFixed(1)}s.`);
     for (const player_update of analysis.ins_player_update) {
         await pool.query(INSERT_PLAYER_UPDATE_NEW, player_update);
     }
 
+    time_taken = performance.now() - start_time;
+    start_time = performance.now();
+    console.log(`Finished inserting player updates for game ${gameId} in ${(time_taken / 1000).toFixed(1)}s.`);
     for (const troop_ratio of analysis.ins_troop_ratio) {
         await pool.query(INSERT_PLAYER_TROOP_RATIO_CHANGE, troop_ratio);
     }
 
     await pool.query(UPSERT_COMPLETED_ANALYSIS, [gameId, "v1"]);
 
-    let time_taken = performance.now() - start_time;
+    time_taken = performance.now() - start_time;
     console.log(`Inserted analysis for game ${gameId} in ${(time_taken / 1000).toFixed(1)}s.`);
     return analysis;
 }
