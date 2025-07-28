@@ -211,6 +211,24 @@ pub async fn look_for_lobby_games(
         let game_id = &game.game_id;
         let finish_status = check_if_game_finished(&ofapi, game_id).await?;
         save_finished_game(database.clone(), finish_status, game_id).await?;
+
+        let should_auto_analyze = sqlx::query!(
+            "SELECT key, value FROM config WHERE key = 'auto_analyze_games'"
+        ).fetch_optional(&database).await?
+            .map(|row| row.value == "true")
+            .unwrap_or(false);
+
+        if should_auto_analyze {
+            let res = sqlx::query!(
+                "INSERT INTO analysis_queue (game_id, requesting_user_id)
+                 VALUES ($1, NULL)",
+                game_id,
+            )
+            .execute(&database)
+            .await?;
+        }
+
+
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
 
