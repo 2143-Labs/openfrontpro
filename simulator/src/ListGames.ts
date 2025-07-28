@@ -211,6 +211,21 @@ function encode_float_to_u16(value: number | bigint): number {
     return Math.round((log_value / log_max) * U16_MAX);
 }
 
+//pub fn decompress_value_from_db(value: i16) -> u64 {
+    //let encoded = ((value as i32) + 32768) as u16;
+    //let max_input_log = (1_000_000_000_000u64 as f64 + 1.0).log10();
+    //let norm = encoded as f64 / 65535.0;
+
+    //(10f64.powf(norm * max_input_log) - 1.0).round() as u64
+//}
+
+function decompress_value_from_db(value: number): bigint {
+    const encoded = (value + 32768) & 0xFFFF; // Ensure it's within u16 range
+    const max_input_log = Math.log10(1_000_000_000_000 + 1);
+    const norm = encoded / 65535;
+    return BigInt(Math.round(Math.pow(10, norm * max_input_log) - 1));
+}
+
 function turn_u16_to_i16(value: number): number {
     return value - 32768;
 }
@@ -220,11 +235,15 @@ function compress_value_for_db(value: number | bigint): number {
 }
 
 for (let v of [0, 1, 10, 100, 1000, 100_000, 5_000_000, 1_000_000_000]) {
-    console.log(`Value: ${v}, Encoded: ${encode_float_to_u16(v)}, Compressed: ${compress_value_for_db(v)}`);
+    let compressed = compress_value_for_db(v);
+    let decompressed = decompress_value_from_db(compressed);
+    let error = Math.abs(Number(decompressed) - Number(v));
+    let error_percent = (error / Number(v)) * 100;
+    console.log(`Value: ${v}, Encoded: ${encode_float_to_u16(v)}, Compressed: ${compressed}, Decompressed: ${decompressed}, Error: ${error_percent.toFixed(2)}%`);
 }
 
 // ===== Database cleanup helpers =====
-async function cleanupPreviousAnalysis(
+async function cleanup_previous_analysis(
     pool: Pool,
     gameId: string,
 ): Promise<void> {
@@ -320,6 +339,7 @@ async function finalize_and_insert_analysis(
 
     let start_time = performance.now();
 
+    console.log("Inserting analysis for game", gameId);
     for (const [client_id, spawn] of Object.entries(analysis.spawns)) {
         if(!spawn.x || !spawn.y) {
             console.log("invalid spawn for client", client_id, "in game", gameId);
@@ -357,7 +377,8 @@ async function finalize_and_insert_analysis(
 
     await pool.query(UPSERT_COMPLETED_ANALYSIS, [gameId, "v1"]);
 
-    console.log("Completed analysis for game", gameId);
+    let time_taken = performance.now() - start_time;
+    console.log(`Inserted analysis for game ${gameId} in ${(time_taken / 1000).toFixed(1)}s.`);
     return analysis;
 }
 
@@ -581,10 +602,10 @@ async function handle_game_update(
     }
 
     const num_print_ticks = 300;
-    const should_log_tick = gu.tick % 300 === (num_print_ticks - 1);
+    const should_log_tick = gu.tick % num_print_ticks === (num_print_ticks - 1);
     if (should_log_tick) {
-        let tick_time = performance.now() - (extra_data.last_tick_update_time || 0);
-        let ticks_per_sec = (1000 / tick_time).toFixed(2);
+        let tick_time_ms = performance.now() - (extra_data.last_tick_update_time || 0);
+        let ticks_per_sec = (num_print_ticks * 1000 / tick_time_ms).toFixed(2);
         console.log(`Game Update: ${gu.tick + 1} ticks. ${ticks_per_sec}t/s.`);
         extra_data.last_tick_update_time = performance.now();
     }
@@ -746,6 +767,7 @@ async function process_pending_games(pool: Pool): Promise<void> {
         try {
             const r = game.result_json as GameRecord;
             const record = decompressGameRecord(r);
+            await cleanup_previous_analysis(pool, game.game_id);
             const analysis = await simgame(game.game_id, record);
             await finalize_and_insert_analysis(pool, analysis);
         } catch (e) {
