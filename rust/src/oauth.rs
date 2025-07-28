@@ -302,15 +302,17 @@ async fn callback_api_handler(
         .header(
             axum::http::header::SET_COOKIE,
             format!(
-                "discord_user_id={}; Path=/; HttpOnly; Secure; SameSite=Strict",
-                user.id
+                "discord_user_id={}; Path=/; HttpOnly{}; SameSite=Lax",
+                user.id,
+                if cfg.redirect_uri.starts_with("https://") { "; Secure" } else { "" }
             ),
         )
         .header(
             axum::http::header::SET_COOKIE,
             format!(
-                "session_token={}; Path=/; HttpOnly; Secure; SameSite=Strict",
-                api_token
+                "session_token={}; Path=/; HttpOnly{}; SameSite=Lax",
+                api_token,
+                if cfg.redirect_uri.starts_with("https://") { "; Secure" } else { "" }
             ),
         )
         .body(axum::body::Body::from(format!(

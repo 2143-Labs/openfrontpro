@@ -1,3 +1,4 @@
+
 import { getServerConfig } from "openfront-client/src/core/configuration/ConfigLoader.ts";
 import { DefaultConfig } from "openfront-client/src/core/configuration/DefaultConfig.ts";
 import { Executor } from "openfront-client/src/core/execution/ExecutionManager.ts";
@@ -38,19 +39,30 @@ import { Pool } from "pg";
 import { on } from "events";
 import { Analysis, DATABASE_URL, ExtraData } from "./Types";
 import { finalize_and_insert_analysis, load_map_data, setup } from "./Util";
-import { cleanup_previous_analysis, INSERT_DISPLAY_EVENT, INSERT_GENERAL_EVENT, INSERT_PLAYER, INSERT_PLAYER_TROOP_RATIO_CHANGE, INSERT_PLAYER_UPDATE_NEW, INSERT_SPAWN_LOCATIONS, SELECT_AND_UPDATE_JOB, UPDATE_ANALYSIS_QUEUE_STATUS, UPSERT_COMPLETED_ANALYSIS } from "./Sql";
-import { simgame } from "./SimGame";
-
+import { INSERT_DISPLAY_EVENT, INSERT_GENERAL_EVENT, INSERT_PLAYER, INSERT_PLAYER_TROOP_RATIO_CHANGE, INSERT_PLAYER_UPDATE_NEW, INSERT_SPAWN_LOCATIONS, SELECT_AND_UPDATE_JOB, UPDATE_ANALYSIS_QUEUE_STATUS, UPSERT_COMPLETED_ANALYSIS } from "./Sql";
 
 // ===== Main entry point =====
 export const base_log = new Logger();
-export let current_processing_game: string | null = null;
-export let global_pool: Pool | null = null;
 
-async function process_pending_games(pool: Pool): Promise<void> {
-    // Select 1 job from DB by updating a single row from the analysis_queue table (INNER JOIN with finished_games)
-    // We set the analysis_status to 'Running' and then select the game_id and result_json
+
+
+// Route 1: GET /retreive_game
+async function get_retreive_game(..., pool: Pool, ...): ... {
     const res = await pool.query(SELECT_AND_UPDATE_JOB);
+
+    if (res.rowCount === 0 || !res.rows[0]) {
+        console.log("No pending games found.");
+        return;
+    }
+
+    if (res.rowCount > 1) {
+        console.warn("More than one pending game found, processing only the first one.");
+    }
+
+    // Send json respnose: {
+    //     game_id: res.rows[0].game_id,
+    //     result_json: res.rows[0].result_json,
+    // }
 
     for (const game of res.rows) {
         console.log("Game ID: ", game.game_id);
@@ -83,16 +95,47 @@ async function process_pending_games(pool: Pool): Promise<void> {
     }
 }
 
-async function main(database: Pool): Promise<void> {
-    global_pool = database;
-    for (;;) {
-        try {
-            await process_pending_games(database);
-        } catch (e) {
-            console.error("Error: ", e);
-        }
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+// Route 2: POST /submit_game
+async function get_retreive_game(..., pool: Pool, ...): ... {
+    let analysis: Analysis = ...; // Get analysis from request body
+    let new_state = "Completed";
+    let fut;
+    try {
+        fut = finalize_and_insert_analysis(pool, analysis);
+    } catch (error) {
+        console.error("Error finalizing and inserting analysis:", error);
+        new_state = "Failed";
     }
+
+    // Send a character every 10 seconds to keep the connection alive
+    const interval = setInterval(() => {
+        console.log("Keeping connection alive...");
+        // TODO: Send a " " character or similar to keep the connection alive but not affect the json response
+    }, 10000);
+
+    await fut; // Wait for the analysis to be finalized and inserted
+
+    // TODO: When `fut` resolves
+    // 1. update the analysis queue status (below)
+    // 2. send the response back to the client
+    await pool.query(UPDATE_ANALYSIS_QUEUE_STATUS, [
+        analysis.game_id,
+        new_state,
+    ]);
+    clearInterval(interval);
+
+    return { status: new_state, game_id: analysis.game_id };
+}
+
+
+// Route 3: GET /health
+async function health(): Promise<{ status: string }> {
+    // This function should return a simple health check response
+    return { status: "ok" };
+}
+
+async function main(database: Pool): Promise<void> {
+    // Setup a server here to listen to the routes (
 
 }
 
@@ -103,18 +146,4 @@ db.then(database => main(database));
 process.on("SIGTERM", endall);
 process.on("SIGINT", endall);
 
-function endall() {
-    console.log("Ending all processes...");
-    if (current_processing_game) {
-        console.log("Current processing game: ", current_processing_game);
-        // set db state back to pending
-        global_pool?.query(UPDATE_ANALYSIS_QUEUE_STATUS, [
-            current_processing_game,
-            "Pending",
-        ]).catch((e) => console.error("Failed to reset game state: ", e));
-    } else {
-        console.log("No current processing game.");
-    }
 
-    process.exit(0);
-}
