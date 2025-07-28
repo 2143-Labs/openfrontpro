@@ -121,8 +121,8 @@ pub enum ActiveTasks {
 
 /// Spawn the background worker tasks
 async fn launch_tasks(config: Arc<Config>, database: PgPool) -> anyhow::Result<()> {
-    if !config
-        .disable_tasks
+    if config
+        .extra_tasks
         .contains(&ActiveTasks::LookForOpenfrontLobbies)
     {
         let db = database.clone();

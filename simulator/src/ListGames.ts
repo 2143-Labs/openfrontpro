@@ -1,31 +1,3 @@
-async function runSimulation(runner, record, analysis, pool, extraData, mapImpl: GameMapImpl) {
-    runner.init();
-    let simulation_turns_left = -1;
-    for (const turn of record.turns) {
-        await analyze_intents(turn, pool, record, analysis, mapImpl);
-        runner.addTurn(turn);
-        runner.executeNextTick();
-        await new Promise((resolve) => setTimeout(resolve, 10));
-        if (simulation_turns_left === 0) {
-            console.log("Player has won, stopping simulation.");
-            break;
-        } else if (simulation_turns_left > 0) {
-            console.log("Simulation turns left: ", simulation_turns_left);
-            simulation_turns_left--;
-        }
-    }
-    return analysis;
-}
-
-// Utility to format SQL queries
-function formatSql(strings: TemplateStringsArray, ...values: any[]): string {
-    return strings.reduce(
-        (acc, str, index) => acc + str + (values[index] || ""),
-        "",
-    );
-}
-
-// ===== Imports =====
 import { getServerConfig } from "openfront-client/src/core/configuration/ConfigLoader.ts";
 import { DefaultConfig } from "openfront-client/src/core/configuration/DefaultConfig.ts";
 import { Executor } from "openfront-client/src/core/execution/ExecutionManager.ts";
@@ -59,6 +31,7 @@ import {
 } from "openfront-client/src/core/Util.ts";
 
 import { Logger } from "winston";
+import { performance } from "perf_hooks";
 
 import fs from "fs/promises";
 import { Pool } from "pg";
@@ -125,25 +98,32 @@ type PlayerSpawn = {
 };
 
 type Analysis = {
-    gameId: string;
+    game_id: string;
     players: PlayerInfo[];
     spawns: Record<string, PlayerSpawn>;
+
+    ins_troop_ratio: any[][];
+    ins_general_event: any[][];
+    ins_display_event: any[][];
+    ins_player: any[][];
+    ins_player_update: any[][];
 };
 
 type ExtraData = {
     players_died_on_turn: Record<string, number>;
     players_disconnected_on_turn: Record<string, number>;
     players_troop_ratio: Record<string, number>;
+    last_tick_update_time: number;
 };
 
 // ===== Database helpers =====
 
-const INSERT_SPAWN_LOCATIONS = formatSql`
+const INSERT_SPAWN_LOCATIONS = format_sql`
   INSERT INTO analysis_1.spawn_locations (game_id, client_id, tick, x, y, previous_spawns)
   VALUES ($1, $2, $3, $4, $5, $6)
 `;
 
-const UPSERT_COMPLETED_ANALYSIS = formatSql`
+const UPSERT_COMPLETED_ANALYSIS = format_sql`
   INSERT INTO analysis_1.completed_analysis (game_id, analysis_engine_version)
   VALUES ($1, $2)
   ON CONFLICT (game_id) DO UPDATE
@@ -151,14 +131,14 @@ const UPSERT_COMPLETED_ANALYSIS = formatSql`
       analysis_engine_version = $2
 `;
 
-const INSERT_DISPLAY_EVENT = formatSql`
+const INSERT_DISPLAY_EVENT = format_sql`
   INSERT INTO
     analysis_1.display_events (game_id, tick, message_type, message, player_id, gold_amount)
   VALUES ($1, $2, $3, $4, $5, $6)
   RETURNING tick
 `;
 
-const INSERT_PLAYER = formatSql`
+const INSERT_PLAYER = format_sql`
   INSERT INTO
     analysis_1.players (
       game_id, id, client_id, small_id, player_type, name, flag, team
@@ -166,21 +146,14 @@ const INSERT_PLAYER = formatSql`
   VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `;
 
-//const INSERT_PLAYER_UPDATE_OLD = formatSql`
-  //INSERT INTO
-    //analysis_1.player_updates (game_id, id, player_status, small_id, tiles_owned, gold, workers, troops, target_troop_ratio, tick)
-  //VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-  //RETURNING tick
-//`;
-
-const INSERT_GENERAL_EVENT = formatSql`
+const INSERT_GENERAL_EVENT = format_sql`
   INSERT INTO
     analysis_1.general_events (game_id, tick, event_type, data)
   VALUES ($1, $2, $3, $4)
   RETURNING tick
 `;
 
-const SELECT_AND_UPDATE_JOB = formatSql`
+const SELECT_AND_UPDATE_JOB = format_sql`
   WITH my_job AS (
     SELECT
       fg.game_id, fg.result_json
@@ -200,45 +173,21 @@ const SELECT_AND_UPDATE_JOB = formatSql`
   RETURNING my_job.game_id, my_job.result_json
 `;
 
-const UPDATE_ANALYSIS_QUEUE_STATUS = formatSql`
+const UPDATE_ANALYSIS_QUEUE_STATUS = format_sql`
   UPDATE analysis_queue
   SET
     status = $2
   WHERE game_id = $1
 `;
 
-// CREATE TABLE analysis_1.packed_player_updates (
-//    game_id CHAR(8) NOT NULL, -- 8 bytes
-//    small_id SMALLINT NOT NULL, -- 2 bytes
-//    tick SMALLINT NOT NULL, -- 2 bytes
-//    player_alive BIT(1) NOT NULL, -- 1 bit
-//    player_connected BIT(1) NOT NULL, -- 1 bit
-//    tiles_owned SMALLINT NOT NULL DEFAULT 0, -- 2 bytes
-//    gold  SMALLINT NOT NULL DEFAULT 0, -- 2 bytes
-//    workers SMALLINT NOT NULL DEFAULT 0, -- 2 bytes
-//    troops SMALLINT NOT NULL DEFAULT 0, -- 2 bytes
-//    FOREIGN KEY (game_id) REFERENCES public.finished_games(game_id) ON DELETE CASCADE,
-//    PRIMARY KEY (game_id, tick, small_id)
-// );
-const INSERT_PLAYER_UPDATE_NEW = formatSql`
+const INSERT_PLAYER_UPDATE_NEW = format_sql`
   INSERT INTO
     analysis_1.packed_player_updates (game_id, small_id, tick, player_alive, player_connected, tiles_owned, gold, workers, troops)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
   RETURNING tick
 `;
 
-// -- These tables are a follow up from the original analysis_1.player_updates.
-// -- The goal is to store less data.
-// 
-// -- When a user changes their target troop ratio, we want to store that. Cause
-// -- it's uncommon, we don't want to store it for every frame
-// CREATE TABLE analysis_1.troop_ratio_change (
-//    game_id CHAR(8) NOT NULL,
-//    small_id SMALLINT NOT NULL,
-//    client_id CHAR(8) NOT NULL,
-//    target_troop_ratio REAL NOT NULL
-// );
-const INSERT_PLAYER_TROOP_RATIO_CHANGE = formatSql`
+const INSERT_PLAYER_TROOP_RATIO_CHANGE = format_sql`
     INSERT INTO
         analysis_1.troop_ratio_change (game_id, small_id, client_id, target_troop_ratio)
     VALUES ($1, $2, $3, $4)
@@ -300,14 +249,14 @@ async function cleanupPreviousAnalysis(
 }
 
 // ===== Game setup helpers =====
-function game_type_from_name(name: string): GameMapType {
-    for (const [k, v] of Object.entries(GameMapType)) {
-        if (v === name) {
-            return k as GameMapType;
-        }
-    }
-    throw new Error(`Unknown game type: ${name}`);
-}
+//function game_type_from_name(name: string): GameMapType {
+    //for (const [k, v] of Object.entries(GameMapType)) {
+        //if (v === name) {
+            //return k as GameMapType;
+        //}
+    //}
+    //throw new Error(`Unknown game type: ${name}`);
+//}
 
 async function load_map_data(
     maps_path: string,
@@ -343,124 +292,33 @@ async function load_map_data(
     };
 }
 
-// ===== Game initialization =====
-async function initializeGame(
-    record: GameRecord,
-    gameId: string,
-    pool: Pool,
-): Promise<{
-    game: any;
-    runner: GameRunner;
-    humans: PlayerInfo[];
-    nations: Nation[];
-    mapImpl: GameMapImpl;
-    miniMapImpl: GameMapImpl;
-}> {
-    const prod_config = getServerConfig("prod");
-    const server_config = new DefaultConfig(
-        prod_config,
-        record.info.config,
-        null,
-        true,
-    );
-    const random = new PseudoRandom(simpleHash(gameId));
-
-    // Load terrain
-    const map_data = await load_map_data(
-        MAP_FOLDER!,
-        record.info.config.gameMap,
-    );
-    console.log("Map data loaded", map_data.manifest.name);
-    const mapImpl = new GameMapImpl(
-        map_data.manifest.map.width,
-        map_data.manifest.map.height,
-        map_data.map,
-        map_data.manifest.map.num_land_tiles,
-    );
-
-    const miniMapImpl = new GameMapImpl(
-        map_data.manifest.mini_map.width,
-        map_data.manifest.mini_map.height,
-        map_data.minimap,
-        map_data.manifest.mini_map.num_land_tiles,
-    );
-
-    // Create players and nations
-    const humans = record.info.players.map(
-        (p) =>
-            new PlayerInfo(
-                p.username,
-                PlayerType.Human,
-                p.clientID,
-                random.nextID(),
-            ),
-    );
-    let nations = [];
-    if (!record.info.config.disableNPCs) {
-        nations = map_data.manifest.nations.map((n: any) => {
-            const pi = new PlayerInfo(
-                n.name,
-                PlayerType.FakeHuman,
-                null,
-                random.nextID(),
-            );
-
-            const [x, y] = n.coordinates;
-            const nation = new Nation(new Cell(x, y), n.strength, pi);
-
-            return nation;
-        });
+// ===== Analysis =====
+async function runSimulation(runner: GameRunner, record: GameRecord, analysis: Analysis, extraData: ExtraData, mapImpl: GameMapImpl) {
+    runner.init();
+    let simulation_turns_left = -1;
+    for (const turn of record.turns) {
+        await analyze_intents(turn, record, analysis, extraData, mapImpl);
+        runner.addTurn(turn);
+        runner.executeNextTick();
+        //await new Promise((resolve) => setTimeout(resolve, 10));
+        if (simulation_turns_left === 0) {
+            console.log("Player has won, stopping simulation.");
+            return;
+        } else if (simulation_turns_left > 0) {
+            console.log("Simulation turns left: ", simulation_turns_left);
+            simulation_turns_left--;
+        }
     }
-
-    const winner = record.info.winner![1];
-    console.log("Winner: ", winner);
-    const winner_player = humans.find((p) => p.clientID === winner)!;
-    console.log("Winner Player: ", winner_player);
-    console.log("Number of turns: ", record.turns.length);
-    //let winner_id = winner_player.id;
-    //process.exit(1)
-
-    const game = createGame(
-        humans,
-        nations,
-        mapImpl,
-        miniMapImpl,
-        server_config,
-    );
-
-    const runner = new GameRunner(
-        game,
-        new Executor(game, gameId, "openfrontpro"),
-        async (gu) => {
-            const simulation_turns_left = -1;
-            // Data not part of the analysis, but needs to be held between turns
-            const extra_data: ExtraData = {
-                players_died_on_turn: {},
-                players_disconnected_on_turn: {},
-                players_troop_ratio: {},
-            };
-            console.log("Extra data is all null now", extra_data);
-            const has_won = await handle_game_update(
-                gu,
-                pool,
-                record,
-                extra_data,
-            );
-            if (simulation_turns_left === -1 && has_won) {
-                console.log("Player has won, stopping simulation.");
-            }
-        },
-    );
-
-    return { game, runner, humans, nations, mapImpl, miniMapImpl };
 }
 
-// ===== Analysis finalization =====
-async function finalizeAnalysis(
+/// Insert all the data into the database
+async function finalize_and_insert_analysis(
     pool: Pool,
     analysis: Analysis,
 ): Promise<Analysis> {
-    const gameId = analysis.gameId;
+    const gameId = analysis.game_id;
+
+    let start_time = performance.now();
 
     for (const [client_id, spawn] of Object.entries(analysis.spawns)) {
         if(!spawn.x || !spawn.y) {
@@ -477,6 +335,26 @@ async function finalizeAnalysis(
         ]);
     }
 
+    for (const display_event of analysis.ins_display_event) {
+        await pool.query(INSERT_DISPLAY_EVENT, display_event);
+    }
+
+    for (const player of analysis.ins_player) {
+        await pool.query(INSERT_PLAYER, player);
+    }
+
+    for (const general_event of analysis.ins_general_event) {
+        await pool.query(INSERT_GENERAL_EVENT, general_event);
+    }
+
+    for (const player_update of analysis.ins_player_update) {
+        await pool.query(INSERT_PLAYER_UPDATE_NEW, player_update);
+    }
+
+    for (const troop_ratio of analysis.ins_troop_ratio) {
+        await pool.query(INSERT_PLAYER_TROOP_RATIO_CHANGE, troop_ratio);
+    }
+
     await pool.query(UPSERT_COMPLETED_ANALYSIS, [gameId, "v1"]);
 
     console.log("Completed analysis for game", gameId);
@@ -484,7 +362,7 @@ async function finalizeAnalysis(
 }
 
 // ===== Simulation helpers =====
-async function simgame(gameId: string, record: GameRecord, p: Pool) {
+async function simgame(gameId: string, record: GameRecord): Promise<Analysis> {
     const prod_config = getServerConfig("prod");
     const server_config = new DefaultConfig(
         prod_config,
@@ -548,10 +426,6 @@ async function simgame(gameId: string, record: GameRecord, p: Pool) {
     //let winner_id = winner_player.id;
     //process.exit(1)
 
-    // Simulate the game
-    // Clear all tables with this game ID
-    await cleanupPreviousAnalysis(p, gameId);
-
     console.log("Clear complete. Starting analysis.", gameId);
 
     const game = createGame(
@@ -564,11 +438,25 @@ async function simgame(gameId: string, record: GameRecord, p: Pool) {
 
     // This is a mutable object that we pass to every call to handle_game_update
     // Used to store data that we care about between turns, but doesn't make the analysis
-    const extra_data: ExtraData = {
+    let extra_data: ExtraData = {
         players_died_on_turn: {},
         players_disconnected_on_turn: {},
         players_troop_ratio: {},
+        last_tick_update_time: performance.now(),
     };
+
+    // This is the actual result of the analysis
+    let analysis: Analysis = {
+        game_id: gameId,
+        players: humans,
+        spawns: {},
+        ins_troop_ratio: [],
+        ins_general_event: [],
+        ins_display_event: [],
+        ins_player: [],
+        ins_player_update: [],
+    };
+
 
     // -1 means unlimited. Game ends at 0;
     let simulation_turns_left = -1;
@@ -576,7 +464,7 @@ async function simgame(gameId: string, record: GameRecord, p: Pool) {
         game,
         new Executor(game, gameId, "openfrontpro"),
         async (gu) => {
-            const has_won = await handle_game_update(gu, p, record, extra_data);
+            const has_won = await handle_game_update(gu, record, extra_data, analysis);
             if (simulation_turns_left === -1 && has_won) {
                 simulation_turns_left = 5;
             }
@@ -585,24 +473,18 @@ async function simgame(gameId: string, record: GameRecord, p: Pool) {
 
     game
 
-    const analysis: Analysis = {
-        gameId: gameId,
-        players: humans,
-        spawns: {},
-    };
-
-    // Run the simulation
-    await runSimulation(runner, record, analysis, p, extra_data, map_impl);
+    // Run the simulation: this modifies the analysis and extra_data objects
+    await runSimulation(runner, record, analysis, extra_data, map_impl);
     console.log("Simulation complete. Finalizing analysis.");
 
-    return await finalizeAnalysis(p, analysis);
+    return analysis;
 }
 
 async function analyze_intents(
     turn: Turn,
-    p: Pool,
-    record: GameRecord,
+    _record: GameRecord,
     analysis: Analysis,
+    extra_data: ExtraData,
     map_impl: GameMapImpl,
 ): Promise<void> {
     for (const intent of turn.intents) {
@@ -640,28 +522,21 @@ const is_game_update = (
 /// Function to handle game updates. Returns true if the game is finished.
 async function handle_game_update(
     gu: GameUpdateViewData | ErrorUpdate,
-    pool: Pool,
     record: GameRecord,
-    extraData: ExtraData,
+    extra_data: ExtraData,
+    analysis: Analysis,
 ): Promise<boolean> {
-    const gameId = record.info.gameID;
-    let gameIsWon = false;
+    const game_id = record.info.gameID;
+    let game_is_won = false;
 
     if (!is_game_update(gu)) {
         console.error("Error Update: ", gu);
         return false;
     }
 
-    const shouldLogTick = gu.tick % 100 === 0;
-    if (shouldLogTick) {
-        console.log(`Game Update at tick`, gu.tick);
-    }
-
-    for (const [key, enumValue] of Object.entries(GameUpdateType)) {
-        const ups: GameUpdate[] = gu.updates[enumValue] || [];
-        const hasNoUpdates = ups.length === 0;
-
-        if (hasNoUpdates) {
+    for (const [key, enum_value] of Object.entries(GameUpdateType)) {
+        const ups: GameUpdate[] = gu.updates[enum_value] || [];
+        if (ups.length === 0) {
             continue;
         }
 
@@ -670,7 +545,7 @@ async function handle_game_update(
             (up as any).type = key;
         });
 
-        switch (enumValue) {
+        switch (enum_value) {
             case GameUpdateType.Unit:
                 // Filter out trade ships and skip processing for now
                 const filteredUps = ups.filter(
@@ -682,67 +557,70 @@ async function handle_game_update(
                 continue;
 
             case GameUpdateType.DisplayEvent:
-                await processDisplayEvents(ups, gameId, gu.tick, pool);
+                await process_display_events(ups, game_id, gu.tick, analysis);
                 break;
 
             case GameUpdateType.Player:
-                await processPlayerUpdates(
+                await process_player_updates(
                     ups,
-                    gameId,
+                    game_id,
                     gu.tick,
-                    pool,
-                    extraData,
+                    extra_data,
+                    analysis,
                 );
                 break;
 
             case GameUpdateType.Win:
-                gameIsWon = true;
+                game_is_won = true;
                 // fall through
 
             default:
-                await processGeneralEvents(ups, gameId, gu.tick, pool, key);
+                await process_general_events(ups, game_id, gu.tick, analysis, key);
                 break;
         }
     }
 
-    return gameIsWon;
+    const num_print_ticks = 300;
+    const should_log_tick = gu.tick % 300 === (num_print_ticks - 1);
+    if (should_log_tick) {
+        let tick_time = performance.now() - (extra_data.last_tick_update_time || 0);
+        let ticks_per_sec = (1000 / tick_time).toFixed(2);
+        console.log(`Game Update: ${gu.tick + 1} ticks. ${ticks_per_sec}t/s.`);
+        extra_data.last_tick_update_time = performance.now();
+    }
+
+    return game_is_won;
 }
 
 // Helper functions
-async function processDisplayEvents(
+async function process_display_events(
     ups: GameUpdate[],
-    gameId: string,
+    game_id: string,
     tick: number,
-    pool: Pool,
+    analysis: Analysis,
 ) {
     for (const up of ups) {
         const displayUpdate = up as DisplayMessageUpdate;
         const messageType = MessageType[displayUpdate.messageType];
         (up as any).messageType = messageType;
 
-        const d = await pool.query(INSERT_DISPLAY_EVENT, [
-            gameId,
+        analysis.ins_display_event.push([
+            game_id,
             tick,
             displayUpdate.messageType,
             displayUpdate.message,
             displayUpdate.playerID,
             displayUpdate.goldAmount,
         ]);
-
-        if (d?.rows[0].tick !== tick) {
-            throw new Error(
-                `Failed to insert display event for game ${gameId} at tick ${tick}`,
-            );
-        }
     }
 }
 
-async function processPlayerUpdates(
+async function process_player_updates(
     ups: GameUpdate[],
-    gameId: string,
+    game_id: string,
     tick: number,
-    pool: Pool,
-    extraData: ExtraData,
+    extra_data: ExtraData,
+    analysis: Analysis,
 ) {
     if (tick % 10 !== 0) {
         return;
@@ -750,30 +628,25 @@ async function processPlayerUpdates(
 
     for (const up of ups) {
         const update = up as PlayerUpdate;
-        const isAliveBit = update.isAlive ? 1 : 0;
-        const isConnectedBit = !update.isDisconnected ? 1 : 0;
-        const playerStatus = isAliveBit | (isConnectedBit << 1);
+        const is_alive_bit = update.isAlive ? 1 : 0;
+        const is_connected_bit = !update.isDisconnected ? 1 : 0;
 
-        const disconnectedAt =
-            extraData.players_disconnected_on_turn[update.id];
-        const playerIsLongDisconnected =
-            disconnectedAt && disconnectedAt + 15 < tick;
-        const shouldTrackDisconnection =
-            tick > 301 && update.isDisconnected && !disconnectedAt;
-        const shouldIgnoreBot =
+        const disconnected_at =
+            extra_data.players_disconnected_on_turn[update.id];
+        const player_is_disconnected_long =
+            disconnected_at && disconnected_at + 15 < tick;
+        const should_look_for_disconnects =
+            tick > 301 && update.isDisconnected && !disconnected_at;
+        const should_ignore_this_bot =
             tick > 15 && update.playerType === PlayerType.Bot;
 
-        if (playerIsLongDisconnected) {
-            continue;
-        }
-
-        if (shouldTrackDisconnection) {
-            extraData.players_disconnected_on_turn[update.id] = tick;
+        if (should_look_for_disconnects) {
+            extra_data.players_disconnected_on_turn[update.id] = tick;
         }
 
         if (tick === 300) {
-            await pool.query(INSERT_PLAYER, [
-                gameId,
+            analysis.ins_player.push([
+                game_id,
                 update.id,
                 update.clientID,
                 update.smallID,
@@ -784,7 +657,11 @@ async function processPlayerUpdates(
             ]);
         }
 
-        if (shouldIgnoreBot) {
+        if (player_is_disconnected_long) {
+            continue;
+        }
+
+        if (should_ignore_this_bot) {
             continue;
         }
 
@@ -792,64 +669,47 @@ async function processPlayerUpdates(
             continue; // Ignore Nations that have no tiles and no gold
         }
 
-        const d = await pool.query(INSERT_PLAYER_UPDATE_NEW, [
-            gameId,
+        analysis.ins_player_update.push([
+            game_id,
             update.smallID,
             tick,
-            isAliveBit,
-            isConnectedBit,
+            is_alive_bit,
+            is_connected_bit,
             compress_value_for_db(update.tilesOwned),
             compress_value_for_db(update.gold),
             compress_value_for_db(update.workers),
             compress_value_for_db(update.troops),
         ]);
 
-        let last_troop_ratio = extraData.players_troop_ratio?.[update.id];
+        let last_troop_ratio = extra_data.players_troop_ratio?.[update.id];
         if(update.targetTroopRatio !== last_troop_ratio && update.playerType === PlayerType.Human) {
-            await pool.query(INSERT_PLAYER_TROOP_RATIO_CHANGE, [
-                gameId,
+            analysis.ins_troop_ratio.push([
+                game_id,
                 update.smallID,
                 update.clientID,
                 update.targetTroopRatio,
             ]);
-            extraData.players_troop_ratio[update.id] = update.targetTroopRatio;
-        }
-
-        if (d?.rows[0].tick !== tick) {
-            throw new Error(
-                `Failed to insert player update for game ${gameId} at tick ${tick}`,
-            );
+            extra_data.players_troop_ratio[update.id] = update.targetTroopRatio;
         }
     }
 }
 
-async function processGeneralEvents(
+async function process_general_events(
     ups: GameUpdate[],
-    gameId: string,
+    game_id: string,
     tick: number,
-    pool: Pool,
+    analysis: Analysis,
     key: string,
 ) {
     for (const up of ups) {
         delete (up as any).type;
 
-        try {
-            const d = await pool.query(INSERT_GENERAL_EVENT, [
-                gameId,
-                tick,
-                key,
-                change_big_int_to_string_recursively(up),
-            ]);
-
-            if (d?.rows[0].tick !== tick) {
-                throw new Error(`No rows from DB updated`);
-            }
-        } catch (e) {
-            console.error(
-                `Error inserting general event for game ${gameId} at tick ${tick}:`,
-                e,
-            );
-        }
+        analysis.ins_general_event.push([
+            game_id,
+            tick,
+            key,
+            change_big_int_to_string_recursively(up),
+        ]);
     }
 }
 
@@ -873,7 +733,7 @@ function change_big_int_to_string_recursively(obj: any): any {
 // ===== Main entry point =====
 export const base_log = new Logger();
 
-async function processPendingGames(pool: Pool): Promise<void> {
+async function process_pending_games(pool: Pool): Promise<void> {
     // Select 1 job from DB by updating a single row from the analysis_queue table (INNER JOIN with finished_games)
     // We set the analysis_status to 'Running' and then select the game_id and result_json
     const res = await pool.query(SELECT_AND_UPDATE_JOB);
@@ -886,7 +746,8 @@ async function processPendingGames(pool: Pool): Promise<void> {
         try {
             const r = game.result_json as GameRecord;
             const record = decompressGameRecord(r);
-            const analysis = await simgame(game.game_id, record, pool);
+            const analysis = await simgame(game.game_id, record);
+            await finalize_and_insert_analysis(pool, analysis);
         } catch (e) {
             console.log("The analysis failed for game", game.game_id, e);
             new_state = "Failed";
@@ -904,6 +765,13 @@ async function processPendingGames(pool: Pool): Promise<void> {
             new_state,
         ]);
     }
+}
+
+function format_sql(strings: TemplateStringsArray, ...values: any[]): string {
+    return strings.reduce(
+        (acc, str, index) => acc + str + (values[index] || ""),
+        "",
+    );
 }
 
 async function setup(): Promise<Pool> {
@@ -928,7 +796,7 @@ async function setup(): Promise<Pool> {
 async function main(database: Pool): Promise<void> {
     for (;;) {
         try {
-            await processPendingGames(database);
+            await process_pending_games(database);
         } catch (e) {
             console.error("Error: ", e);
         }
