@@ -211,6 +211,31 @@ pub async fn look_for_lobby_games(
         let game_id = &game.game_id;
         let finish_status = check_if_game_finished(&ofapi, game_id).await?;
         save_finished_game(database.clone(), finish_status, game_id).await?;
+
+        let should_auto_analyze =
+            sqlx::query!("SELECT key, value FROM config WHERE key = 'auto_analyze_games'")
+                .fetch_optional(&database)
+                .await?
+                .map(|row| row.value == "true")
+                .unwrap_or(false);
+
+        if should_auto_analyze {
+            let res = sqlx::query!(
+                "INSERT INTO analysis_queue (game_id, requesting_user_id)
+                 VALUES ($1, NULL)
+                 ON CONFLICT (game_id, requesting_user_id) DO NOTHING",
+                game_id,
+            )
+            .execute(&database)
+            .await?;
+
+            if res.rows_affected() > 0 {
+                tracing::info!("Game {} added to analysis queue.", game_id);
+            } else {
+                tracing::info!("Game {} already in analysis queue.", game_id);
+            }
+        }
+
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
 
@@ -372,7 +397,7 @@ pub async fn look_for_new_game_in_analysis_queue(
 //look_for_old_running_games(db.clone(), cfg.clone())
 pub async fn look_for_old_running_games(
     db: PgPool,
-    cfg: std::sync::Arc<Config>,
+    _cfg: std::sync::Arc<Config>,
 ) -> anyhow::Result<()> {
     let res = sqlx::query!(
         r#"
@@ -392,13 +417,82 @@ pub async fn look_for_old_running_games(
 
     Ok(())
 }
-//look_for_tracked_player_games(db.clone(), cfg.clone())
+
+pub async fn update_players_tracked_games(
+    db: PgPool,
+    openfront_player_id: &str,
+    ofapi: &impl OpenFrontAPI,
+) -> anyhow::Result<()> {
+    let dat = ofapi.get_player_data(openfront_player_id).await?;
+
+    for game in dat["games"].as_array().unwrap() {
+        let game_id = game["gameId"].as_str().unwrap();
+        let client_id = game["clientId"].as_str().unwrap();
+        tracing::info!(
+            "Updating player {} for game {} with client ID {}",
+            openfront_player_id,
+            game_id,
+            client_id
+        );
+        let new_row = sqlx::query!(
+            r#"
+            INSERT INTO social.tracked_player_in_game (
+                openfront_player_id, game_id, client_id
+            ) VALUES ($1, $2, $3)
+            ON CONFLICT (openfront_player_id, game_id, client_id) DO NOTHING
+            "#,
+            openfront_player_id,
+            game_id,
+            client_id,
+        )
+        .execute(&db)
+        .await?;
+
+        if new_row.rows_affected() > 0 {
+            tracing::info!(
+                "Inserted player {} with game {} as client ID {}",
+                openfront_player_id,
+                game_id,
+                client_id
+            );
+        }
+    }
+
+    Ok(())
+}
+
 pub async fn look_for_tracked_player_games(
     db: PgPool,
-    cfg: std::sync::Arc<Config>,
+    ofapi: impl OpenFrontAPI,
 ) -> anyhow::Result<()> {
-    // This function is not implemented yet.
-    // It should look for games of tracked players that are not in the finished_games table.
-    // For now, we will just return Ok(()).
+    tracing::info!("Looking for tracked players to update their games...");
+    let res = sqlx::query!(
+        r#"
+        UPDATE
+            social.tracked_openfront_players
+        SET
+            last_check_unix_sec = EXTRACT(EPOCH FROM NOW())
+        WHERE
+            last_check_unix_sec < extract(epoch from (NOW() - INTERVAL '30 minutes'))
+            AND is_tracking = true
+        RETURNING openfront_player_id
+        "#
+    )
+    .fetch_all(&db)
+    .await?;
+
+    if res.is_empty() {
+        return Ok(());
+    }
+
+    tracing::info!("Found {} tracked players to update.", res.len());
+    for player in res {
+        let player_id = &player.openfront_player_id;
+        tracing::info!("Checking tracked player: {}", player_id);
+        if let Err(e) = update_players_tracked_games(db.clone(), player_id, &ofapi).await {
+            tracing::error!("Error updating tracked player {}: {}", player_id, e);
+        }
+    }
+    tracing::info!("Finished updating tracked players' games.");
     Ok(())
 }

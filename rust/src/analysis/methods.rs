@@ -178,8 +178,8 @@ pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<R
             name: row.name,
             tiles_owned: super::decompress_value_from_db(row.tiles_owned),
             gold: super::decompress_value_from_db(row.gold),
-            workers: super::decompress_value_from_db(row.workers),
-            troops: super::decompress_value_from_db(row.troops),
+            workers: super::decompress_value_from_db(row.workers) / 10,
+            troops: super::decompress_value_from_db(row.troops) / 10,
         };
 
         players_on_tick

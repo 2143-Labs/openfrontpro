@@ -121,8 +121,8 @@ pub enum ActiveTasks {
 
 /// Spawn the background worker tasks
 async fn launch_tasks(config: Arc<Config>, database: PgPool) -> anyhow::Result<()> {
-    if !config
-        .disable_tasks
+    if config
+        .extra_tasks
         .contains(&ActiveTasks::LookForOpenfrontLobbies)
     {
         let db = database.clone();
@@ -169,8 +169,8 @@ async fn launch_tasks(config: Arc<Config>, database: PgPool) -> anyhow::Result<(
         );
     }
 
-    /// TODO If analysis takes longer than 30 minutes, then we update state = Stalled
-    /// LookForOldRunningGames,
+    // If analysis takes longer than 30 minutes, then we update state = Stalled
+    // LookForOldRunningGames,
     if !config
         .disable_tasks
         .contains(&ActiveTasks::LookForOldRunningGames)
@@ -189,16 +189,15 @@ async fn launch_tasks(config: Arc<Config>, database: PgPool) -> anyhow::Result<(
     // TODO If a session has expired, we can delete it from db
     // LookForOldSessions,
     //
-    // TODO For every registered player we have with an openfront ID, look for their games
-    // LookForTrackedPlayerGames,
+    // For every registered player we have with an openfront ID, look for their games
     if !config
         .disable_tasks
         .contains(&ActiveTasks::LookForTrackedPlayerGames)
     {
         let db = database.clone();
-        let cfg = config.clone();
+        let ofapi = config.clone();
         keep_task_alive(
-            move || tasks::look_for_tracked_player_games(db.clone(), cfg.clone()),
+            move || tasks::look_for_tracked_player_games(db.clone(), ofapi.clone()),
             TaskSettings {
                 sleep_time: Duration::from_secs(60),
                 ..Default::default()
