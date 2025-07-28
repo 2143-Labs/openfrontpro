@@ -221,11 +221,18 @@ pub async fn look_for_lobby_games(
         if should_auto_analyze {
             let res = sqlx::query!(
                 "INSERT INTO analysis_queue (game_id, requesting_user_id)
-                 VALUES ($1, NULL)",
+                 VALUES ($1, NULL)
+                 ON CONFLICT (game_id, requesting_user_id) DO NOTHING",
                 game_id,
             )
             .execute(&database)
             .await?;
+
+            if res.rows_affected() > 0 {
+                tracing::info!("Game {} added to analysis queue.", game_id);
+            } else {
+                tracing::info!("Game {} already in analysis queue.", game_id);
+            }
         }
 
 
@@ -390,7 +397,7 @@ pub async fn look_for_new_game_in_analysis_queue(
 //look_for_old_running_games(db.clone(), cfg.clone())
 pub async fn look_for_old_running_games(
     db: PgPool,
-    cfg: std::sync::Arc<Config>,
+    _cfg: std::sync::Arc<Config>,
 ) -> anyhow::Result<()> {
     let res = sqlx::query!(
         r#"
@@ -410,13 +417,74 @@ pub async fn look_for_old_running_games(
 
     Ok(())
 }
+
+
+pub async fn update_players_tracked_games(
+    db: PgPool,
+    openfront_player_id: &str,
+    ofapi: &impl OpenFrontAPI,
+) -> anyhow::Result<()> {
+    let dat = ofapi
+        .get_player_data(openfront_player_id)
+        .await?;
+
+    for game in dat["games"].as_array().unwrap() {
+        let game_id = game["gameId"].as_str().unwrap();
+        let client_id = game["clientId"].as_str().unwrap();
+        let new_row = sqlx::query!(
+            r#"
+            INSERT INTO social.tracked_player_in_game (
+                openfront_player_id, game_id, client_id
+            ) VALUES ($1, $2, $3)
+            ON CONFLICT (openfront_player_id, game_id) DO UPDATE SET client_id = $3
+            "#,
+            openfront_player_id,
+            game_id,
+            client_id,
+        ).execute(&db).await?;
+
+        if new_row.rows_affected() > 0 {
+            tracing::info!(
+                "Inserted player {} into game {} with client ID {}",
+                openfront_player_id,
+                game_id,
+                client_id
+            );
+        }
+    }
+
+    Ok(())
+}
+
+
 //look_for_tracked_player_games(db.clone(), cfg.clone())
 pub async fn look_for_tracked_player_games(
     db: PgPool,
-    cfg: std::sync::Arc<Config>,
+    ofapi: impl OpenFrontAPI,
 ) -> anyhow::Result<()> {
-    // This function is not implemented yet.
-    // It should look for games of tracked players that are not in the finished_games table.
-    // For now, we will just return Ok(()).
+//CREATE TABLE IF NOT EXISTS social.tracked_openfront_players (
+    //openfront_player_id TEXT NOT NULL PRIMARY KEY,
+    //is_tracking BOOLEAN NOT NULL DEFAULT TRUE,
+    //last_check_unix_sec BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW() - INTERVAL '1 day')
+    let res = sqlx::query!(
+        r#"
+        UPDATE
+            social.tracked_openfront_players
+        SET
+            last_check_unix_sec = EXTRACT(EPOCH FROM NOW())
+        WHERE
+            last_check_unix_sec < extract(epoch from (NOW() - INTERVAL '30 minutes'))
+            AND is_tracking = true
+        RETURNING openfront_player_id
+        "#
+    ).fetch_all(&db).await?;
+
+    for player in res {
+        let player_id = &player.openfront_player_id;
+        tracing::info!("Checking tracked player: {}", player_id);
+        if let Err(e) = update_players_tracked_games(db.clone(), player_id, &ofapi).await {
+            tracing::error!("Error updating tracked player {}: {}", player_id, e);
+        }
+    }
     Ok(())
 }

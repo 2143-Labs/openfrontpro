@@ -196,9 +196,9 @@ async fn launch_tasks(config: Arc<Config>, database: PgPool) -> anyhow::Result<(
         .contains(&ActiveTasks::LookForTrackedPlayerGames)
     {
         let db = database.clone();
-        let cfg = config.clone();
+        let ofapi = config.clone();
         keep_task_alive(
-            move || tasks::look_for_tracked_player_games(db.clone(), cfg.clone()),
+            move || tasks::look_for_tracked_player_games(db.clone(), ofapi.clone()),
             TaskSettings {
                 sleep_time: Duration::from_secs(60),
                 ..Default::default()
