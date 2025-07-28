@@ -78,6 +78,12 @@ export const INSERT_PLAYER_UPDATE_NEW = format_sql`
   RETURNING tick
 `;
 
+export const INSERT_PLAYER_UPDATE_NEW_PACKED = format_sql`
+  INSERT INTO
+    analysis_1.packed_player_updates (game_id, small_id, tick, player_alive, player_connected, tiles_owned, gold, workers, troops)
+    SELECT * FROM UNNEST($1::CHAR(8)[], $2::smallint[], $3::smallint[], $4::BIT(1)[], $5::BIT(1)[], $6::smallint[], $7::smallint[], $8::smallint[], $9::smallint[])
+`;
+
 export const INSERT_PLAYER_TROOP_RATIO_CHANGE = format_sql`
     INSERT INTO
         analysis_1.troop_ratio_change (game_id, small_id, client_id, target_troop_ratio)

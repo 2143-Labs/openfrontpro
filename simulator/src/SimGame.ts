@@ -37,7 +37,7 @@ import fs from "fs/promises";
 import { Pool } from "pg";
 import { on } from "events";
 import { Analysis, DATABASE_URL, ExtraData } from "./Types";
-import { load_map_data, setup } from "./Util";
+import { change_big_int_to_string_recursively, compress_value_for_db, load_map_data, setup } from "./Util";
 import { INSERT_DISPLAY_EVENT, INSERT_GENERAL_EVENT, INSERT_PLAYER, INSERT_PLAYER_TROOP_RATIO_CHANGE, INSERT_PLAYER_UPDATE_NEW, INSERT_SPAWN_LOCATIONS, SELECT_AND_UPDATE_JOB, UPDATE_ANALYSIS_QUEUE_STATUS, UPSERT_COMPLETED_ANALYSIS } from "./Sql";
 
 
@@ -415,19 +415,3 @@ async function process_general_events(
     }
 }
 
-function change_big_int_to_string_recursively(obj: any): any {
-    if (typeof obj === "bigint") {
-        return String(obj);
-    }
-    if (typeof obj !== "object" || obj === null) {
-        return obj;
-    }
-    if (Array.isArray(obj)) {
-        return obj.map(change_big_int_to_string_recursively);
-    }
-    const newObj: any = {};
-    for (const [k, v] of Object.entries(obj)) {
-        newObj[k] = change_big_int_to_string_recursively(v);
-    }
-    return newObj;
-}

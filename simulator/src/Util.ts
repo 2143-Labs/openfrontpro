@@ -38,7 +38,7 @@ import { Pool } from "pg";
 import { on } from "events";
 
 import { DATABASE_URL, MapData, Analysis } from "./Types";
-import { INSERT_SPAWN_LOCATIONS, INSERT_DISPLAY_EVENT, INSERT_PLAYER, INSERT_GENERAL_EVENT, INSERT_PLAYER_UPDATE_NEW, INSERT_PLAYER_TROOP_RATIO_CHANGE, UPSERT_COMPLETED_ANALYSIS } from "./Sql";
+import { INSERT_SPAWN_LOCATIONS, INSERT_DISPLAY_EVENT, INSERT_PLAYER, INSERT_GENERAL_EVENT, INSERT_PLAYER_UPDATE_NEW, INSERT_PLAYER_TROOP_RATIO_CHANGE, UPSERT_COMPLETED_ANALYSIS, INSERT_PLAYER_UPDATE_NEW_PACKED } from "./Sql";
 
 export async function load_map_data(
     maps_path: string,
@@ -186,8 +186,31 @@ export async function finalize_and_insert_analysis(
     time_taken = performance.now() - start_time;
     start_time = performance.now();
     console.log(`Finished inserting general events for game ${gameId} in ${(time_taken / 1000).toFixed(1)}s.`);
+    console.log("ok starting")
+    let stuff: any[][] = [];
     for (const player_update of analysis.ins_player_update) {
-        await pool.query(INSERT_PLAYER_UPDATE_NEW, player_update);
+        if (!stuff[0] || stuff[0].length < 9) {
+            for(let stuff_i in player_update) {
+                stuff[stuff_i] = stuff[stuff_i] || [];
+                stuff[stuff_i].push(player_update[stuff_i]);
+            }
+            continue;
+        }
+        //if(stuff.length < 10) {
+            //stuff.push(player_update);
+            //continue;
+        //}
+
+        console.log("insertihng", stuff);
+        let res = await pool.query(INSERT_PLAYER_UPDATE_NEW_PACKED, stuff);
+        if(res.rowCount !== stuff.length) {
+            console.error(`Error inserting player updates for game ${gameId}: expected ${stuff.length} rows, got ${res.rowCount}`);
+        }
+        stuff = [];
+    }
+    let res = await pool.query(INSERT_PLAYER_UPDATE_NEW_PACKED, stuff);
+    if(res.rowCount !== stuff.length) {
+        console.error(`Error inserting player updates for game ${gameId}: expected ${stuff.length} rows, got ${res.rowCount}`);
     }
 
     time_taken = performance.now() - start_time;
@@ -202,4 +225,21 @@ export async function finalize_and_insert_analysis(
     time_taken = performance.now() - start_time;
     console.log(`Inserted analysis for game ${gameId} in ${(time_taken / 1000).toFixed(1)}s.`);
     return analysis;
+}
+
+export function change_big_int_to_string_recursively(obj: any): any {
+    if (typeof obj === "bigint") {
+        return String(obj);
+    }
+    if (typeof obj !== "object" || obj === null) {
+        return obj;
+    }
+    if (Array.isArray(obj)) {
+        return obj.map(change_big_int_to_string_recursively);
+    }
+    const newObj: any = {};
+    for (const [k, v] of Object.entries(obj)) {
+        newObj[k] = change_big_int_to_string_recursively(v);
+    }
+    return newObj;
 }

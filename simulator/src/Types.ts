@@ -40,7 +40,7 @@ import { on } from "events";
 // ===== Constants / Types =====
 export let { DATABASE_URL, MAP_FOLDER, FINALIZE_METHOD } = process.env;
 if (!DATABASE_URL) {
-    throw new Error("Missing DATABASE_URL environment variable");
+    console.log("Missing DATABASE_URL environment variable");
 }
 
 if (!MAP_FOLDER) {

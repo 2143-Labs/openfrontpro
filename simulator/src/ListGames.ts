@@ -40,6 +40,8 @@ import { Analysis, DATABASE_URL, ExtraData } from "./Types";
 import { finalize_and_insert_analysis, load_map_data, setup } from "./Util";
 import { cleanup_previous_analysis, INSERT_DISPLAY_EVENT, INSERT_GENERAL_EVENT, INSERT_PLAYER, INSERT_PLAYER_TROOP_RATIO_CHANGE, INSERT_PLAYER_UPDATE_NEW, INSERT_SPAWN_LOCATIONS, SELECT_AND_UPDATE_JOB, UPDATE_ANALYSIS_QUEUE_STATUS, UPSERT_COMPLETED_ANALYSIS } from "./Sql";
 import { simgame } from "./SimGame";
+import { db_interaction_server } from "./DBInteractionServer";
+import { db_sim_client } from "./DBInteractionClient";
 
 
 // ===== Main entry point =====
@@ -85,6 +87,11 @@ async function process_pending_games(pool: Pool): Promise<void> {
 
 async function main(database: Pool): Promise<void> {
     global_pool = database;
+
+    if(process.env.RUN_SERVER === "true") {
+        await db_interaction_server(database);
+        return;
+    }
     for (;;) {
         try {
             await process_pending_games(database);
@@ -96,8 +103,17 @@ async function main(database: Pool): Promise<void> {
 
 }
 
-let db = setup();
-db.then(database => main(database));
+
+if(process.env.RUN_CLIENT) {
+    if(process.env.RUN_CLIENT === "true") {
+        process.env.RUN_CLIENT = "http://analysis.openfront.pro";
+    }
+    console.log("Running as client with URL: ", process.env.RUN_CLIENT);
+    await db_sim_client(process.env.RUN_CLIENT);
+} else {
+    let db = setup();
+    db.then(database => main(database));
+}
 
 // Add ctrl c handler to reset our state back to pending
 process.on("SIGTERM", endall);
