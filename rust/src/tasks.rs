@@ -428,12 +428,6 @@ pub async fn update_players_tracked_games(
     for game in dat["games"].as_array().unwrap() {
         let game_id = game["gameId"].as_str().unwrap();
         let client_id = game["clientId"].as_str().unwrap();
-        tracing::info!(
-            "Updating player {} for game {} with client ID {}",
-            openfront_player_id,
-            game_id,
-            client_id
-        );
         let new_row = sqlx::query!(
             r#"
             INSERT INTO social.tracked_player_in_game (
