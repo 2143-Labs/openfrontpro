@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO social.tracked_player_in_game (\n                openfront_player_id, game_id, client_id\n            ) VALUES ($1, $2, $3)\n            ON CONFLICT (openfront_player_id, game_id) DO UPDATE SET client_id = $3\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bpchar",
+        "Bpchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "04b42dc445fa937fb6e66d3acfd38c09f47b539d67622c41e085d7a76e4e3911"
+}

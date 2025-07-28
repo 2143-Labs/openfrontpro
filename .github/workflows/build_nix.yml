@@ -8,12 +8,12 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  registry: ghcr.io/2143-Labs
+  registry: ghcr.io/2143-labs
   rsrepo: openfrontpro-rs
   simrepo: openfrontpro-sim
 
 jobs:
-  build:
+  build_rs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -47,6 +47,18 @@ jobs:
             skopeo copy docker-archive://$RESULT docker://${{ env.registry }}/${{ env.rsrepo }}:openfrontpro-latest
           fi
 
+  build_sim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+      - name: Setup Nix Cache
+        uses: cachix/cachix-action@v10
+        with:
+          name: john2143
+          authToken: ${{ secrets.CACHIX_TOKEN }}
+          github_access_token: ${{ secrets.PAT_PACKAGES }}
 
       - name: Building sim package
         run: |
@@ -54,6 +66,7 @@ jobs:
 
       - name: Push sim with skopeo
         run: |
+          skopeo login --username ${{ github.actor }} --password "${{ secrets.PAT_PACKAGES }}" ghcr.io
           ls -la ./result
           RESULT=$(readlink -f ./result)
           echo "Result path: $RESULT"
