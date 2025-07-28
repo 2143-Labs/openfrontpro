@@ -428,12 +428,18 @@ pub async fn update_players_tracked_games(
     for game in dat["games"].as_array().unwrap() {
         let game_id = game["gameId"].as_str().unwrap();
         let client_id = game["clientId"].as_str().unwrap();
+        tracing::info!(
+            "Updating player {} for game {} with client ID {}",
+            openfront_player_id,
+            game_id,
+            client_id
+        );
         let new_row = sqlx::query!(
             r#"
             INSERT INTO social.tracked_player_in_game (
                 openfront_player_id, game_id, client_id
             ) VALUES ($1, $2, $3)
-            ON CONFLICT (openfront_player_id, game_id) DO UPDATE SET client_id = $3
+            ON CONFLICT (openfront_player_id, game_id, client_id) DO NOTHING
             "#,
             openfront_player_id,
             game_id,
@@ -474,6 +480,10 @@ pub async fn look_for_tracked_player_games(
     )
     .fetch_all(&db)
     .await?;
+
+    if let Err(e) = update_players_tracked_games(db.clone(), "iQU1RNmu", &ofapi).await {
+        tracing::error!("Error updating tracked player {}: {}", "iQU1RNmu", e);
+    }
 
     tracing::info!("Found {} tracked players to update.", res.len());
     for player in res {
