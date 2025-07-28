@@ -212,11 +212,12 @@ pub async fn look_for_lobby_games(
         let finish_status = check_if_game_finished(&ofapi, game_id).await?;
         save_finished_game(database.clone(), finish_status, game_id).await?;
 
-        let should_auto_analyze = sqlx::query!(
-            "SELECT key, value FROM config WHERE key = 'auto_analyze_games'"
-        ).fetch_optional(&database).await?
-            .map(|row| row.value == "true")
-            .unwrap_or(false);
+        let should_auto_analyze =
+            sqlx::query!("SELECT key, value FROM config WHERE key = 'auto_analyze_games'")
+                .fetch_optional(&database)
+                .await?
+                .map(|row| row.value == "true")
+                .unwrap_or(false);
 
         if should_auto_analyze {
             let res = sqlx::query!(
@@ -234,7 +235,6 @@ pub async fn look_for_lobby_games(
                 tracing::info!("Game {} already in analysis queue.", game_id);
             }
         }
-
 
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
@@ -418,15 +418,12 @@ pub async fn look_for_old_running_games(
     Ok(())
 }
 
-
 pub async fn update_players_tracked_games(
     db: PgPool,
     openfront_player_id: &str,
     ofapi: &impl OpenFrontAPI,
 ) -> anyhow::Result<()> {
-    let dat = ofapi
-        .get_player_data(openfront_player_id)
-        .await?;
+    let dat = ofapi.get_player_data(openfront_player_id).await?;
 
     for game in dat["games"].as_array().unwrap() {
         let game_id = game["gameId"].as_str().unwrap();
@@ -441,7 +438,9 @@ pub async fn update_players_tracked_games(
             openfront_player_id,
             game_id,
             client_id,
-        ).execute(&db).await?;
+        )
+        .execute(&db)
+        .await?;
 
         if new_row.rows_affected() > 0 {
             tracing::info!(
@@ -456,16 +455,11 @@ pub async fn update_players_tracked_games(
     Ok(())
 }
 
-
-//look_for_tracked_player_games(db.clone(), cfg.clone())
 pub async fn look_for_tracked_player_games(
     db: PgPool,
     ofapi: impl OpenFrontAPI,
 ) -> anyhow::Result<()> {
-//CREATE TABLE IF NOT EXISTS social.tracked_openfront_players (
-    //openfront_player_id TEXT NOT NULL PRIMARY KEY,
-    //is_tracking BOOLEAN NOT NULL DEFAULT TRUE,
-    //last_check_unix_sec BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW() - INTERVAL '1 day')
+    tracing::info!("Looking for tracked players to update their games...");
     let res = sqlx::query!(
         r#"
         UPDATE
@@ -477,8 +471,11 @@ pub async fn look_for_tracked_player_games(
             AND is_tracking = true
         RETURNING openfront_player_id
         "#
-    ).fetch_all(&db).await?;
+    )
+    .fetch_all(&db)
+    .await?;
 
+    tracing::info!("Found {} tracked players to update.", res.len());
     for player in res {
         let player_id = &player.openfront_player_id;
         tracing::info!("Checking tracked player: {}", player_id);
@@ -486,5 +483,6 @@ pub async fn look_for_tracked_player_games(
             tracing::error!("Error updating tracked player {}: {}", player_id, e);
         }
     }
+    tracing::info!("Finished updating tracked players' games.");
     Ok(())
 }
