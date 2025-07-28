@@ -66,6 +66,7 @@ jobs:
 
       - name: Push sim with skopeo
         run: |
+          skopeo login --username ${{ github.actor }} --password "${{ secrets.PAT_PACKAGES }}" ghcr.io
           ls -la ./result
           RESULT=$(readlink -f ./result)
           echo "Result path: $RESULT"
