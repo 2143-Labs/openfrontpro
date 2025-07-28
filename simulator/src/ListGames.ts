@@ -177,7 +177,9 @@ const UPDATE_ANALYSIS_QUEUE_STATUS = format_sql`
   UPDATE analysis_queue
   SET
     status = $2
-  WHERE game_id = $1
+  WHERE
+    game_id = $1
+    AND status in ('Pending', 'Running')
 `;
 
 const INSERT_PLAYER_UPDATE_NEW = format_sql`
@@ -753,6 +755,8 @@ function change_big_int_to_string_recursively(obj: any): any {
 
 // ===== Main entry point =====
 export const base_log = new Logger();
+export let current_processing_game: string | null = null;
+export let global_pool: Pool | null = null;
 
 async function process_pending_games(pool: Pool): Promise<void> {
     // Select 1 job from DB by updating a single row from the analysis_queue table (INNER JOIN with finished_games)
@@ -765,6 +769,7 @@ async function process_pending_games(pool: Pool): Promise<void> {
         let new_state = "Completed";
         const time_now = Date.now();
         try {
+            current_processing_game = game.game_id;
             const r = game.result_json as GameRecord;
             const record = decompressGameRecord(r);
             await cleanup_previous_analysis(pool, game.game_id);
@@ -816,6 +821,7 @@ async function setup(): Promise<Pool> {
 }
 
 async function main(database: Pool): Promise<void> {
+    global_pool = database;
     for (;;) {
         try {
             await process_pending_games(database);
@@ -829,3 +835,23 @@ async function main(database: Pool): Promise<void> {
 
 let db = setup();
 db.then(database => main(database));
+
+// Add ctrl c handler to reset our state back to pending
+process.on("SIGTERM", endall);
+process.on("SIGINT", endall);
+
+function endall() {
+    console.log("Ending all processes...");
+    if (current_processing_game) {
+        console.log("Current processing game: ", current_processing_game);
+        // set db state back to pending
+        global_pool?.query(UPDATE_ANALYSIS_QUEUE_STATUS, [
+            current_processing_game,
+            "Pending",
+        ]).catch((e) => console.error("Failed to reset game state: ", e));
+    } else {
+        console.log("No current processing game.");
+    }
+
+    process.exit(0);
+}
