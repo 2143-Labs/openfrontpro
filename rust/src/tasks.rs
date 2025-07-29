@@ -222,8 +222,7 @@ pub async fn look_for_lobby_games(
         if should_auto_analyze {
             let res = sqlx::query!(
                 "INSERT INTO analysis_queue (game_id, requesting_user_id)
-                 VALUES ($1, NULL)
-                 ON CONFLICT (game_id, requesting_user_id) DO NOTHING",
+                 VALUES ($1, NULL)",
                 game_id,
             )
             .execute(&database)
