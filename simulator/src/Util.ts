@@ -187,31 +187,35 @@ export async function finalize_and_insert_analysis(
     start_time = performance.now();
     console.log(`Finished inserting general events for game ${gameId} in ${(time_taken / 1000).toFixed(1)}s.`);
     console.log("ok starting")
-    let stuff: any[][] = [];
-    for (const player_update of analysis.ins_player_update) {
-        if (!stuff[0] || stuff[0].length < 9) {
-            for(let stuff_i in player_update) {
-                stuff[stuff_i] = stuff[stuff_i] || [];
-                stuff[stuff_i].push(player_update[stuff_i]);
-            }
-            continue;
-        }
-        //if(stuff.length < 10) {
-            //stuff.push(player_update);
+    //let stuff: any[][] = [];
+    //for (const player_update of analysis.ins_player_update) {
+        //if (!stuff[0] || stuff[0].length < 9) {
+            //for(let stuff_i in player_update) {
+                //stuff[stuff_i] = stuff[stuff_i] || [];
+                //stuff[stuff_i].push(player_update[stuff_i]);
+            //}
             //continue;
         //}
+        ////if(stuff.length < 10) {
+            ////stuff.push(player_update);
+            ////continue;
+        ////}
 
-        console.log("insertihng", stuff);
-        let res = await pool.query(INSERT_PLAYER_UPDATE_NEW_PACKED, stuff);
-        if(res.rowCount !== stuff.length) {
-            console.error(`Error inserting player updates for game ${gameId}: expected ${stuff.length} rows, got ${res.rowCount}`);
-        }
-        stuff = [];
+        //console.log("insertihng", stuff);
+        //let res = await pool.query(INSERT_PLAYER_UPDATE_NEW_PACKED, stuff);
+        //if(res.rowCount !== stuff.length) {
+            //console.error(`Error inserting player updates for game ${gameId}: expected ${stuff.length} rows, got ${res.rowCount}`);
+        //}
+        //stuff = [];
+    //}
+    //let res = await pool.query(INSERT_PLAYER_UPDATE_NEW_PACKED, stuff);
+    //if(res.rowCount !== stuff.length) {
+        //console.error(`Error inserting player updates for game ${gameId}: expected ${stuff.length} rows, got ${res.rowCount}`);
+    //}
+    for (const player_update of analysis.ins_player_update) {
+        const res = await pool.query(INSERT_PLAYER_UPDATE_NEW, player_update);
     }
-    let res = await pool.query(INSERT_PLAYER_UPDATE_NEW_PACKED, stuff);
-    if(res.rowCount !== stuff.length) {
-        console.error(`Error inserting player updates for game ${gameId}: expected ${stuff.length} rows, got ${res.rowCount}`);
-    }
+
 
     time_taken = performance.now() - start_time;
     start_time = performance.now();
