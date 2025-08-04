@@ -220,19 +220,28 @@ pub async fn look_for_lobby_games(
                 .unwrap_or(false);
 
         if should_auto_analyze {
-            let res = sqlx::query!(
-                "INSERT INTO analysis_queue (game_id, requesting_user_id)
-                 VALUES ($1, NULL)",
-                game_id,
-            )
-            .execute(&database)
-            .await?;
+            let new_pool = database.clone();
+            let game_id = game.game_id.clone();
+            tokio::task::spawn(async move {
+                tokio::time::sleep(Duration::from_secs(10)).await;
+                let Ok(res) = sqlx::query!(
+                    "INSERT INTO analysis_queue (game_id, requesting_user_id)
+                     VALUES ($1, NULL)",
+                    game_id,
+                )
+                .execute(&new_pool)
+                .await
+                else {
+                    tracing::error!("Failed to insert game {} into analysis queue.", game_id);
+                    return;
+                };
 
-            if res.rows_affected() > 0 {
-                tracing::info!("Game {} added to analysis queue.", game_id);
-            } else {
-                tracing::info!("Game {} already in analysis queue.", game_id);
-            }
+                if res.rows_affected() > 0 {
+                    tracing::info!("Game {} added to analysis queue.", game_id);
+                } else {
+                    tracing::info!("Game {} already in analysis queue.", game_id);
+                }
+            });
         }
 
         tokio::time::sleep(Duration::from_secs(1)).await;
