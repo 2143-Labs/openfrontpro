@@ -489,3 +489,51 @@ pub async fn look_for_tracked_player_games(
     tracing::info!("Finished updating tracked players' games.");
     Ok(())
 }
+
+pub async fn push_to_minio(
+    s3_client: aws_sdk_s3::Client,
+    config: &Config,
+    db: PgPool,
+) -> anyhow::Result<()> {
+    let res = sqlx::query!(
+        "SELECT
+            fg.game_id, fg.result_json
+        FROM
+            finished_games fg
+            FULL JOIN 
+        WHERE pushed_to_minio = false LIMIT 1"
+    )
+    .fetch_optional(&db)
+    .await?;
+
+    if let Some(row) = res {
+        let game_id = row.game_id;
+        let result_json: serde_json::Value = serde_json::from_str(&row.result_json)?;
+
+        let bucket_name = &config.minio_bucket;
+        let object_key = format!("finished_games/{}.json", game_id);
+
+        let body = aws_sdk_s3::types::ByteStream::from(serde_json::to_string(&result_json)?);
+        s3_client
+            .put_object()
+            .bucket(bucket_name)
+            .key(object_key)
+            .body(body)
+            .send()
+            .await?;
+
+        sqlx::query!(
+            "UPDATE finished_games SET pushed_to_minio = true WHERE game_id = $1",
+            game_id
+        )
+        .execute(&db)
+        .await?;
+
+        tracing::info!("Pushed game {} to MinIO bucket {}", game_id, bucket_name);
+    } else {
+        tracing::info!("No new games to push to MinIO.");
+    }
+
+    Ok(())
+}
+

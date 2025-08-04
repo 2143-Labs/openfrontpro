@@ -212,6 +212,7 @@ export async function finalize_and_insert_analysis(
     //if(res.rowCount !== stuff.length) {
         //console.error(`Error inserting player updates for game ${gameId}: expected ${stuff.length} rows, got ${res.rowCount}`);
     //}
+    console.log(`Inserting ${analysis.ins_player_update.length} player updates for game ${gameId}...`);
     for (const player_update of analysis.ins_player_update) {
         const res = await pool.query(INSERT_PLAYER_UPDATE_NEW, player_update);
     }

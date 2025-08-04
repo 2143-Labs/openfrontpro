@@ -117,6 +117,8 @@ pub enum ActiveTasks {
     LookForTrackedPlayerGames,
     /// Extra tasks: pull from prpod
     PullLobbiesFromPROD,
+    /// Look for games where analysis = true and push them to minio
+    PushToMinio,
 }
 
 /// Spawn the background worker tasks
@@ -224,6 +226,22 @@ async fn launch_tasks(config: Arc<Config>, database: PgPool) -> anyhow::Result<(
             },
             TaskSettings {
                 sleep_time: Duration::from_secs(60 * 60),
+                ..Default::default()
+            },
+        );
+    }
+
+    if config
+        .extra_tasks
+        .contains(&ActiveTasks::PushToMinio)
+    {
+        let db = database.clone();
+        let cfg = config.clone();
+        let s3_client = aws_config
+        keep_task_alive(
+            move || tasks::push_to_minio(db.clone(), cfg.clone()),
+            TaskSettings {
+                sleep_time: Duration::from_secs(60 * 5),
                 ..Default::default()
             },
         );
