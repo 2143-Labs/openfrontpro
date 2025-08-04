@@ -212,17 +212,6 @@ pub async fn look_for_lobby_games(
         let finish_status = check_if_game_finished(&ofapi, game_id).await?;
         save_finished_game(database.clone(), &finish_status, game_id).await?;
 
-        match finish_status {
-            GameStatus::Finished(_) => { }
-            GameStatus::Error(e) => {
-                tracing::warn!("Game {} encountered an error: {:?}", game_id, e.get("error"));
-                continue;
-            }
-            GameStatus::NotFound => {
-                continue;
-            }
-        }
-
         let should_auto_analyze =
             sqlx::query!("SELECT key, value FROM config WHERE key = 'auto_analyze_games'")
                 .fetch_optional(&database)
@@ -230,7 +219,7 @@ pub async fn look_for_lobby_games(
                 .map(|row| row.value == "true")
                 .unwrap_or(false);
 
-        if should_auto_analyze {
+        if should_auto_analyze && matches!(finish_status, GameStatus::Finished(_)) {
             let new_pool = database.clone();
             let game_id = game.game_id.clone();
             tokio::task::spawn(async move {
@@ -249,7 +238,7 @@ pub async fn look_for_lobby_games(
                 };
 
                 if res.rows_affected() > 0 {
-                    tracing::info!("Game {} added to analysis queue.", game_id);
+                    tracing::warn!("Game {} added to analysis queue.", game_id);
                 } else {
                     tracing::info!("Game {} already in analysis queue.", game_id);
                 }
