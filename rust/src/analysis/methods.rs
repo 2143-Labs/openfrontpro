@@ -167,18 +167,11 @@ pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<R
         "#,
         game_id
     )
-    .fetch(&db);
-
-    tracing::info!(
-        "Query for player stats took: {} ms",
-        starting_time.elapsed().as_millis()
-    );
-    let starting_time = std::time::Instant::now();
+    .fetch_all(&db);
 
     let mut players_on_tick: HashMap<u16, Vec<PlayerStatsOnTick>> = HashMap::new();
 
-    while let Some(row) = res.next().await {
-        let row = row?;
+    for row in res.await? {
         let tick = row.tick as u16;
 
         let player_stats = PlayerStatsOnTick {
