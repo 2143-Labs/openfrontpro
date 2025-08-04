@@ -141,7 +141,7 @@ pub async fn check_if_game_finished(
 
 pub async fn save_finished_game(
     database: PgPool,
-    status: GameStatus,
+    status: &GameStatus,
     game_id: &str,
 ) -> anyhow::Result<()> {
     let (result_json, is_ok) = match status {
@@ -210,7 +210,18 @@ pub async fn look_for_lobby_games(
     for game in unfinished_games {
         let game_id = &game.game_id;
         let finish_status = check_if_game_finished(&ofapi, game_id).await?;
-        save_finished_game(database.clone(), finish_status, game_id).await?;
+        save_finished_game(database.clone(), &finish_status, game_id).await?;
+
+        match finish_status {
+            GameStatus::Finished(_) => { }
+            GameStatus::Error(e) => {
+                tracing::warn!("Game {} encountered an error: {:?}", game_id, e.get("error"));
+                continue;
+            }
+            GameStatus::NotFound => {
+                continue;
+            }
+        }
 
         let should_auto_analyze =
             sqlx::query!("SELECT key, value FROM config WHERE key = 'auto_analyze_games'")
@@ -231,6 +242,7 @@ pub async fn look_for_lobby_games(
                 )
                 .execute(&new_pool)
                 .await
+                .context("Failed to insert new game into analysis queue")
                 else {
                     tracing::error!("Failed to insert game {} into analysis queue.", game_id);
                     return;
@@ -397,7 +409,7 @@ pub async fn look_for_new_game_in_analysis_queue(
         .await?;
     }
 
-    save_finished_game(database.clone(), result_maybe.clone(), &game.game_id).await?;
+    save_finished_game(database.clone(), &result_maybe.clone(), &game.game_id).await?;
 
     Ok(true)
 }

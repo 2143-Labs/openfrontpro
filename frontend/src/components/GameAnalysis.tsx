@@ -16,9 +16,10 @@ import {
 
 interface GameAnalysisProps {
   gameId: string;
+  players?: GamePlayer[];   // new optional prop
 }
 
-const GameAnalysis: React.FC<GameAnalysisProps> = ({ gameId }) => {
+const GameAnalysis: React.FC<GameAnalysisProps> = ({ gameId, players: propPlayers }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statsData, setStatsData] = useState<PlayerStatsOverGame | null>(null);
@@ -45,13 +46,19 @@ const GameAnalysis: React.FC<GameAnalysisProps> = ({ gameId }) => {
       setLoading(true);
       setError(null);
 
-      // Fetch all analysis data in parallel
-      const [statsResponse, generalEventsResponse, displayEventsResponse, playersResponse] = await Promise.all([
+      // Fetch analysis data - conditionally fetch players if not provided as prop
+      const requests = [
         fetch(`/api/v1/analysis/${gameId}/get_player_stats`),
         fetch(`/api/v1/analysis/${gameId}/get_general_events`),
-        fetch(`/api/v1/analysis/${gameId}/get_display_events`),
-        fetch(`/api/v1/analysis/${gameId}/players`)
-      ]);
+        fetch(`/api/v1/analysis/${gameId}/get_display_events`)
+      ];
+      
+      if (!propPlayers) {
+        requests.push(fetch(`/api/v1/analysis/${gameId}/players`));
+      }
+      
+      const responses = await Promise.all(requests);
+      const [statsResponse, generalEventsResponse, displayEventsResponse, playersResponse] = responses;
 
       if (!statsResponse.ok) {
         throw new Error(`Failed to fetch player stats: ${statsResponse.status}`);
@@ -62,21 +69,33 @@ const GameAnalysis: React.FC<GameAnalysisProps> = ({ gameId }) => {
       if (!displayEventsResponse.ok) {
         throw new Error(`Failed to fetch display events: ${displayEventsResponse.status}`);
       }
-      if (!playersResponse.ok) {
+      if (!propPlayers && playersResponse && !playersResponse.ok) {
         throw new Error(`Failed to fetch players: ${playersResponse.status}`);
       }
 
-      const [stats, generalEventsData, displayEventsData, playersData] = await Promise.all([
+      const jsonPromises = [
         statsResponse.json(),
         generalEventsResponse.json(),
-        displayEventsResponse.json(),
-        playersResponse.json()
-      ]);
+        displayEventsResponse.json()
+      ];
+      
+      if (!propPlayers && playersResponse) {
+        jsonPromises.push(playersResponse.json());
+      }
+      
+      const jsonResults = await Promise.all(jsonPromises);
+      const [stats, generalEventsData, displayEventsData, playersData] = jsonResults;
 
       setStatsData(stats);
       setGeneralEvents(generalEventsData.events || []);
       setDisplayEvents(displayEventsData.events || []);
-      setPlayers(playersData.players || []);
+      
+      // Use prop players if provided, otherwise use fetched players
+      if (propPlayers) {
+        setPlayers(propPlayers);
+      } else {
+        setPlayers(playersData?.players || []);
+      }
 
     } catch (err) {
       console.error('Error fetching analysis data:', err);
