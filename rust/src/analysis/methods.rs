@@ -144,6 +144,8 @@ pub struct PlayerStatsOnTick {
 //    FOREIGN KEY (game_id) REFERENCES public.finished_games(game_id) ON DELETE CASCADE,
 //    PRIMARY KEY (game_id, id)
 pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<ResStatsOverGame> {
+    let starting_time = std::time::Instant::now();
+    tracing::info!("Fetching player stats for game_id: {}", game_id);
     let mut res = sqlx::query!(
         r#"
         SELECT
@@ -167,6 +169,12 @@ pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<R
     )
     .fetch(&db);
 
+    tracing::info!(
+        "Query for player stats took: {} ms",
+        starting_time.elapsed().as_millis()
+    );
+    let starting_time = std::time::Instant::now();
+
     let mut players_on_tick: HashMap<u16, Vec<PlayerStatsOnTick>> = HashMap::new();
 
     while let Some(row) = res.next().await {
@@ -187,6 +195,11 @@ pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<R
             .and_modify(|v| v.push(player_stats.clone()))
             .or_insert_with(|| vec![player_stats]);
     }
+
+    tracing::info!(
+        "Processing player stats took: {} ms",
+        starting_time.elapsed().as_millis()
+    );
 
     Ok(ResStatsOverGame {
         player_stats_ticks: players_on_tick,

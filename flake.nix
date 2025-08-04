@@ -24,7 +24,7 @@
     #bun2nix.url = "github:baileyluTCD/bun2nix";
 
     openfrontio_cur = {
-        url = "github:OpenFrontIO/OpenFrontIO/v0.24.10";
+        url = "github:OpenFrontIO/OpenFrontIO/v0.24.12";
         flake = false;
     };
 
