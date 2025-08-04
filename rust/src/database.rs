@@ -119,7 +119,7 @@ impl<'a> sqlx::FromRow<'a, sqlx::postgres::PgRow> for APIGetLobby {
 //}
 
 /// Enum representing the status of analysis queue entries: TODO implement all these
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema, sqlx::Type)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema, sqlx::Type, PartialEq, Eq)]
 #[sqlx(type_name = "analysis_queue_status")]
 pub enum AnalysisQueueStatus {
     Pending,

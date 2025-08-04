@@ -263,13 +263,40 @@ async fn game_analyze_handler_delete(
     }
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, sqlx::FromRow)]
+struct DBAnalysisQueueEntry {
+    game_id: String,
+    requested_unix_sec: i64,
+    status: AnalysisQueueStatus,
+    started_unix_sec: Option<i64>,
+}
+
+impl DBAnalysisQueueEntry {
+    fn into_api_entry(self) -> APIAnalysisQueueEntry {
+        APIAnalysisQueueEntry {
+            game_id: self.game_id,
+            queued_for_sec: crate::database::now_unix_sec() - self.requested_unix_sec,
+            status: self.status,
+            started_at_unix_sec: self.started_unix_sec,
+        }
+    }
+}
+
+fn into_error_resp(e: impl std::fmt::Display) -> Response {
+    axum::response::Response::builder()
+        .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+        .body(axum::body::Body::from(format!("Error: {}", e)))
+        .expect("Failed to build response for error message")
+}
+
 async fn analysis_queue_handler(
     Extension(database): Extension<PgPool>,
 ) -> Result<Json<Vec<APIAnalysisQueueEntry>>, Response> {
     // current unix time
     let now = crate::database::now_unix_sec();
 
-    let rows = sqlx::query!(
+    let rows1 = sqlx::query_as!(
+        DBAnalysisQueueEntry,
         r#"
         SELECT
             game_id, requested_unix_sec,
@@ -287,25 +314,48 @@ async fn analysis_queue_handler(
     )
     .fetch_all(&database)
     .await
-    .map_err(|e| {
-        axum::response::Response::builder()
-            .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
-            .body(axum::body::Body::from(format!(
-                "Database query failed: {}",
-                e
-            )))
-            .expect("Failed to build response")
-    })?;
+    .map_err(into_error_resp)?;
 
-    let resp = rows
+    let rows2 = sqlx::query_as!(
+        DBAnalysisQueueEntry,
+        r#"
+        SELECT
+            game_id, requested_unix_sec,
+            status as "status: AnalysisQueueStatus",
+            started_unix_sec
+        FROM analysis_queue
+        WHERE
+            status IN ('Completed', 'Cancelled')
+            AND (requested_unix_sec > $1)
+
+        ORDER BY requested_unix_sec ASC
+        "#,
+        // 5 mins ago
+        now_unix_sec() - (5 * 60)
+    )
+    .fetch_all(&database)
+    .await
+    .map_err(into_error_resp)?;
+
+    let mut resp: Vec<_> = rows1
         .into_iter()
-        .map(|r| APIAnalysisQueueEntry {
-            game_id: r.game_id,
-            queued_for_sec: now - r.requested_unix_sec,
-            status: r.status,
-            started_at_unix_sec: r.started_unix_sec,
-        })
+        .chain(rows2.into_iter())
+        .map(DBAnalysisQueueEntry::into_api_entry)
         .collect();
+
+    // Sort:
+    //   1. Running first
+    //   2. All others by requested_unix_sec ascending
+    resp.sort_by(|a, b| {
+        if a.status == AnalysisQueueStatus::Running && b.status != AnalysisQueueStatus::Running {
+            std::cmp::Ordering::Less
+        } else if a.status != AnalysisQueueStatus::Running && b.status == AnalysisQueueStatus::Running {
+            std::cmp::Ordering::Greater
+        } else {
+            a.queued_for_sec.cmp(&b.queued_for_sec)
+        }
+    });
+
 
     Ok(Json(resp))
 }
