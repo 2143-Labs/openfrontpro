@@ -146,7 +146,7 @@ pub struct PlayerStatsOnTick {
 pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<ResStatsOverGame> {
     let starting_time = std::time::Instant::now();
     tracing::info!("Fetching player stats for game_id: {}", game_id);
-    let mut res = sqlx::query!(
+    let res = sqlx::query!(
         r#"
         SELECT
             ply_upds.tick,
@@ -189,7 +189,7 @@ pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<R
             .or_insert_with(|| vec![player_stats]);
     }
 
-    tracing::info!(
+    tracing::warn!(
         "Processing player stats took: {} ms",
         starting_time.elapsed().as_millis()
     );
