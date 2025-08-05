@@ -46,7 +46,7 @@ pub async fn insert_new_game(first: &Lobby, database: &PgPool) -> anyhow::Result
         first.game_config.max_players,
         first.game_config.game_map,
         first.num_clients,
-        now_unix_sec(),
+        last_seen_unix_sec,
         serde_json::to_value(&first.game_config).unwrap()
     ).fetch_one(database).await?;
 
