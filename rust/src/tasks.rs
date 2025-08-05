@@ -28,7 +28,9 @@ pub enum GameStatus {
 pub async fn insert_new_game(first: &Lobby, database: &PgPool) -> anyhow::Result<u64> {
     let player_teams_as_int: i32 = first.game_config.teams().into();
 
-    sqlx::query!(
+    let last_seen_unix_sec = now_unix_sec();
+
+    let first_seen_res = sqlx::query!(
         "INSERT INTO
             lobbies (game_id, teams, max_players, game_map, approx_num_players, first_seen_unix_sec, last_seen_unix_sec, lobby_config_json)
         VALUES
@@ -37,6 +39,7 @@ pub async fn insert_new_game(first: &Lobby, database: &PgPool) -> anyhow::Result
         DO UPDATE
             SET approx_num_players = $5
             , last_seen_unix_sec = $6
+        RETURNING first_seen_unix_sec
         ",
         first.game_id,
         player_teams_as_int,
@@ -45,7 +48,7 @@ pub async fn insert_new_game(first: &Lobby, database: &PgPool) -> anyhow::Result
         first.num_clients,
         now_unix_sec(),
         serde_json::to_value(&first.game_config).unwrap()
-    ).execute(database).await?;
+    ).fetch_one(database).await?;
 
     let num_players_left = (first.game_config.max_players - first.num_clients).max(0);
 
@@ -56,16 +59,29 @@ pub async fn insert_new_game(first: &Lobby, database: &PgPool) -> anyhow::Result
         .max(3500)
         - 500;
 
-    tracing::info!(
-        "Lobby {} {} ({}) has {}/{} players. Starts in {}ms. Next check in {}ms.",
-        first.game_id,
-        first.game_config.game_map,
-        first.game_config.teams(),
-        first.num_clients,
-        first.game_config.max_players,
-        first.ms_until_start,
-        next_time
-    );
+    if first_seen_res.first_seen_unix_sec != last_seen_unix_sec {
+        tracing::info!(
+            "New Lobby {} {} ({}) has {}/{} players. Starts in {}ms. Next check in {}ms.",
+            first.game_id,
+            first.game_config.game_map,
+            first.game_config.teams(),
+            first.num_clients,
+            first.game_config.max_players,
+            first.ms_until_start,
+            next_time
+        );
+    } else {
+        tracing::trace!(
+            "Lobby {} {} ({}) has {}/{} players. Starts in {}ms. Next check in {}ms. (New game)",
+            first.game_id,
+            first.game_config.game_map,
+            first.game_config.teams(),
+            first.num_clients,
+            first.game_config.max_players,
+            first.ms_until_start,
+            next_time
+        );
+    }
 
     Ok(next_time)
 }
@@ -415,7 +431,7 @@ pub async fn look_for_old_running_games(
         SET
             status = 'Stalled'
         WHERE
-            started_unix_sec < extract(epoch from (NOW() - INTERVAL '30 minutes'))
+            started_unix_sec < extract(epoch from (NOW() - INTERVAL '60 minutes'))
             AND status = 'Running'
         "#
     )

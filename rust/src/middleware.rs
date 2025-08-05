@@ -1,7 +1,7 @@
 use axum::http::Request;
 //use chrono::Utc;
-use tower_http::trace::{OnRequest, OnResponse};
-use tracing::{Span, info};
+use tower_http::trace::{self, OnRequest, OnResponse};
+use tracing::{debug, info, Span};
 
 /// Current date and time as YYYY/MM/DD HH:MM:SST00:00 using chrono crate
 //fn ts_formatted() -> String {
@@ -19,12 +19,20 @@ impl<B> OnRequest<B> for LogOnRequest {
             return;
         }
 
+        if method == axum::http::Method::OPTIONS {
+            return;
+        }
+
         //let ts_formatted = ts_formatted();
         let _ = _span.enter();
         if let Some(query) = request.uri().query() {
-            info!("<{method} {path}?{query}",);
+            debug!("<{method} {path}?{query}",);
         } else {
-            info!("<{method} {path}",);
+            if method == axum::http::Method::POST {
+                info!("<{method} {path}",);
+            } else {
+                debug!("<{method} {path}",);
+            }
         }
     }
 }
@@ -47,8 +55,8 @@ impl<B> OnResponse<B> for LogOnResponse {
 
         // Log also the method and path from the prev
         // Use tracing to get the span value
-        if ms > 4.0 {
-            info!(">{status} ({ms}ms)",);
+        if ms > 15.0 {
+            debug!(">{status} ({ms}ms)",);
         }
     }
 }

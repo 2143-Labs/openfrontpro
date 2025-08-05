@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE\n            analysis_queue\n        SET\n            status = 'Stalled'\n        WHERE\n            started_unix_sec < extract(epoch from (NOW() - INTERVAL '60 minutes'))\n            AND status = 'Running'\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "3116b77d103386204c5f1c47fddb6d6bee11cb134af0c92278cf244404a51e33"
+}
