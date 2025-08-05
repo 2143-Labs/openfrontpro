@@ -59,7 +59,7 @@ pub async fn insert_new_game(first: &Lobby, database: &PgPool) -> anyhow::Result
         .max(3500)
         - 500;
 
-    if first_seen_res.first_seen_unix_sec != last_seen_unix_sec {
+    if first_seen_res.first_seen_unix_sec == last_seen_unix_sec {
         tracing::info!(
             "New Lobby {} {} ({}) has {}/{} players. Starts in {}ms. Next check in {}ms.",
             first.game_id,
