@@ -196,9 +196,12 @@ const LineChart: React.FC<LineChartProps> = ({
         }).filter(point => Math.abs(point.tick - tick) < 100); // Only show if reasonably close
 
         if (closestPoints.length > 0) {
+          // Sort by value in descending order (highest to lowest)
+          const sortedPoints = [...closestPoints].sort((a, b) => b.value - a.value);
+          
           const tooltipContent = `
             <div><strong>Time: ${tickToTime(tick)}</strong></div>
-            ${closestPoints.map(point => 
+            ${sortedPoints.map(point => 
               `<div style="color: ${point.color}">${point.player}: ${formatNumber(point.value)}</div>`
             ).join('')}
           `;
