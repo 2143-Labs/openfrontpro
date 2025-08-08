@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useLobbies } from '../hooks/useLobbies';
 import { FilterControls, SortControls, LobbiesTable, LoadingSpinner, ErrorMessage, AnalysisQueue } from './';
 
@@ -18,6 +19,7 @@ const deleteCookie = (name: string) => {
 };
 
 function LobbyHome() {
+  const navigate = useNavigate();
   const {
     lobbies,
     loading,
@@ -233,6 +235,12 @@ const [isAuthenticated, setIsAuthenticated] = useState(false);
                   {loading ? 'Refreshing...' : '🔄 Refresh Lobbies'}
                 </button>
               </div>
+              <button
+                onClick={() => navigate('/scoreboard')}
+                className="scoreboard-btn"
+              >
+                🏆 Scoreboard
+              </button>
               <a
                 href="https://openfront.io"
                 target="_blank"

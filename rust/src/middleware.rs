@@ -1,7 +1,7 @@
 use axum::http::Request;
 //use chrono::Utc;
-use tower_http::trace::{self, OnRequest, OnResponse};
-use tracing::{debug, info, Span};
+use tower_http::trace::{OnRequest, OnResponse};
+use tracing::{Span, debug, info};
 
 /// Current date and time as YYYY/MM/DD HH:MM:SST00:00 using chrono crate
 //fn ts_formatted() -> String {

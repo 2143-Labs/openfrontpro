@@ -323,6 +323,7 @@ async fn main() -> anyhow::Result<()> {
         // Frontend routes
         .route("/game/{game_id}", index_html.clone())
         .route("/user/{user_id}", index_html.clone())
+        .route("/scoreboard/", index_html.clone())
         .finish_api(&mut openapi)
         .layer(Extension(openapi.clone()))
         .layer(Extension(config.clone()))

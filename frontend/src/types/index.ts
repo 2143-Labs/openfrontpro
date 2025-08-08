@@ -83,6 +83,14 @@ export interface UserGameSummary {
   start_time: number;
 }
 
+export interface UserSummary {
+  user_id: string;
+  username: string;
+  is_tracked: boolean;
+}
+
+export type UsersResponse = { users: UserSummary[] };
+
 export interface UserData {
   user_id: string;
   username: string;

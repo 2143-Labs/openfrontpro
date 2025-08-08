@@ -247,8 +247,7 @@ pub async fn look_for_lobby_games(
                 )
                 .execute(&new_pool)
                 .await
-                .context("Failed to insert new game into analysis queue")
-                else {
+                .context("Failed to insert new game into analysis queue") else {
                     tracing::error!("Failed to insert game {} into analysis queue.", game_id);
                     return;
                 };

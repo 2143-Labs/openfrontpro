@@ -1,4 +1,4 @@
-import { Lobby, UserData } from '../types';
+import { Lobby, UserData, UserSummary, UsersResponse } from '../types';
 
 export interface FetchLobbiesParams {
   completed?: boolean | null;
@@ -62,4 +62,20 @@ export const fetchUser = async (userId: string): Promise<UserData> => {
   const res = await fetch(`/api/v1/users/${userId}`);
   if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
   return await res.json();
+};
+
+export const fetchAllUsers = async (): Promise<UserSummary[]> => {
+  const res = await fetch('/api/v1/users');
+  if (!res.ok) {
+    throw new Error(`HTTP error! status: ${res.status}`);
+  }
+  
+  const data: UsersResponse = await res.json();
+  
+  // Validate response shape and return users array with empty array fallback
+  if (data && typeof data === 'object' && Array.isArray(data.users)) {
+    return data.users;
+  }
+  
+  return [];
 };

@@ -125,11 +125,22 @@ pub struct ResStatsOverGame {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
 pub struct PlayerStatsOnTick {
     client_id: Option<String>,
+    small_id: u16,
     name: String,
     tiles_owned: u64,
     gold: u64,
     workers: u64,
     troops: u64,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema, sqlx::FromRow)]
+struct PlyUpdateRow {
+    tick: i16,
+    tiles_owned: i16,
+    gold: i16,
+    workers: i16,
+    troops: i16,
+    small_id: i16,
 }
 
 // Other palyer fields
@@ -144,9 +155,12 @@ pub struct PlayerStatsOnTick {
 //    FOREIGN KEY (game_id) REFERENCES public.finished_games(game_id) ON DELETE CASCADE,
 //    PRIMARY KEY (game_id, id)
 pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<ResStatsOverGame> {
-    let starting_time = std::time::Instant::now();
+    let players = get_game_players(db.clone(), game_id).await?;
+
+    let mut starting_time = std::time::Instant::now();
     tracing::info!("Fetching player stats for game_id: {}", game_id);
-    let res = sqlx::query!(
+    let res = sqlx::query_as!(
+        PlyUpdateRow,
         r#"
         SELECT
             ply_upds.tick,
@@ -154,35 +168,50 @@ pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<R
             ply_upds.gold,
             ply_upds.workers,
             ply_upds.troops,
-            plys.client_id,
-            plys.name
+            ply_upds.small_id as "small_id: i16"
         FROM
             analysis_1.packed_player_updates ply_upds
-            JOIN analysis_1.players plys
-            ON
-                ply_upds.game_id = plys.game_id
-                AND ply_upds.small_id = plys.small_id
         WHERE
             ply_upds.game_id = $1
+        ORDER BY
+            ply_upds.tick, ply_upds.small_id
         "#,
         game_id
     )
-    .fetch_all(&db).await?;
-
+    .fetch_all(&db)
+    .await?;
 
     tracing::warn!(
-        "Fetching player stats took: {} ms",
+        "Initial player stats query took {} ms",
         starting_time.elapsed().as_millis()
     );
-    let starting_time = std::time::Instant::now();
+    starting_time = std::time::Instant::now();
+
+    let get_player_by_small_id = |small_id: i16| {
+        players
+            .players
+            .iter()
+            .find(|p| p.small_id == small_id as u16)
+            .cloned()
+    };
 
     let mut players_on_tick: HashMap<u16, Vec<PlayerStatsOnTick>> = HashMap::new();
     for row in res {
+        //let row = row?;
         let tick = row.tick as u16;
+        let Some(player) = get_player_by_small_id(row.small_id) else {
+            tracing::warn!(
+                "Player with small_id {} not found in game {}",
+                row.small_id,
+                game_id
+            );
+            continue; // Skip this row if player not found
+        };
 
         let player_stats = PlayerStatsOnTick {
-            client_id: row.client_id,
-            name: row.name,
+            client_id: player.client_id,
+            name: player.name,
+            small_id: player.small_id,
             tiles_owned: super::decompress_value_from_db(row.tiles_owned),
             gold: super::decompress_value_from_db(row.gold),
             workers: super::decompress_value_from_db(row.workers) / 10,
@@ -196,7 +225,7 @@ pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<R
     }
 
     tracing::warn!(
-        "Processing player stats took: {} ms",
+        "Processing and streaming player stats took {} ms",
         starting_time.elapsed().as_millis()
     );
 

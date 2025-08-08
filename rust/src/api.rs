@@ -21,9 +21,7 @@ pub mod openfrontapi;
 use crate::{
     AnalysisQueueStatus, analysis,
     api::openfrontapi::{OpenFrontAPI, PublicLobbiesResponse},
-    database::{
-        APIAnalysisQueueEntry, APIFinishedGame, APIGetLobby, APIGetLobbyWithConfig, now_unix_sec,
-    },
+    database::{APIAnalysisQueueEntry, APIFinishedGame, APIGetLobby, APIGetLobbyWithConfig},
     oauth::APIUser,
     tasks,
 };
@@ -310,7 +308,7 @@ async fn analysis_queue_handler(
         ORDER BY requested_unix_sec ASC
         "#,
         // 3 hours ago
-        now_unix_sec() - (3 * 60 * 60)
+        now - (3 * 60 * 60)
     )
     .fetch_all(&database)
     .await
@@ -331,7 +329,7 @@ async fn analysis_queue_handler(
         ORDER BY requested_unix_sec ASC
         "#,
         // 5 mins ago
-        now_unix_sec() - (5 * 60)
+        now - (5 * 60)
     )
     .fetch_all(&database)
     .await
@@ -349,23 +347,34 @@ async fn analysis_queue_handler(
     resp.sort_by(|a, b| {
         if a.status == AnalysisQueueStatus::Running && b.status != AnalysisQueueStatus::Running {
             std::cmp::Ordering::Less
-        } else if a.status != AnalysisQueueStatus::Running && b.status == AnalysisQueueStatus::Running {
+        } else if a.status != AnalysisQueueStatus::Running
+            && b.status == AnalysisQueueStatus::Running
+        {
             std::cmp::Ordering::Greater
         } else {
             a.queued_for_sec.cmp(&b.queued_for_sec)
         }
     });
 
-
     Ok(Json(resp))
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
-struct SingleUserResponse {
+pub struct SingleUserResponse {
     user_id: String,
     username: String,
     friends: Vec<String>,
     openfront_player_data: Option<Value>,
+    recent_games: Vec<SingleRecentGameEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+pub struct SingleRecentGameEntry {
+    game_id: String,
+    client_id: String,
+    name_in_that_game: Option<String>,
+    flag_in_that_game: Option<String>,
+    analysis_complete_time: Option<i64>,
 }
 
 async fn get_users_handler(
@@ -398,6 +407,7 @@ async fn get_users_handler(
         username: user.username.clone(),
         friends: Vec::new(),
         openfront_player_data: None,
+        recent_games: Vec::new(),
     };
 
     // Fetch friends
@@ -428,8 +438,8 @@ async fn get_users_handler(
         })
         .collect();
 
-    // Fetch recent games
-    if let Some(ofpid) = user.openfront_player_id {
+    // Fetch overlay player data games
+    if let Some(ref ofpid) = user.openfront_player_id {
         info!("Fetching OpenFront player data for user: {}", ofpid);
         user_res.openfront_player_data = Some(cfg.get_player_data(&ofpid).await.map_err(|e| {
             axum::response::Response::builder()
@@ -440,6 +450,40 @@ async fn get_users_handler(
                 )))
                 .expect("Failed to build response for error message")
         })?);
+
+        //Fetch recent games
+        user_res.recent_games = sqlx::query_as!(
+            SingleRecentGameEntry,
+            r#"SELECT
+                tpig.game_id, tpig.client_id,
+                plys.name AS "name_in_that_game?",
+                plys.flag AS "flag_in_that_game?",
+                ca.inserted_at_unix_sec AS "analysis_complete_time?"
+            FROM
+                social.tracked_player_in_game tpig
+                LEFT JOIN analysis_1.players plys
+                ON
+                    tpig.client_id = plys.client_id
+                    AND tpig.game_id = plys.game_id
+                LEFT JOIN analysis_1.completed_analysis ca
+                ON
+                    tpig.game_id = ca.game_id
+            WHERE
+                openfront_player_id = $1
+            "#,
+            ofpid
+        )
+        .fetch_all(&database)
+        .await
+        .map_err(|e| {
+            axum::response::Response::builder()
+                .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+                .body(axum::body::Body::from(format!(
+                    "Failed to fetch recent games: {}",
+                    e
+                )))
+                .expect("Failed to build response for error message")
+        })?;
     }
 
     Ok(Json(user_res))
@@ -450,11 +494,56 @@ pub async fn open_api_json(Extension(api): Extension<OpenApi>) -> impl aide::axu
     Json(api)
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+pub struct APIUserListResponse {
+    users: Vec<APIUserItem>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, sqlx::FromRow)]
+pub struct APIUserItem {
+    user_id: Option<String>,
+    username: Option<String>,
+    is_tracked: Option<bool>,
+}
+
+pub async fn all_users_handler(
+    Extension(database): Extension<PgPool>,
+) -> Result<Json<APIUserListResponse>, Response> {
+    let users = sqlx::query_as!(
+        APIUserItem,
+        "SELECT
+            ru.id as user_id, ru.username,
+            COALESCE(top.is_tracking, false) as is_tracked
+        FROM
+            social.registered_users ru
+            LEFT JOIN social.tracked_openfront_players top
+        ON
+            top.openfront_player_id = ru.openfront_player_id
+        "
+    )
+    .fetch_all(&database)
+    .await
+    .map_err(|e| {
+        axum::response::Response::builder()
+            .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+            .body(axum::body::Body::from(format!(
+                "Failed to fetch users: {}",
+                e
+            )))
+            .expect("Failed to build response for error message")
+    })?;
+
+    let response = APIUserListResponse { users };
+
+    Ok(Json(response))
+}
+
 pub fn routes(database: PgPool, _openapi: OpenApi, cors: CorsLayer) -> ApiRouter {
     let api_routes = ApiRouter::new()
         .route("/lobbies", get(lobbies_handler).post(new_lobbies_handler))
         .route("/lobbies/{id}", get(lobbies_id_handler))
         .route("/analysis_queue", get(analysis_queue_handler))
+        .route("/users", get(all_users_handler))
         .route("/users/{user_id}", get(get_users_handler))
         .route("/games/{game_id}", get(game_handler))
         .route(

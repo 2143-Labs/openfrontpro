@@ -304,7 +304,11 @@ async fn callback_api_handler(
             format!(
                 "discord_user_id={}; Path=/; HttpOnly{}; SameSite=Lax",
                 user.id,
-                if cfg.redirect_uri.starts_with("https://") { "; Secure" } else { "" }
+                if cfg.redirect_uri.starts_with("https://") {
+                    "; Secure"
+                } else {
+                    ""
+                }
             ),
         )
         .header(
@@ -312,7 +316,11 @@ async fn callback_api_handler(
             format!(
                 "session_token={}; Path=/; HttpOnly{}; SameSite=Lax",
                 api_token,
-                if cfg.redirect_uri.starts_with("https://") { "; Secure" } else { "" }
+                if cfg.redirect_uri.starts_with("https://") {
+                    "; Secure"
+                } else {
+                    ""
+                }
             ),
         )
         .body(axum::body::Body::from(format!(
