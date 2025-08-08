@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            ply_upds.tick,\n            ply_upds.tiles_owned,\n            ply_upds.gold,\n            ply_upds.workers,\n            ply_upds.troops,\n            ply_upds.small_id as \"small_id: i16\"\n        FROM\n            analysis_1.packed_player_updates ply_upds\n        WHERE\n            ply_upds.game_id = $1\n        ORDER BY\n            ply_upds.tick, ply_upds.small_id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tick",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 1,
+        "name": "tiles_owned",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 2,
+        "name": "gold",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 3,
+        "name": "workers",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 4,
+        "name": "troops",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 5,
+        "name": "small_id: i16",
+        "type_info": "Int2"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Bpchar"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "c85e79284f4294e0e13c4d7ca5209ebf347b8d23c3daaa0f9bc1ff04ecd6feb9"
+}

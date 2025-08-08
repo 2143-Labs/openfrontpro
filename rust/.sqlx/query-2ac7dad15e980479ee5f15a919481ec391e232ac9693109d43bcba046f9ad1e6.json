@@ -1,0 +1,93 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            p.id,\n            p.client_id,\n            p.small_id,\n            p.player_type as \"player_type: String\",\n            p.name,\n            p.flag,\n            p.team,\n            s.tick as \"spawn_tick: Option<i16>\",\n            s.x as \"spawn_x: Option<i32>\",\n            s.y as \"spawn_y: Option<i32>\",\n            s.previous_spawns as \"previous_spawns: serde_json::Value\"\n        FROM\n            analysis_1.players p\n            LEFT JOIN analysis_1.spawn_locations s\n                ON  p.game_id = s.game_id\n                AND p.client_id = s.client_id\n        WHERE\n            p.game_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Bpchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "client_id",
+        "type_info": "Bpchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "small_id",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 3,
+        "name": "player_type: String",
+        "type_info": {
+          "Custom": {
+            "name": "analysis_1.player_type",
+            "kind": {
+              "Enum": [
+                "BOT",
+                "FAKEHUMAN",
+                "HUMAN"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "flag",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "team",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 7,
+        "name": "spawn_tick: Option<i16>",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 8,
+        "name": "spawn_x: Option<i32>",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
+        "name": "spawn_y: Option<i32>",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 10,
+        "name": "previous_spawns: serde_json::Value",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Bpchar"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "2ac7dad15e980479ee5f15a919481ec391e232ac9693109d43bcba046f9ad1e6"
+}

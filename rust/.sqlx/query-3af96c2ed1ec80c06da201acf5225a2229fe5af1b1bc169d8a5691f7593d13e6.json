@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO social.registered_users (id, username)\n        VALUES ($1, $2)\n        ON CONFLICT (id) DO UPDATE\n        -- no real change; just keep existing values\n        SET username = registered_users.username\n        RETURNING username, id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "username",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "id",
+        "type_info": "Bpchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Bpchar",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "3af96c2ed1ec80c06da201acf5225a2229fe5af1b1bc169d8a5691f7593d13e6"
+}

@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n                tpig.game_id, tpig.client_id,\n                plys.name AS \"name_in_that_game?\",\n                plys.flag AS \"flag_in_that_game?\",\n                ca.inserted_at_unix_sec AS \"analysis_complete_time?\"\n            FROM\n                social.tracked_player_in_game tpig\n                LEFT JOIN analysis_1.players plys\n                ON\n                    tpig.client_id = plys.client_id\n                    AND tpig.game_id = plys.game_id\n                LEFT JOIN analysis_1.completed_analysis ca\n                ON\n                    tpig.game_id = ca.game_id\n            WHERE\n                openfront_player_id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "game_id",
+        "type_info": "Bpchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "client_id",
+        "type_info": "Bpchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "name_in_that_game?",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "flag_in_that_game?",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "analysis_complete_time?",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "bef5231615dbff420247bfb9e4dbfa616f58baf5f35637e1558c1b0daa6b28ae"
+}

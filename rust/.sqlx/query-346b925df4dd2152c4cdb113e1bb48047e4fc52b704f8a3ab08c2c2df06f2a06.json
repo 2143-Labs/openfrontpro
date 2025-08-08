@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n            ru.id as user_id, ru.username,\n            COALESCE(top.is_tracking, false) as is_tracked\n        FROM\n            social.registered_users ru\n            LEFT JOIN social.tracked_openfront_players top\n        ON\n            top.openfront_player_id = ru.openfront_player_id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Bpchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "username",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "is_tracked",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "346b925df4dd2152c4cdb113e1bb48047e4fc52b704f8a3ab08c2c2df06f2a06"
+}
