@@ -39,7 +39,7 @@ import format from "pg-format";
 import { on } from "events";
 
 import { DATABASE_URL, MapData, Analysis } from "./Types";
-import { INSERT_SPAWN_LOCATIONS, INSERT_DISPLAY_EVENT, INSERT_PLAYER, INSERT_GENERAL_EVENT, INSERT_PLAYER_UPDATE_NEW, INSERT_PLAYER_TROOP_RATIO_CHANGE, UPSERT_COMPLETED_ANALYSIS, INSERT_PLAYER_UPDATE_NEW_PACKED } from "./Sql";
+import { INSERT_SPAWN_LOCATIONS, INSERT_DISPLAY_EVENT, INSERT_PLAYER, INSERT_GENERAL_EVENT, INSERT_PLAYER_UPDATE_NEW, INSERT_PLAYER_TROOP_RATIO_CHANGE, UPSERT_COMPLETED_ANALYSIS, INSERT_PLAYER_UPDATE_NEW_PACKED, INSERT_DISPLAY_EVENT_PACKED } from "./Sql";
 
 export async function load_map_data(
     maps_path: string,
@@ -166,13 +166,23 @@ export async function finalize_and_insert_analysis(
     let time_taken = performance.now() - start_time;
     start_time = performance.now();
     console.log(`Finished inserting spawn locations for game ${gameId} in ${(time_taken / 1000).toFixed(1)}s.`);
-    for (const display_event of analysis.ins_display_event) {
-        await pool.query(INSERT_DISPLAY_EVENT, display_event);
+    console.log("Inserting display events for game", gameId);
+    const INSERT_SIZE = 25;
+    for (let i = 0; i < analysis.ins_display_event.length; i += INSERT_SIZE) {
+        let rows = analysis.ins_display_event.slice(i, i + INSERT_SIZE);
+        let query_string = format(INSERT_DISPLAY_EVENT_PACKED, rows);
+        const res = await pool.query(query_string);
+        if (res.rowCount !== rows.length) {
+            console.error(
+                `Error inserting display events for game ${gameId}: expected ${rows.length} rows, got ${res.rowCount}`,
+            );
+        }
     }
 
     time_taken = performance.now() - start_time;
     start_time = performance.now();
     console.log(`Finished inserting display events for game ${gameId} in ${(time_taken / 1000).toFixed(1)}s.`);
+    console.log("Inserting players for game", gameId);
     for (const player of analysis.ins_player) {
         await pool.query(INSERT_PLAYER, player);
     }
@@ -180,6 +190,7 @@ export async function finalize_and_insert_analysis(
     time_taken = performance.now() - start_time;
     start_time = performance.now();
     console.log(`Finished inserting players for game ${gameId} in ${(time_taken / 1000).toFixed(1)}s.`);
+    console.log("Inserting general events for game", gameId);
     for (const general_event of analysis.ins_general_event) {
         await pool.query(INSERT_GENERAL_EVENT, general_event);
     }
@@ -187,12 +198,11 @@ export async function finalize_and_insert_analysis(
     time_taken = performance.now() - start_time;
     start_time = performance.now();
     console.log(`Finished inserting general events for game ${gameId} in ${(time_taken / 1000).toFixed(1)}s.`);
-    console.log("ok starting")
-    const INSERT_SIZE = 25;
+    console.log("Inserting player updates for game", gameId);
     for (let i = 0; i < analysis.ins_player_update.length; i += INSERT_SIZE) {
         let rows = analysis.ins_player_update.slice(i, i + INSERT_SIZE);
-        let query_string = format(INSERT_PLAYER_UPDATE_NEW, rows);
-        const res = await pool.query(query_string, rows);
+        let query_string = format(INSERT_PLAYER_UPDATE_NEW_PACKED, rows);
+        const res = await pool.query(query_string);
         if (res.rowCount !== rows.length) {
             console.error(
                 `Error inserting player updates for game ${gameId}: expected ${rows.length} rows, got ${res.rowCount}`,
@@ -203,6 +213,7 @@ export async function finalize_and_insert_analysis(
     time_taken = performance.now() - start_time;
     start_time = performance.now();
     console.log(`Finished inserting player updates for game ${gameId} in ${(time_taken / 1000).toFixed(1)}s.`);
+    console.log("Inserting troop ratio changes for game", gameId);
     for (const troop_ratio of analysis.ins_troop_ratio) {
         await pool.query(INSERT_PLAYER_TROOP_RATIO_CHANGE, troop_ratio);
     }

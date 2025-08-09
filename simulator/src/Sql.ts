@@ -27,6 +27,12 @@ export const INSERT_DISPLAY_EVENT = format_sql`
   RETURNING tick
 `;
 
+export const INSERT_DISPLAY_EVENT_PACKED = format_sql`
+  INSERT INTO
+    analysis_1.display_events (game_id, tick, message_type, message, player_id, gold_amount)
+  VALUES %L
+`;
+
 export const INSERT_PLAYER = format_sql`
   INSERT INTO
     analysis_1.players (

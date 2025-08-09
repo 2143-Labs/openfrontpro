@@ -111,11 +111,13 @@ async function post_submit_game(req: IncomingMessage, res: ServerResponse, pool:
 
     let analysis = JSON.parse(await prom) as Analysis;
 
-    console.log(analysis);
+    console.log(analysis.players.length, "players in analysis for game", analysis.game_id);
     let new_state = "Completed";
     let fut: Promise<any>;
     try {
+        console.log("Cleaning up previous analysis for game", analysis.game_id);
         await cleanup_previous_analysis(pool, analysis.game_id);
+        console.log("Starting analysis insert for game", analysis.game_id);
         fut = finalize_and_insert_analysis(pool, analysis);
     } catch (error) {
         fut = Promise.resolve(null);
@@ -164,8 +166,6 @@ export async function db_interaction_server(database: Pool): Promise<void> {
         const method = req.method;
         const pathname = parsedUrl.pathname;
 
-        console.log(`${method} ${pathname}`);
-
         // Handle CORS headers
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -179,16 +179,19 @@ export async function db_interaction_server(database: Pool): Promise<void> {
 
         try {
             if (method === 'GET' && pathname === '/retreive_game') {
+                console.log(`${method} ${pathname}`);
                 await get_retreive_game(req, res, database);
             } else if (method === 'GET' && pathname === '/health') {
                 const healthResponse = await health();
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(healthResponse));
             } else if (method === 'POST' && pathname === '/submit_game') {
+                console.log(`${method} ${pathname}`);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 let jResponse = await post_submit_game(req, res, database);
                 res.end(JSON.stringify(jResponse));
             } else {
+                console.log(`${method} ${pathname}`);
                 res.writeHead(404, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'Route not found' }));
             }
