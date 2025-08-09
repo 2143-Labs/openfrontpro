@@ -22,6 +22,12 @@
             pkgs.nodePackages.typescript-language-server
             pkgs.nodePackages.eslint
             pkgs.nodePackages.typescript
+            pkgs.python3
+            pkgs.pkg-config
+            pkgs.nixd
+            pkgs.pixman
+            pkgs.cairo
+            pkgs.pango
             #packages.my-husky
             # Add the bun2nix binary to our devshell
             bun2nix.packages.${system}.default
