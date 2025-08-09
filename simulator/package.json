@@ -22,11 +22,13 @@
         "@types/node": "^22.16.5",
         "@types/pg": "^8.15.4",
         "@types/ws": "^8.18.1",
+        "@unrs/resolver-binding-linux-x64-gnu": "^1.11.1",
         "chai": "^5.2.1",
         "colord": "^2.9.3",
         "colorjs.io": "^0.5.2",
         "dompurify": "^3.2.6",
         "fastpriorityqueue": "^0.7.5",
+        "jest-fetch-mock": "^3.0.3",
         "nanoid": "^5.1.5",
         "obscenity": "^0.4.3",
         "openfront-client": "./OpenFrontIO",
@@ -40,14 +42,12 @@
         "uuid": "^11.1.0",
         "winston": "^3.17.0",
         "winston-transport": "^4.9.0",
-        "jest-fetch-mock": "^3.0.3",
         "zod": "^4.0.0"
     },
     "devDependencies": {
         "@types/jest": "^30.0.0",
         "@types/pg-format": "^1.0.5",
-        "eslint-plugin-prettier": "^5.5.3",
-        "ts-jest": "^29.4.0"
+        "eslint-plugin-prettier": "^5.5.3"
     },
     "trustedDependencies": [
         "openfront-client",
