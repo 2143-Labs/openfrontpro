@@ -35,6 +35,7 @@ import { performance } from "perf_hooks";
 
 import fs from "fs/promises";
 import { Pool } from "pg";
+import format from "pg-format";
 import { on } from "events";
 
 import { DATABASE_URL, MapData, Analysis } from "./Types";
@@ -187,35 +188,17 @@ export async function finalize_and_insert_analysis(
     start_time = performance.now();
     console.log(`Finished inserting general events for game ${gameId} in ${(time_taken / 1000).toFixed(1)}s.`);
     console.log("ok starting")
-    //let stuff: any[][] = [];
-    //for (const player_update of analysis.ins_player_update) {
-        //if (!stuff[0] || stuff[0].length < 9) {
-            //for(let stuff_i in player_update) {
-                //stuff[stuff_i] = stuff[stuff_i] || [];
-                //stuff[stuff_i].push(player_update[stuff_i]);
-            //}
-            //continue;
-        //}
-        ////if(stuff.length < 10) {
-            ////stuff.push(player_update);
-            ////continue;
-        ////}
-
-        //console.log("insertihng", stuff);
-        //let res = await pool.query(INSERT_PLAYER_UPDATE_NEW_PACKED, stuff);
-        //if(res.rowCount !== stuff.length) {
-            //console.error(`Error inserting player updates for game ${gameId}: expected ${stuff.length} rows, got ${res.rowCount}`);
-        //}
-        //stuff = [];
-    //}
-    //let res = await pool.query(INSERT_PLAYER_UPDATE_NEW_PACKED, stuff);
-    //if(res.rowCount !== stuff.length) {
-        //console.error(`Error inserting player updates for game ${gameId}: expected ${stuff.length} rows, got ${res.rowCount}`);
-    //}
-    for (const player_update of analysis.ins_player_update) {
-        const res = await pool.query(INSERT_PLAYER_UPDATE_NEW, player_update);
+    const INSERT_SIZE = 25;
+    for (let i = 0; i < analysis.ins_player_update.length; i += INSERT_SIZE) {
+        let rows = analysis.ins_player_update.slice(i, i + INSERT_SIZE);
+        let query_string = format(INSERT_PLAYER_UPDATE_NEW, rows);
+        const res = await pool.query(query_string, rows);
+        if (res.rowCount !== rows.length) {
+            console.error(
+                `Error inserting player updates for game ${gameId}: expected ${rows.length} rows, got ${res.rowCount}`,
+            );
+        }
     }
-
 
     time_taken = performance.now() - start_time;
     start_time = performance.now();
