@@ -75,12 +75,65 @@ export type SortBy = 'last_seen' | 'players' | 'map';
 export type GameStatus = 'completed' | 'analyzed' | 'in-progress';
 
 // User-related types
-export interface UserGameSummary {
-  game_id: string;
+export interface OpenFrontGame {
+  clientId: string;
+  difficulty: string;
+  gameId: string;
   map: string;
   mode: string;
-  difficulty: string;
-  start_time: number;
+  start: string;
+  type: string;
+}
+
+export interface UserGameStats {
+  attacks?: string[];
+  betrayals?: string;
+  boats?: {
+    trade?: string[];
+    trans?: string[];
+  };
+  bombs?: {
+    abomb?: string[];
+    hbomb?: string[];
+    mirv?: string[];
+    mirvw?: string[];
+  };
+  gold?: string[];
+  units?: {
+    city?: string[];
+    defp?: string[];
+    port?: string[];
+    saml?: string[];
+    silo?: string[];
+    wshp?: string[];
+  };
+}
+
+export interface GameModeStats {
+  losses: string;
+  stats: UserGameStats;
+  total: string;
+  wins: string;
+}
+
+export interface OpenFrontPlayerData {
+  createdAt: string;
+  games: OpenFrontGame[];
+  stats: {
+    Public: {
+      [mode: string]: {
+        [difficulty: string]: GameModeStats;
+      };
+    };
+  };
+}
+
+export interface RecentGame {
+  game_id: string;
+  client_id: string;
+  name_in_that_game: string | null;
+  flag_in_that_game: string | null;
+  analysis_complete_time: number | null;
 }
 
 export interface UserSummary {
@@ -95,12 +148,15 @@ export interface UserData {
   user_id: string;
   username: string;
   friends: string[];
-  created_unix_sec: number;
-  stats: {
-    games_played: number;
-    wins: number;
-    losses: number;
-    win_rate: number;
-  };
-  game_history: UserGameSummary[];
+  openfront_player_data: OpenFrontPlayerData;
+  recent_games: RecentGame[];
+}
+
+// Legacy types for backwards compatibility
+export interface UserGameSummary {
+  game_id: string;
+  map: string;
+  mode: string;
+  difficulty: string;
+  start_time: number;
 }
