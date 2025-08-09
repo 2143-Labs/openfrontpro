@@ -40,13 +40,13 @@
         "uuid": "^11.1.0",
         "winston": "^3.17.0",
         "winston-transport": "^4.9.0",
+        "jest-fetch-mock": "^3.0.3",
         "zod": "^4.0.0"
     },
     "devDependencies": {
         "@types/jest": "^30.0.0",
         "@types/pg-format": "^1.0.5",
         "eslint-plugin-prettier": "^5.5.3",
-        "jest-fetch-mock": "^3.0.3",
         "ts-jest": "^29.4.0"
     },
     "trustedDependencies": [
