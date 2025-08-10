@@ -22,7 +22,7 @@ async fn player_stats_handler(
     Extension(db2): Extension<Arc<tokio_postgres::Client>>,
     Path(game_id): Path<String>,
 ) -> axum::response::Result<Json<super::methods::ResStatsOverGame>> {
-    let res = super::methods::get_troops_over_game(db, db2, &game_id)
+    let res = super::methods::get_troops_over_game(db, &game_id)
         .await
         .map_err(|e| error_response(500, &format!("Failed to get player stats: {}", e)))?;
 
@@ -52,11 +52,11 @@ async fn display_events_handler(
 }
 
 async fn players_handler(
-    Extension(_db): Extension<PgPool>,
+    Extension(db): Extension<PgPool>,
     Extension(db2): Extension<Arc<tokio_postgres::Client>>,
     Path(game_id): Path<String>,
 ) -> axum::response::Result<Json<super::methods::ResPlayer>> {
-    let res = super::methods::get_game_players(db2, &game_id)
+    let res = super::methods::get_game_players(db, &game_id)
         .await
         .map_err(|e| error_response(500, &format!("Failed to get players: {}", e)))?;
 

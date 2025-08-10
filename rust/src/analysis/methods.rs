@@ -111,12 +111,11 @@
 //    target_troop_ratio REAL NOT NULL
 // );
 
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use futures::StreamExt;
 use schemars::JsonSchema;
 use sqlx::PgPool;
-use tokio_postgres::types::{FromSql, FromSqlOwned};
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
 pub struct ResStatsOverGame {
@@ -155,16 +154,17 @@ struct PlyUpdateRow {
 //    team SMALLINT,
 //    FOREIGN KEY (game_id) REFERENCES public.finished_games(game_id) ON DELETE CASCADE,
 //    PRIMARY KEY (game_id, id)
-pub async fn get_troops_over_game(db: PgPool, db2: Arc<tokio_postgres::Client>, game_id: &str) -> anyhow::Result<ResStatsOverGame> {
+pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<ResStatsOverGame> {
     //ensure gameid is 8 chars and a-zA-Z
     if game_id.len() != 8 || !game_id.chars().all(|c| c.is_ascii_alphanumeric()) {
         return Err(anyhow::anyhow!("Invalid game_id: {}", game_id));
     }
 
-    let players = get_game_players(db2.clone(), game_id).await?;
+    let players = get_game_players(db.clone(), game_id).await?;
     let mut starting_time = std::time::Instant::now();
 
-    let res = db2.query(
+    let res = sqlx::query_as!(
+        PlyUpdateRow,
         r#"
         SELECT
             ply_upds.tick,
@@ -172,20 +172,20 @@ pub async fn get_troops_over_game(db: PgPool, db2: Arc<tokio_postgres::Client>, 
             ply_upds.gold,
             ply_upds.workers,
             ply_upds.troops,
-            ply_upds.small_id
+            ply_upds.small_id as "small_id: i16"
         FROM
             analysis_1.packed_player_updates ply_upds
         WHERE
-            ply_upds.game_id = $1
-        "#,
-        &[&game_id],
-    ).await?;
+            ply_upds.game_id = $1::bpchar(8)
+        "#, game_id
+    )
+    .fetch_all(&db).await?;
 
-    tracing::info!(
-        "Found {} player updates for game {}",
-        res.len(),
-        game_id
+    tracing::warn!(
+        "Initial player stats query took {} ms",
+        starting_time.elapsed().as_millis()
     );
+    starting_time = std::time::Instant::now();
 
     let get_player_by_small_id = |small_id: i16| {
         players
@@ -195,15 +195,14 @@ pub async fn get_troops_over_game(db: PgPool, db2: Arc<tokio_postgres::Client>, 
             .cloned()
     };
 
-    starting_time = std::time::Instant::now();
     let mut players_on_tick: HashMap<u16, Vec<PlayerStatsOnTick>> = HashMap::new();
     for row in res {
-        let tick_num = row.get::<_, i16>("tick") as u16;
-        let small_id = row.get::<_, i16>("small_id");
-        let Some(player) = get_player_by_small_id(small_id) else {
+        //let row = row?;
+        let tick = row.tick as u16;
+        let Some(player) = get_player_by_small_id(row.small_id) else {
             tracing::warn!(
                 "Player with small_id {} not found in game {}",
-                small_id,
+                row.small_id,
                 game_id
             );
             continue; // Skip this row if player not found
@@ -213,14 +212,14 @@ pub async fn get_troops_over_game(db: PgPool, db2: Arc<tokio_postgres::Client>, 
             client_id: player.client_id,
             name: player.name,
             small_id: player.small_id,
-            tiles_owned: super::decompress_value_from_db(row.get::<_, i16>("tiles_owned")),
-            gold: super::decompress_value_from_db(row.get::<_, i16>("gold")),
-            workers: super::decompress_value_from_db(row.get::<_, i16>("workers")) / 10,
-            troops: super::decompress_value_from_db(row.get::<_, i16>("troops")) / 10,
+            tiles_owned: super::decompress_value_from_db(row.tiles_owned),
+            gold: super::decompress_value_from_db(row.gold),
+            workers: super::decompress_value_from_db(row.workers) / 10,
+            troops: super::decompress_value_from_db(row.troops) / 10,
         };
 
         players_on_tick
-            .entry(tick_num)
+            .entry(tick)
             .and_modify(|v| v.push(player_stats.clone()))
             .or_insert_with(|| vec![player_stats]);
     }
@@ -260,7 +259,7 @@ pub async fn get_general_events_over_game(
         FROM
             analysis_1.general_events
         WHERE
-            game_id = $1
+            game_id = $1::bpchar(8)
         "#,
         game_id
     )
@@ -301,7 +300,7 @@ pub async fn get_display_events_over_game(
                 ON de.game_id = ply.game_id
                 AND de.player_id = ply.small_id
         WHERE
-            de.game_id = $1
+            de.game_id = $1::bpchar(8)
         ORDER BY tick, player_id
         "#,
         game_id
@@ -385,77 +384,58 @@ struct SpawnInfo {
     previous_spawns: serde_json::Value, // JSONB
 }
 
-#[derive(Debug, Clone)]
-struct PlayerRow {
-    id: String,
-    client_id: Option<String>,
-    small_id: i16,
-    player_type: String,
-    name: String,
-    flag: Option<String>,
-    team: Option<i16>,
-    spawn_tick: Option<i16>,
-    spawn_x: Option<i32>,
-    spawn_y: Option<i32>,
-    previous_spawns: Option<serde_json::Value>, // JSONB
-}
-
 // This is going to return both the players and their spawn locations
-pub async fn get_game_players(db2: Arc<tokio_postgres::Client>, game_id: &str) -> anyhow::Result<ResPlayer> {
-
-    let res = db2.query(
+pub async fn get_game_players(db: PgPool, game_id: &str) -> anyhow::Result<ResPlayer> {
+    let mut res = sqlx::query!(
         r#"
         SELECT
             p.id,
             p.client_id,
             p.small_id,
-            p.player_type::text,
+            p.player_type as "player_type: String",
             p.name,
             p.flag,
             p.team,
-            s.tick as spawn_tick,
-            s.x as spawn_x,
-            s.y as spawn_y,
-            s.previous_spawns
+            s.tick as "spawn_tick: Option<i16>",
+            s.x as "spawn_x: Option<i32>",
+            s.y as "spawn_y: Option<i32>",
+            s.previous_spawns as "previous_spawns: serde_json::Value"
         FROM
             analysis_1.players p
             LEFT JOIN analysis_1.spawn_locations s
                 ON  p.game_id = s.game_id
                 AND p.client_id = s.client_id
         WHERE
-            p.game_id = $1
+            p.game_id = $1::bpchar(8)
         "#,
-        &[&game_id],
-    ).await?;
+        game_id
+    )
+    .fetch(&db);
 
     let mut players = Vec::new();
 
-    for row in res {
-        let spawn_tick = row.get::<_, Option<i16>>("spawn_tick");
-        let spawn_x = row.get::<_, Option<i32>>("spawn_x");
-        let spawn_y = row.get::<_, Option<i32>>("spawn_y");
+    while let Some(row) = res.next().await {
+        let row = row?;
         let spawn_info =
-            if let (Some(tick), Some(x), Some(y)) = (spawn_tick, spawn_x, spawn_y) {
-                let previous_spawns = row.get::<_, Option<serde_json::Value>>("previous_spawns");
-
+            if let (Some(tick), Some(x), Some(y)) = (row.spawn_tick, row.spawn_x, row.spawn_y) {
                 Some(SpawnInfo {
                     tick: tick as u16,
                     x,
                     y,
-                    previous_spawns: previous_spawns.unwrap_or(serde_json::Value::Null),
+                    previous_spawns: row.previous_spawns.unwrap_or(serde_json::Value::Null),
                 })
             } else {
                 None
             };
 
         let player = GamePlayer {
-            id: row.get("id"),
-            client_id: row.get("client_id"),
-            small_id: row.get::<_, i16>("small_id") as u16,
-            player_type: row.get("player_type"),
-            name: row.get("name"),
-            flag: row.get("flag"),
-            team: row.get::<_, Option<i16>>("team"),
+            id: row.id,
+            client_id: row.client_id,
+            small_id: row.small_id as u16,
+            player_type: row.player_type,
+            name: row.name,
+            flag: row.flag,
+            team: row.team.map(|t| t as i16),
             spawn_info,
         };
         players.push(player);
