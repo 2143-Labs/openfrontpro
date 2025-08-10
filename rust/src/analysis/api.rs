@@ -52,10 +52,11 @@ async fn display_events_handler(
 }
 
 async fn players_handler(
-    Extension(db): Extension<PgPool>,
+    Extension(_db): Extension<PgPool>,
+    Extension(db2): Extension<Arc<tokio_postgres::Client>>,
     Path(game_id): Path<String>,
 ) -> axum::response::Result<Json<super::methods::ResPlayer>> {
-    let res = super::methods::get_game_players(db, &game_id)
+    let res = super::methods::get_game_players(db2, &game_id)
         .await
         .map_err(|e| error_response(500, &format!("Failed to get players: {}", e)))?;
 

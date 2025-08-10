@@ -116,6 +116,7 @@ use std::{collections::HashMap, sync::Arc};
 use futures::StreamExt;
 use schemars::JsonSchema;
 use sqlx::PgPool;
+use tokio_postgres::types::{FromSql, FromSqlOwned};
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
 pub struct ResStatsOverGame {
@@ -160,8 +161,8 @@ pub async fn get_troops_over_game(db: PgPool, db2: Arc<tokio_postgres::Client>, 
         return Err(anyhow::anyhow!("Invalid game_id: {}", game_id));
     }
 
-    let players = get_game_players(db.clone(), game_id).await?;
-    let starting_time = std::time::Instant::now();
+    let players = get_game_players(db2.clone(), game_id).await?;
+    let mut starting_time = std::time::Instant::now();
 
     let res = db2.query(
         r#"
@@ -194,6 +195,7 @@ pub async fn get_troops_over_game(db: PgPool, db2: Arc<tokio_postgres::Client>, 
             .cloned()
     };
 
+    starting_time = std::time::Instant::now();
     let mut players_on_tick: HashMap<u16, Vec<PlayerStatsOnTick>> = HashMap::new();
     for row in res {
         let tick_num = row.get::<_, i16>("tick") as u16;
@@ -383,22 +385,38 @@ struct SpawnInfo {
     previous_spawns: serde_json::Value, // JSONB
 }
 
+#[derive(Debug, Clone)]
+struct PlayerRow {
+    id: String,
+    client_id: Option<String>,
+    small_id: i16,
+    player_type: String,
+    name: String,
+    flag: Option<String>,
+    team: Option<i16>,
+    spawn_tick: Option<i16>,
+    spawn_x: Option<i32>,
+    spawn_y: Option<i32>,
+    previous_spawns: Option<serde_json::Value>, // JSONB
+}
+
 // This is going to return both the players and their spawn locations
-pub async fn get_game_players(db: PgPool, game_id: &str) -> anyhow::Result<ResPlayer> {
-    let mut res = sqlx::query!(
+pub async fn get_game_players(db2: Arc<tokio_postgres::Client>, game_id: &str) -> anyhow::Result<ResPlayer> {
+
+    let res = db2.query(
         r#"
         SELECT
             p.id,
             p.client_id,
             p.small_id,
-            p.player_type as "player_type: String",
+            p.player_type::text,
             p.name,
             p.flag,
             p.team,
-            s.tick as "spawn_tick: Option<i16>",
-            s.x as "spawn_x: Option<i32>",
-            s.y as "spawn_y: Option<i32>",
-            s.previous_spawns as "previous_spawns: serde_json::Value"
+            s.tick as spawn_tick,
+            s.x as spawn_x,
+            s.y as spawn_y,
+            s.previous_spawns
         FROM
             analysis_1.players p
             LEFT JOIN analysis_1.spawn_locations s
@@ -407,34 +425,37 @@ pub async fn get_game_players(db: PgPool, game_id: &str) -> anyhow::Result<ResPl
         WHERE
             p.game_id = $1
         "#,
-        game_id
-    )
-    .fetch(&db);
+        &[&game_id],
+    ).await?;
 
     let mut players = Vec::new();
 
-    while let Some(row) = res.next().await {
-        let row = row?;
+    for row in res {
+        let spawn_tick = row.get::<_, Option<i16>>("spawn_tick");
+        let spawn_x = row.get::<_, Option<i32>>("spawn_x");
+        let spawn_y = row.get::<_, Option<i32>>("spawn_y");
         let spawn_info =
-            if let (Some(tick), Some(x), Some(y)) = (row.spawn_tick, row.spawn_x, row.spawn_y) {
+            if let (Some(tick), Some(x), Some(y)) = (spawn_tick, spawn_x, spawn_y) {
+                let previous_spawns = row.get::<_, Option<serde_json::Value>>("previous_spawns");
+
                 Some(SpawnInfo {
                     tick: tick as u16,
                     x,
                     y,
-                    previous_spawns: row.previous_spawns.unwrap_or(serde_json::Value::Null),
+                    previous_spawns: previous_spawns.unwrap_or(serde_json::Value::Null),
                 })
             } else {
                 None
             };
 
         let player = GamePlayer {
-            id: row.id,
-            client_id: row.client_id,
-            small_id: row.small_id as u16,
-            player_type: row.player_type,
-            name: row.name,
-            flag: row.flag,
-            team: row.team.map(|t| t as i16),
+            id: row.get("id"),
+            client_id: row.get("client_id"),
+            small_id: row.get::<_, i16>("small_id") as u16,
+            player_type: row.get("player_type"),
+            name: row.get("name"),
+            flag: row.get("flag"),
+            team: row.get::<_, Option<i16>>("team"),
             spawn_info,
         };
         players.push(player);
