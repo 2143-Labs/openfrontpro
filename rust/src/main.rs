@@ -4,6 +4,7 @@ use aide::openapi::{Info, OpenApi};
 use anyhow::Context;
 use axum::Extension;
 use clap::Parser;
+use regex::Regex;
 use schemars::JsonSchema;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 
@@ -261,11 +262,39 @@ async fn main() -> anyhow::Result<()> {
 
     let database = PgPoolOptions::new()
         .min_connections(2)
-        .max_connections(20)
+        .max_connections(10)
         .acquire_timeout(Duration::from_secs(15))
         .connect(&config.database_url)
         .await
         .context("Failed to create database connection pool")?;
+
+    //turn config.database_url into a tokio_postgres::Config by splitting the
+    //postgres://username:password@host:port/database
+    let pg_regex = regex::Regex::new(
+        r"^postgres://(?P<username>[^:]+):(?P<password>[^@]+)@(?P<host>[^:]+):(?P<port>\d+)/(?P<database>.+)$",
+    )
+    .expect("Failed to compile regex for PostgreSQL URL");
+    let captures = pg_regex
+        .captures(&config.database_url)
+        .context("Failed to parse database URL")?;
+
+    let (db2_pool, db2_connection) = tokio_postgres::Config::new()
+        .user(captures.name("username").unwrap().as_str())
+        .password(captures.name("password").unwrap().as_str())
+        .host(captures.name("host").unwrap().as_str())
+        .port(captures.name("port").unwrap().as_str().parse::<u16>().unwrap())
+        .dbname(captures.name("database").unwrap().as_str())
+        .application_name("openfront-pro-api")
+        .connect(tokio_postgres::NoTls)
+        .await
+        .context("Failed to create tokio_postgres config")?;
+
+    tokio::spawn(async move {
+        if let Err(e) = db2_connection.await {
+            tracing::error!("Database connection error: {}", e);
+        }
+        //proecss exit?
+    });
 
     let config = std::sync::Arc::new(config);
 
@@ -306,7 +335,9 @@ async fn main() -> anyhow::Result<()> {
         ..Default::default()
     };
 
-    let routes = api::routes(database.clone(), openapi.clone(), cors);
+    let routes = api::routes(openapi.clone(), cors)
+        .layer(Extension(database.clone()))
+        .layer(Extension(Arc::new(db2_pool)));
 
     // If we don't have a frontend folder then use this as a
     // minimal fallback.

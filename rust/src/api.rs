@@ -538,7 +538,7 @@ pub async fn all_users_handler(
     Ok(Json(response))
 }
 
-pub fn routes(database: PgPool, _openapi: OpenApi, cors: CorsLayer) -> ApiRouter {
+pub fn routes(_openapi: OpenApi, cors: CorsLayer) -> ApiRouter {
     let api_routes = ApiRouter::new()
         .route("/lobbies", get(lobbies_handler).post(new_lobbies_handler))
         .route("/lobbies/{id}", get(lobbies_id_handler))
@@ -559,5 +559,4 @@ pub fn routes(database: PgPool, _openapi: OpenApi, cors: CorsLayer) -> ApiRouter
         .route("/openapi.json", get(open_api_json))
         .route("/redoc", Redoc::new("/openapi.json").axum_route())
         .layer(cors)
-        .layer(Extension(database))
 }

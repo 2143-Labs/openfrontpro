@@ -57,6 +57,8 @@ export const SELECT_AND_UPDATE_JOB = format_sql`
     INNER JOIN analysis_queue aq ON aq.game_id = fg.game_id
     WHERE
       aq.status = 'Pending'
+    ORDER BY
+      fg.inserted_at_unix_sec ASC
     LIMIT 1
   )
   UPDATE analysis_queue aq
@@ -64,7 +66,7 @@ export const SELECT_AND_UPDATE_JOB = format_sql`
     status = 'Running',
     started_unix_sec = EXTRACT(EPOCH FROM NOW())
   FROM my_job
-  WHERE aq.game_id = my_job.game_id
+  WHERE aq.game_id = my_job.game_id AND aq.status = 'Pending'
   RETURNING my_job.game_id, my_job.result_json
 `;
 

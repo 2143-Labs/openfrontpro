@@ -111,7 +111,7 @@
 //    target_troop_ratio REAL NOT NULL
 // );
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use futures::StreamExt;
 use schemars::JsonSchema;
@@ -154,17 +154,16 @@ struct PlyUpdateRow {
 //    team SMALLINT,
 //    FOREIGN KEY (game_id) REFERENCES public.finished_games(game_id) ON DELETE CASCADE,
 //    PRIMARY KEY (game_id, id)
-pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<ResStatsOverGame> {
+pub async fn get_troops_over_game(db: PgPool, db2: Arc<tokio_postgres::Client>, game_id: &str) -> anyhow::Result<ResStatsOverGame> {
     //ensure gameid is 8 chars and a-zA-Z
     if game_id.len() != 8 || !game_id.chars().all(|c| c.is_ascii_alphanumeric()) {
         return Err(anyhow::anyhow!("Invalid game_id: {}", game_id));
     }
 
     let players = get_game_players(db.clone(), game_id).await?;
-    let mut starting_time = std::time::Instant::now();
+    let starting_time = std::time::Instant::now();
 
-    let mut res = sqlx::query_as!(
-        PlyUpdateRow,
+    let res = db2.query(
         r#"
         SELECT
             ply_upds.tick,
@@ -172,14 +171,20 @@ pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<R
             ply_upds.gold,
             ply_upds.workers,
             ply_upds.troops,
-            ply_upds.small_id as "small_id: i16"
+            ply_upds.small_id
         FROM
             analysis_1.packed_player_updates ply_upds
         WHERE
             ply_upds.game_id = $1
-        "#, game_id
-    )
-    .fetch(&db);
+        "#,
+        &[&game_id],
+    ).await?;
+
+    tracing::info!(
+        "Found {} player updates for game {}",
+        res.len(),
+        game_id
+    );
 
     let get_player_by_small_id = |small_id: i16| {
         players
@@ -190,14 +195,13 @@ pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<R
     };
 
     let mut players_on_tick: HashMap<u16, Vec<PlayerStatsOnTick>> = HashMap::new();
-    while let Some(row) = res.next().await {
-
-        let row = row?;
-        let tick = row.tick as u16;
-        let Some(player) = get_player_by_small_id(row.small_id) else {
+    for row in res {
+        let tick_num = row.get::<_, i16>("tick") as u16;
+        let small_id = row.get::<_, i16>("small_id");
+        let Some(player) = get_player_by_small_id(small_id) else {
             tracing::warn!(
                 "Player with small_id {} not found in game {}",
-                row.small_id,
+                small_id,
                 game_id
             );
             continue; // Skip this row if player not found
@@ -207,14 +211,14 @@ pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<R
             client_id: player.client_id,
             name: player.name,
             small_id: player.small_id,
-            tiles_owned: super::decompress_value_from_db(row.tiles_owned),
-            gold: super::decompress_value_from_db(row.gold),
-            workers: super::decompress_value_from_db(row.workers) / 10,
-            troops: super::decompress_value_from_db(row.troops) / 10,
+            tiles_owned: super::decompress_value_from_db(row.get::<_, i16>("tiles_owned")),
+            gold: super::decompress_value_from_db(row.get::<_, i16>("gold")),
+            workers: super::decompress_value_from_db(row.get::<_, i16>("workers")) / 10,
+            troops: super::decompress_value_from_db(row.get::<_, i16>("troops")) / 10,
         };
 
         players_on_tick
-            .entry(tick)
+            .entry(tick_num)
             .and_modify(|v| v.push(player_stats.clone()))
             .or_insert_with(|| vec![player_stats]);
     }
