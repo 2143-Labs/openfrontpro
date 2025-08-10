@@ -103,6 +103,7 @@ impl Config {
 )]
 /// Disable these tasks by passing them with the `-d` flag
 pub enum ActiveTasks {
+    All,
     /// Read the current public lobbies and look for new games
     LookForOpenfrontLobbies,
     /// Look for the lobbies to each complete so we can download the game data
@@ -121,6 +122,11 @@ pub enum ActiveTasks {
 
 /// Spawn the background worker tasks
 async fn launch_tasks(config: Arc<Config>, database: PgPool) -> anyhow::Result<()> {
+    if config.disable_tasks.contains(&ActiveTasks::All) {
+        tracing::info!("All tasks are disabled, skipping task launch");
+        return Ok(());
+    }
+
     if config
         .extra_tasks
         .contains(&ActiveTasks::LookForOpenfrontLobbies)
@@ -255,9 +261,10 @@ async fn main() -> anyhow::Result<()> {
 
     let database = PgPoolOptions::new()
         .min_connections(2)
-        .max_connections(16)
-        .acquire_timeout(Duration::from_secs(5))
-        .connect_lazy(&config.database_url)
+        .max_connections(20)
+        .acquire_timeout(Duration::from_secs(15))
+        .connect(&config.database_url)
+        .await
         .context("Failed to create database connection pool")?;
 
     let config = std::sync::Arc::new(config);

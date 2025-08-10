@@ -155,52 +155,31 @@ struct PlyUpdateRow {
 //    FOREIGN KEY (game_id) REFERENCES public.finished_games(game_id) ON DELETE CASCADE,
 //    PRIMARY KEY (game_id, id)
 pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<ResStatsOverGame> {
-    let players = get_game_players(db.clone(), game_id).await?;
-
-    let chunks = [
-        0, 250, 500, 750, 1000, 1250, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 10000, 13000, 255 * 255,
-    ];
-
-    let mut starting_time = std::time::Instant::now();
-    tracing::info!("Fetching player stats for game_id: {}", game_id);
-    let mut parts = vec![];
-    for chunk in chunks.windows(2) {
-        let left = chunk[0];
-        let right = chunk[1];
-        let prom = sqlx::query_as!(
-            PlyUpdateRow,
-            r#"
-            SELECT
-                ply_upds.tick,
-                ply_upds.tiles_owned,
-                ply_upds.gold,
-                ply_upds.workers,
-                ply_upds.troops,
-                ply_upds.small_id as "small_id: i16"
-            FROM
-                analysis_1.packed_player_updates ply_upds
-            WHERE
-                ply_upds.game_id = $1
-                AND ply_upds.tick >= $2
-                AND ply_upds.tick < $3
-            "#,
-            game_id,
-            left,
-            right
-        )
-        .fetch_all(&db);
-
-        parts.push(prom);
+    //ensure gameid is 8 chars and a-zA-Z
+    if game_id.len() != 8 || !game_id.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return Err(anyhow::anyhow!("Invalid game_id: {}", game_id));
     }
 
-    let all_parts: Vec<Vec<PlyUpdateRow>> = futures::future::join_all(parts).await.into_iter().collect::<Result<_, _>>()?;
-    let res: Vec<PlyUpdateRow> = all_parts.into_iter().flatten().collect();
+    let players = get_game_players(db.clone(), game_id).await?;
+    let mut starting_time = std::time::Instant::now();
 
-    tracing::warn!(
-        "Initial player stats query took {} ms",
-        starting_time.elapsed().as_millis()
-    );
-    starting_time = std::time::Instant::now();
+    let mut res = sqlx::query_as!(
+        PlyUpdateRow,
+        r#"
+        SELECT
+            ply_upds.tick,
+            ply_upds.tiles_owned,
+            ply_upds.gold,
+            ply_upds.workers,
+            ply_upds.troops,
+            ply_upds.small_id as "small_id: i16"
+        FROM
+            analysis_1.packed_player_updates ply_upds
+        WHERE
+            ply_upds.game_id = $1
+        "#, game_id
+    )
+    .fetch(&db);
 
     let get_player_by_small_id = |small_id: i16| {
         players
@@ -211,8 +190,9 @@ pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<R
     };
 
     let mut players_on_tick: HashMap<u16, Vec<PlayerStatsOnTick>> = HashMap::new();
-    for row in res {
-        //let row = row?;
+    while let Some(row) = res.next().await {
+
+        let row = row?;
         let tick = row.tick as u16;
         let Some(player) = get_player_by_small_id(row.small_id) else {
             tracing::warn!(

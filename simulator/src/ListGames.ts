@@ -42,6 +42,7 @@ import { cleanup_previous_analysis, INSERT_DISPLAY_EVENT, INSERT_GENERAL_EVENT, 
 import { simgame } from "./SimGame";
 import { db_interaction_server } from "./DBInteractionServer";
 import { db_sim_client } from "./DBInteractionClient";
+import { test_ply } from "./TestFucns";
 
 
 // ===== Main entry point =====
@@ -92,6 +93,12 @@ async function main(database: Pool): Promise<void> {
         await db_interaction_server(database);
         return;
     }
+
+    if(process.env.TEST) {
+        await test_ply(database);
+        return;
+    }
+
     for (;;) {
         try {
             await process_pending_games(database);
@@ -102,7 +109,6 @@ async function main(database: Pool): Promise<void> {
     }
 
 }
-
 
 if(process.env.RUN_CLIENT) {
     if(process.env.RUN_CLIENT === "true") {
