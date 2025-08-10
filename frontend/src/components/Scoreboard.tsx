@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserSummary } from '../types';
-import { fetchAllUsers } from '../services/api';
+import { getAllUsers } from '../services/api';
 import { LoadingSpinner, ErrorMessage } from './';
 
 const Scoreboard: React.FC = () => {
@@ -15,7 +15,7 @@ const Scoreboard: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const userData = await fetchAllUsers();
+        const userData = await getAllUsers();
         setUsers(userData);
       } catch (err) {
         console.error('Error fetching users:', err);

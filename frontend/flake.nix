@@ -10,12 +10,13 @@
         pkgs = (import (inputs.nixpkgs) { inherit system; });
       in rec {
         devShells.default = pkgs.mkShell {
-          buildInputs = [
-            pkgs.nodejs_24
-            pkgs.nodePackages.eslint
-            pkgs.nodePackages.typescript-language-server
-            pkgs.nodePackages.typescript
-
+          buildInputs = with pkgs; [
+            nodejs_24
+            nodePackages.eslint
+            nodePackages.typescript-language-server
+            nodePackages.typescript
+            bun
+            typescript
           ];
 
           shellHook = ''

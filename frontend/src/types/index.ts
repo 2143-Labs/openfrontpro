@@ -7,6 +7,13 @@ export type PlayerTeams =
   | { group: 'Parties'; party_size: number };
 
 
+export interface QueueItem {
+  game_id: string;
+  status: string;
+  queued_for_sec: number; // seconds - note the API uses queued_for_sec
+  started_at_unix_sec?: number | null;
+}
+
 export interface Lobby {
   game_id: string;
   teams: PlayerTeams;

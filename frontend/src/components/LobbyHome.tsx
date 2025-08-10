@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLobbies } from '../hooks/useLobbies';
 import { FilterControls, SortControls, LobbiesTable, LoadingSpinner, ErrorMessage, AnalysisQueue } from './';
+import { markGameForAnalysis } from '../services/api';
 
 // Utility function to get cookie value
 const getCookie = (name: string): string | null => {
@@ -62,14 +63,10 @@ function LobbyHome() {
     setAnalysisSuccess('');
 
     try {
-      const response = await fetch(`/api/v1/games/${gameId}/analyze`, {
-        method: 'POST'
-      });
-
+      const response = await markGameForAnalysis(gameId);
       if (!response.ok) {
         throw new Error(`Failed to analyze game: ${response.statusText}`);
       }
-
       setAnalysisSuccess(`Analysis requested for game ${gameId}`);
       setGameId(''); // Clear the input on success
     } catch (error) {

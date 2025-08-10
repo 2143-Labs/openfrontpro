@@ -12,6 +12,7 @@ import {
 } from '../utils';
 import { LoadingSpinner, ErrorMessage } from './';
 import { Link } from 'react-router-dom';
+import { getUser } from '../services/api';
 
 function UserDetail() {
   const { userID } = useParams<{ userID: string }>();
@@ -28,22 +29,8 @@ function UserDetail() {
         setLoading(true);
         setError(null);
         
-        const response = await fetch(`/api/v1/users/${userID}`);
-        
-        if (response.status === 404) {
-          setError('User not found.');
-          return;
-        }
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch user details: ${response.status}`);
-        }
-        
-        const userData = await response.json();
+        const userData = await getUser(userID);
         setUser(userData);
-      } catch (err) {
-        console.error('Error fetching user details:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch user details');
       } finally {
         setLoading(false);
       }

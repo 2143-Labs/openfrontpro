@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Lobby } from '../types';
 import { getPlayerTeams, formatPlayerTeams } from '../utils/teams';
 import { getGameStatus, getTimeAgo } from '../utils';
+import { getGameDetails } from '../services/api';
 
 const GameDetail: React.FC = () => {
   const { gameID } = useParams<{ gameID: string }>();
@@ -18,14 +19,7 @@ const GameDetail: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        
-        const response = await fetch(`/api/v1/games/${gameID}`);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch game details: ${response.status}`);
-        }
-        
-        const gameData = await response.json();
+        const gameData = await getGameDetails(gameID);
         setGame(gameData);
       } catch (err) {
         console.error('Error fetching game details:', err);

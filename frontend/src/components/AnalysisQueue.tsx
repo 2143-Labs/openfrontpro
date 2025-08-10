@@ -1,13 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
-
-interface QueueItem {
-  game_id: string;
-  status: string;
-  queued_for_sec: number; // seconds - note the API uses queued_for_sec
-  started_at_unix_sec?: number | null;
-}
+import { getAnalysisQueue } from '../services/api';
+import { QueueItem } from '../types';
 
 // The API returns an array directly, not wrapped in an object
 type AnalysisQueueResponse = QueueItem[];
@@ -28,13 +23,7 @@ const AnalysisQueue: React.FC = () => {
   const fetchQueueData = async () => {
     try {
       setError(null);
-      const response = await fetch('/api/v1/analysis_queue');
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch queue data: ${response.status}`);
-      }
-      
-      const data: AnalysisQueueResponse = await response.json();
+      const data = await getAnalysisQueue();
       const filteredData = (data || []).filter(
         item => item.status.toLowerCase() !== 'completed'
       );

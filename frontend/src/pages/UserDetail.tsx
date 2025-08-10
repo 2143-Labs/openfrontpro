@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getTimeAgo, formatTimestamp } from '../utils';
-import { fetchUser } from '../services/api';
+import { getUser } from '../services/api';
 import { UserData } from '../types';
 
 const UserDetail: React.FC = () => {
@@ -19,7 +19,7 @@ const UserDetail: React.FC = () => {
         setLoading(true);
         setError(null);
         
-        const userData = await fetchUser(userID);
+        const userData = await getUser(userID);
         setUser(userData);
       } catch (err) {
         console.error('Error fetching user details:', err);

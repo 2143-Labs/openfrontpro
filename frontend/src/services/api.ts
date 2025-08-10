@@ -1,4 +1,5 @@
-import { Lobby, UserData, UserSummary, UsersResponse } from '../types';
+import axios from 'axios';
+import { Lobby, QueueItem, UserData, UserSummary, UsersResponse } from '../types';
 
 export interface FetchLobbiesParams {
   completed?: boolean | null;
@@ -6,76 +7,82 @@ export interface FetchLobbiesParams {
   after?: number | null;
   mapName?: string;
 }
+// default axios client
+const client = axios.create({
+  // allow envar to toggle local api or remote
+  // @ts-ignore
+  baseURL: import.meta.env.VITE_API_URL || '/api/v1',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-export const fetchLobbies = async (params: FetchLobbiesParams = {}): Promise<Lobby[]> => {
+export const getLobbies = async (params: FetchLobbiesParams = {}): Promise<Lobby[]> => {
   const { completed, hasAnalysis, after, mapName } = params;
-  
-  // Build URL with query parameters
-  const url = new URL('/api/v1/lobbies', window.location.origin);
-  
-  if (completed !== null && completed !== undefined) {
-    url.searchParams.append('completed', completed.toString());
+
+  let res = await client.get<Lobby[]>('/lobbies', {
+    params: {
+      completed,
+      hasAnalysis,
+      after, 
+      map_name: mapName || undefined,
+    },
+  }).catch(error => {
+      console.error('Error fetching lobbies:', error);
+      throw new Error(`HTTP error! status: ${error.response?.status || 'unknown'}`);
+  });
+  return res.data;
+};
+
+export const getGameDetails = async (gameId: string): Promise<Lobby | undefined> => {
+  let res = await client.get<Lobby>(`/games/${gameId}`);
+  if(res.status === 404) {
+    return undefined; // Game not found
   }
-  
-  if (hasAnalysis !== null && hasAnalysis !== undefined) {
-    url.searchParams.append('has_analysis', hasAnalysis.toString());
+  if (!res.data) {
+    throw new Error(`Game with ID ${gameId} not found`);
   }
-  
-  if (after !== null && after !== undefined) {
-    url.searchParams.append('after', after.toString());
+  return res.data;
+};
+
+export const getGameAnalysis = async (gameId: string): Promise<any> => {
+  let res = await client.get(`/analysis/${gameId}/players`);
+  if (res.status === 404) {
+    return undefined; // Analysis not found
   }
-  
-  if (mapName) {
-    url.searchParams.append('map_name', mapName);
+  if (!res.data) {
+    throw new Error(`Analysis for game with ID ${gameId} not found`);
   }
-  
-  const response = await fetch(url.toString());
-  
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+  return res.data;
+};
+
+export const getAnalysisQueue = async (): Promise<QueueItem[]> => {
+  let res = await client.get<any[]>('/analysis_queue');
+  if (!Array.isArray(res.data)) {
+    throw new Error('Invalid response format for analysis queue');
   }
-  
-  const raw = await response.json();
-  const data = Array.isArray(raw) ? raw : [];
-  
-  // Return lobbies with standardized PlayerTeams type
-  return data;
+  return res.data;
 };
 
 export const markGameForAnalysis = async (gameId: string) => {
-  const url = new URL(`/api/v1/games/${gameId}/analyze`, window.location.origin);
-  const res = await fetch(url.toString(), { method: 'POST' });
-  if (!res.ok) {
-    throw new Error(`HTTP error! status: ${res.status}`);
-  }
+  let res = await client.post(`/games/${gameId}/analyze`);
+  return res.data;
 };
 
 export const unmarkGameForAnalysis = async (gameId: string) => {
-  const url = new URL(`/api/v1/games/${gameId}/analyze`, window.location.origin);
-  const res = await fetch(url.toString(), { method: 'DELETE' });
-  if (!res.ok) {
-    throw new Error(`HTTP error! status: ${res.status}`);
-  }
+  let res = await client.delete(`/games/${gameId}/analyze`);
+  return res.data;
 };
 
-export const fetchUser = async (userId: string): Promise<UserData> => {
-  const res = await fetch(`/api/v1/users/${userId}`);
-  if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-  return await res.json();
+export const getUser = async (userId: string): Promise<UserData> => {
+  let res = await client.get<UserData>(`/users/${userId}`);
+  return res.data;
 };
 
-export const fetchAllUsers = async (): Promise<UserSummary[]> => {
-  const res = await fetch('/api/v1/users');
-  if (!res.ok) {
-    throw new Error(`HTTP error! status: ${res.status}`);
+export const getAllUsers = async (): Promise<UserSummary[]> => {
+  let res = await client.get<UsersResponse>('/users');
+  if (!res.data || !Array.isArray(res.data.users)) {
+    return [];
   }
-  
-  const data: UsersResponse = await res.json();
-  
-  // Validate response shape and return users array with empty array fallback
-  if (data && typeof data === 'object' && Array.isArray(data.users)) {
-    return data.users;
-  }
-  
-  return [];
+  return res.data.users;
 };

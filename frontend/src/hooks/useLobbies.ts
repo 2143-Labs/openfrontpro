@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Lobby, SortBy } from '../types';
-import { fetchLobbies } from '../services/api';
+import { getLobbies } from '../services/api';
 import { getPlayerTeams, formatPlayerTeams } from '../utils/teams';
 
 export const useLobbies = () => {
@@ -19,7 +19,7 @@ export const useLobbies = () => {
       setLoading(true);
       setError(null);
       
-      const data = await fetchLobbies({
+      const data = await getLobbies({
         completed: completedFilter,
         hasAnalysis: hasAnalysisFilter,
         after: afterFilter,

@@ -7,6 +7,7 @@ import GameAnalysis from './GameAnalysis';
 import { GamePlayer, getAllPlayers } from '../utils/charts';
 import SpawnLocationGrid from './SpawnLocationGrid';
 import { humansOnly } from '../utils/players';
+import { getGameAnalysis, getGameDetails } from '../services/api';
 
 // Static map dimensions data
 const MAP_DIMENSIONS: Record<string, { width: number; height: number }> = {
@@ -54,7 +55,7 @@ function GameDetail() {
   const humanPlayers = React.useMemo(() => humansOnly(allPlayers), [allPlayers]);
 
   useEffect(() => {
-    const fetchGameDetails = async () => {
+    const setGameDetails = async () => {
       if (!gameID) return;
       
       try {
@@ -63,21 +64,22 @@ function GameDetail() {
         setGameNotFound(false);
         setGameCompleted(false);
         
-        const response = await fetch(`/api/v1/games/${gameID}`);
-        
-        if (response.status === 404) {
+        const gameData = await getGameDetails(gameID)
+        .catch(err => {
           // Game not found = still in progress
           setGameNotFound(true);
           setGameCompleted(false);
-          setError('Game is still in progress or does not exist.');
+          setError(err.message);
+          throw err; 
+        });
+
+        if(gameData === undefined) {
+          setGameNotFound(true);
+          setGameCompleted(false);
+          setError('Game not found or still in progress.');
           return;
         }
         
-        if (!response.ok) {
-          throw new Error(`Failed to fetch game details: ${response.status}`);
-        }
-        
-        const gameData = await response.json();
         // If we successfully fetched game data, the game is completed
         setGameCompleted(true);
         setGameNotFound(false);
@@ -96,7 +98,7 @@ function GameDetail() {
       }
     };
 
-    fetchGameDetails();
+    setGameDetails();
   }, [gameID]);
 
   // Fetch map manifest and players when gameID or game map changes
@@ -128,30 +130,24 @@ function GameDetail() {
         }
         
         // Fetch players data
-        const playersResponse = await fetch(`/api/v1/analysis/${gameID}/players`);
+        const playersData = await getGameAnalysis(gameID)
+        .catch(err=> {
+          setSpawnPlayers(null);
+          playersFetchFailed = true;
+          // console.log(`Debug: playersFetchFailed = true, response not ok`, err);
+        });
         let playersFetchFailed = false;
-        console.log('Debug: playersResponse.ok =', playersResponse.ok);
-        console.log('Debug: playersResponse.status =', playersResponse.status);
-        if (playersResponse.ok) {
-          const playersData = await playersResponse.json();
-          console.log('Debug: playersData.players length =', playersData?.players?.length);
-          console.log('Debug: playersData.players isArray =', Array.isArray(playersData?.players));
-          if (playersData?.players && Array.isArray(playersData.players)) {
-            setSpawnPlayers(playersData.players);
-            console.log('Debug: Set spawnPlayers to', playersData.players.length, 'players');
-          } else {
-            setSpawnPlayers(null);
-            playersFetchFailed = true;
-            console.log('Debug: playersFetchFailed = true, invalid data structure');
-          }
+        // console.log('Debug: playersResponse.ok =', playersResponse.ok);
+        // console.log('Debug: playersResponse.status =', playersResponse.status);
+        if (playersData?.players && Array.isArray(playersData.players)) {
+          setSpawnPlayers(playersData.players);
+          // console.log('Debug: Set spawnPlayers to', playersData.players.length, 'players');
         } else {
           setSpawnPlayers(null);
           playersFetchFailed = true;
-          console.log('Debug: playersFetchFailed = true, response not ok');
+          console.log('Debug: playersFetchFailed = true, invalid data structure');
         }
-        
         // Set error state if either fetch failed
-        console.log('Debug: mapFetchFailed =', mapFetchFailed, ', playersFetchFailed =', playersFetchFailed);
         if (mapFetchFailed || playersFetchFailed) {
           setSpawnDataError(true);
           console.log('Debug: Setting spawnDataError = true');
