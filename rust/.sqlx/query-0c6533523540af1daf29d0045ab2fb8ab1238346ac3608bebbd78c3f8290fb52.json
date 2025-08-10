@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            tick,\n            event_type as \"event_type: String\",\n            data\n        FROM\n            analysis_1.general_events\n        WHERE\n            game_id = $1::bpchar(8)\n        ",
+  "query": "\n        SELECT\n            tick,\n            event_type as \"event_type: String\",\n            data\n        FROM\n            analysis_1.general_events\n        WHERE\n            game_id = $1::char(8)\n        ",
   "describe": {
     "columns": [
       {
@@ -55,5 +55,5 @@
       false
     ]
   },
-  "hash": "1a61939b457cab9620c5bf91556106cdf420f566ad476430dd55ac421af5d970"
+  "hash": "0c6533523540af1daf29d0045ab2fb8ab1238346ac3608bebbd78c3f8290fb52"
 }

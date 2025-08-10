@@ -176,7 +176,7 @@ pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<R
         FROM
             analysis_1.packed_player_updates ply_upds
         WHERE
-            ply_upds.game_id = $1::bpchar(8)
+            ply_upds.game_id = $1::char(8)
         "#,
         game_id
     )
@@ -261,7 +261,7 @@ pub async fn get_general_events_over_game(
         FROM
             analysis_1.general_events
         WHERE
-            game_id = $1::bpchar(8)
+            game_id = $1::char(8)
         "#,
         game_id
     )
@@ -302,8 +302,7 @@ pub async fn get_display_events_over_game(
                 ON de.game_id = ply.game_id
                 AND de.player_id = ply.small_id
         WHERE
-            de.game_id = $1::bpchar(8)
-        ORDER BY tick, player_id
+            de.game_id = $1::char(8)
         "#,
         game_id
     )
@@ -408,7 +407,7 @@ pub async fn get_game_players(db: PgPool, game_id: &str) -> anyhow::Result<ResPl
                 ON  p.game_id = s.game_id
                 AND p.client_id = s.client_id
         WHERE
-            p.game_id = $1::bpchar(8)
+            p.game_id = $1::char(8)
         "#,
         game_id
     )
