@@ -177,9 +177,11 @@ pub async fn get_troops_over_game(db: PgPool, game_id: &str) -> anyhow::Result<R
             analysis_1.packed_player_updates ply_upds
         WHERE
             ply_upds.game_id = $1::bpchar(8)
-        "#, game_id
+        "#,
+        game_id
     )
-    .fetch_all(&db).await?;
+    .fetch_all(&db)
+    .await?;
 
     tracing::warn!(
         "Initial player stats query took {} ms",

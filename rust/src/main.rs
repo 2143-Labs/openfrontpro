@@ -282,7 +282,14 @@ async fn main() -> anyhow::Result<()> {
         .user(captures.name("username").unwrap().as_str())
         .password(captures.name("password").unwrap().as_str())
         .host(captures.name("host").unwrap().as_str())
-        .port(captures.name("port").unwrap().as_str().parse::<u16>().unwrap())
+        .port(
+            captures
+                .name("port")
+                .unwrap()
+                .as_str()
+                .parse::<u16>()
+                .unwrap(),
+        )
         .dbname(captures.name("database").unwrap().as_str())
         .application_name("openfront-pro-api")
         .connect(tokio_postgres::NoTls)

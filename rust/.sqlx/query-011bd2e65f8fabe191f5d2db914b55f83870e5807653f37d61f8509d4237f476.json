@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            p.id,\n            p.client_id,\n            p.small_id,\n            p.player_type as \"player_type: String\",\n            p.name,\n            p.flag,\n            p.team,\n            s.tick as \"spawn_tick: Option<i16>\",\n            s.x as \"spawn_x: Option<i32>\",\n            s.y as \"spawn_y: Option<i32>\",\n            s.previous_spawns as \"previous_spawns: serde_json::Value\"\n        FROM\n            analysis_1.players p\n            LEFT JOIN analysis_1.spawn_locations s\n                ON  p.game_id = s.game_id\n                AND p.client_id = s.client_id\n        WHERE\n            p.game_id = $1\n        ",
+  "query": "\n        SELECT\n            p.id,\n            p.client_id,\n            p.small_id,\n            p.player_type as \"player_type: String\",\n            p.name,\n            p.flag,\n            p.team,\n            s.tick as \"spawn_tick: Option<i16>\",\n            s.x as \"spawn_x: Option<i32>\",\n            s.y as \"spawn_y: Option<i32>\",\n            s.previous_spawns as \"previous_spawns: serde_json::Value\"\n        FROM\n            analysis_1.players p\n            LEFT JOIN analysis_1.spawn_locations s\n                ON  p.game_id = s.game_id\n                AND p.client_id = s.client_id\n        WHERE\n            p.game_id = $1::bpchar(8)\n        ",
   "describe": {
     "columns": [
       {
@@ -89,5 +89,5 @@
       true
     ]
   },
-  "hash": "2ac7dad15e980479ee5f15a919481ec391e232ac9693109d43bcba046f9ad1e6"
+  "hash": "011bd2e65f8fabe191f5d2db914b55f83870e5807653f37d61f8509d4237f476"
 }

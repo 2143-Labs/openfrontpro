@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                ply_upds.tick,\n                ply_upds.tiles_owned,\n                ply_upds.gold,\n                ply_upds.workers,\n                ply_upds.troops,\n                ply_upds.small_id as \"small_id: i16\"\n            FROM\n                analysis_1.packed_player_updates ply_upds\n            WHERE\n                ply_upds.game_id = $1\n                AND ply_upds.tick >= $2\n                AND ply_upds.tick < $3\n            ",
+  "query": "\n        SELECT\n            ply_upds.tick,\n            ply_upds.tiles_owned,\n            ply_upds.gold,\n            ply_upds.workers,\n            ply_upds.troops,\n            ply_upds.small_id as \"small_id: i16\"\n        FROM\n            analysis_1.packed_player_updates ply_upds\n        WHERE\n            ply_upds.game_id = $1::bpchar(8)\n        ",
   "describe": {
     "columns": [
       {
@@ -36,9 +36,7 @@
     ],
     "parameters": {
       "Left": [
-        "Bpchar",
-        "Int2",
-        "Int2"
+        "Bpchar"
       ]
     },
     "nullable": [
@@ -50,5 +48,5 @@
       false
     ]
   },
-  "hash": "d7afd93dbeaaf99682db5fe843d8f0683e6544c9616dfda90ff2541e8461eb7f"
+  "hash": "12b120fd948e61de1507114321621730feff1433513aa2791715305f17029a26"
 }

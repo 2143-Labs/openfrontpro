@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            de.tick,\n            de.message_type,\n            de.message,\n            de.player_id as \"small_id: i16\",\n            de.gold_amount,\n            ply.client_id,\n            ply.name\n        FROM\n            analysis_1.display_events de\n            JOIN analysis_1.players ply\n                ON de.game_id = ply.game_id\n                AND de.player_id = ply.small_id\n        WHERE\n            de.game_id = $1\n        ORDER BY tick, player_id\n        ",
+  "query": "\n        SELECT\n            de.tick,\n            de.message_type,\n            de.message,\n            de.player_id as \"small_id: i16\",\n            de.gold_amount,\n            ply.client_id,\n            ply.name\n        FROM\n            analysis_1.display_events de\n            JOIN analysis_1.players ply\n                ON de.game_id = ply.game_id\n                AND de.player_id = ply.small_id\n        WHERE\n            de.game_id = $1::bpchar(8)\n        ORDER BY tick, player_id\n        ",
   "describe": {
     "columns": [
       {
@@ -54,5 +54,5 @@
       false
     ]
   },
-  "hash": "cca9aebdc5d6bd881f8bf6d83a7b772c812d5b32c35350ea6eacdc7ff081c14c"
+  "hash": "7ab31b3368e407f8caf9420f44dba2f2677af97c59667e6bbb92b9c0d4a24ffe"
 }
