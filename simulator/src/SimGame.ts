@@ -3,6 +3,7 @@ import { DefaultConfig } from "openfront-client/src/core/configuration/DefaultCo
 import { Executor } from "openfront-client/src/core/execution/ExecutionManager.ts";
 import {
     Cell,
+    Game,
     GameMapType,
     MessageType,
     Nation,
@@ -11,7 +12,7 @@ import {
     UnitType,
 } from "openfront-client/src/core/game/Game.ts";
 import { createGame } from "openfront-client/src/core/game/GameImpl.ts";
-import { GameMapImpl } from "openfront-client/src/core/game/GameMap.ts";
+import { GameMapImpl, TileRef } from "openfront-client/src/core/game/GameMap.ts";
 import {
     ErrorUpdate,
     GameUpdateType,
@@ -123,6 +124,8 @@ export async function simgame(gameId: string, record: GameRecord): Promise<Analy
         players_disconnected_on_turn: {},
         players_troop_ratio: {},
         last_tick_update_time: performance.now(),
+        players_structures_owned: {},
+        players_units_owned: {},
     };
 
     // This is the actual result of the analysis
@@ -135,6 +138,7 @@ export async function simgame(gameId: string, record: GameRecord): Promise<Analy
         ins_display_event: [],
         ins_player: [],
         ins_player_update: [],
+        ins_construction: [],
     };
 
 
@@ -144,14 +148,13 @@ export async function simgame(gameId: string, record: GameRecord): Promise<Analy
         game,
         new Executor(game, gameId, "openfrontpro"),
         async (gu) => {
-            const has_won = await handle_game_update(gu, record, extra_data, analysis);
+            const has_won = await handle_game_update(game, gu, record, extra_data, analysis);
             if (simulation_turns_left === -1 && has_won) {
                 simulation_turns_left = 5;
             }
         },
     );
 
-    game
 
     // Run the simulation: this modifies the analysis and extra_data objects
     await run_simulation(runner, record, analysis, extra_data, map_impl);
@@ -198,8 +201,12 @@ async function analyze_intents(
         let tile = intent.tile;
         const x = map_impl.x(tile)
         const y = map_impl.y(tile);
+        console.log(`Player ${client_id} spawned at (${x}, ${y})`);
 
-        const prev_spawns = analysis.spawns[client_id]?.previous_spawns || [];
+        // TODO fix this
+        const prev_spawns = analysis.spawns[client_id] ? analysis.spawns[client_id].previous_spawns: [];
+        console.log(`Previous spawns: ${prev_spawns.length}`);
+        console.log(analysis.spawns[client_id]);
 
         // Store the spawn location
         analysis.spawns[client_id] = {
@@ -223,6 +230,7 @@ const is_game_update = (
 
 /// Function to handle game updates. Returns true if the game is finished.
 async function handle_game_update(
+    game: Game,
     gu: GameUpdateViewData | ErrorUpdate,
     record: GameRecord,
     extra_data: ExtraData,
@@ -234,6 +242,122 @@ async function handle_game_update(
     if (!is_game_update(gu)) {
         console.error("Error Update: ", gu);
         return false;
+    }
+
+    for (const tile_update of gu.packedTileUpdates) {
+        // Extract tile reference and state from the TileUpdate
+        // Last 16 bits are state, rest is tile reference
+        //const tileRef = Number(tile_update >> 16n);
+        //const state = Number(tile_update & 0xffffn);
+
+        //console.log(`Tile Update: ${tileRef} -> ${state}`);
+    }
+
+    for (const ply of game.allPlayers()) {
+        if(!ply.clientID()) {
+            continue; // Skip players without a client ID
+        }
+
+        type ConstructionMap = Partial<Record<UnitType, Record<TileRef, number>>>;
+
+        function empty_construction_map(): ConstructionMap {
+            return {
+                [UnitType.City]: {},
+                [UnitType.Construction]: {},
+                [UnitType.DefensePost]: {},
+                [UnitType.SAMLauncher]: {},
+                [UnitType.MissileSilo]: {},
+                [UnitType.Port]: {},
+                [UnitType.Factory]: {},
+            };
+        }
+
+        let constructions = empty_construction_map();
+
+        // TODO impl these
+        let wandering_units = {
+            [UnitType.Warship]: {},
+            [UnitType.HydrogenBomb]: {},
+            [UnitType.MIRV]: {},
+            [UnitType.AtomBomb]: {},
+        };
+
+        for (const unit of ply.units()) {
+            if (unit.type() === UnitType.Construction) {
+                let map = constructions[unit.constructionType()!]!;
+                map[unit.tile()] = unit.level();
+            }
+        }
+
+        let old_constructions: ConstructionMap = extra_data.players_structures_owned[ply.clientID()!];
+        if(old_constructions !== constructions) {
+            extra_data.players_structures_owned[ply.clientID()!] = constructions;
+
+            if(!old_constructions) {
+                // Its the first time we have seen this player, hopefully they have no structures
+                continue;
+            }
+
+            //Find the difference between old and new constructions
+            let new_constructions = empty_construction_map();
+            let missing_old_constructions = empty_construction_map();
+            let upgraded_old_constructions = empty_construction_map();
+
+            let has_new_constructions = false;
+            let has_missing_old_constructions = false;
+            let has_upgraded_old_constructions = false;
+
+            // TODO: dedup
+            // New Constructions
+            for (const [unit_type, new_map] of Object.entries(constructions)) {
+                const old_map = old_constructions[unit_type as UnitType];
+
+                for (const [tile, level] of Object.entries(new_map)) {
+                    if (old_map![tile] !== level) {
+                        has_new_constructions = true;
+                        new_constructions[unit_type as UnitType]![tile] = level;
+                    }
+                }
+            }
+
+            // Constructions that aren't there anymore
+            for (const [unit_type, old_map] of Object.entries(old_constructions)) {
+                const new_map = constructions[unit_type as UnitType];
+
+                for (const [tile, level] of Object.entries(old_map)) {
+                    if (new_map![tile] > level) {
+                        has_upgraded_old_constructions = true;
+                        upgraded_old_constructions[unit_type as UnitType]![tile] = level;
+                    } else if (!new_map![tile]) {
+                        has_missing_old_constructions = true;
+                        missing_old_constructions[unit_type as UnitType]![tile] = level;
+                    }
+                }
+            }
+
+            // Now, for each new construction, we need to insert it into the analysis
+            if(has_new_constructions){
+                console.log("New constructions for player(tick)", ply.clientID(), gu.tick, new_constructions);
+                for (const [unit_type, new_map] of Object.entries(new_constructions)) {
+                    for (const [tile, level] of Object.entries(new_map)) {
+                        const x = game.map().x(Number(tile));
+                        const y = game.map().y(Number(tile));
+                        console.log(`Player ${ply.clientID()} built ${UnitType[unit_type as unknown as UnitType]}(level ${level}) at (${x}, ${y}) on turn ${gu.tick}`);
+                    }
+                }
+            }
+            // TODO: This never happens
+            if(has_missing_old_constructions) {
+                console.log("Missing old constructions for player(tick)", ply.clientID(), gu.tick, missing_old_constructions);
+                //process.exit(1);
+            }
+            // TODO: This never happens
+            if(has_upgraded_old_constructions) {
+                console.log("Upgraded old constructions for player(tick)", ply.clientID(), gu.tick, upgraded_old_constructions);
+                //process.exit(1);
+            }
+        }
+
     }
 
     for (const [key, enum_value] of Object.entries(GameUpdateType)) {
