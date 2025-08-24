@@ -48,6 +48,12 @@ export const INSERT_GENERAL_EVENT = format_sql`
   RETURNING tick
 `;
 
+export const INSERT_GENERAL_EVENT_PACKED = format_sql`
+  INSERT INTO
+    analysis_1.general_events (game_id, tick, event_type, data)
+  VALUES %L
+`;
+
 export const SELECT_AND_UPDATE_JOB = format_sql`
   WITH my_job AS (
     SELECT

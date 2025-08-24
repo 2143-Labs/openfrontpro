@@ -39,7 +39,7 @@ import format from "pg-format";
 import { on } from "events";
 
 import { DATABASE_URL, MapData, Analysis } from "./Types";
-import { INSERT_SPAWN_LOCATIONS, INSERT_DISPLAY_EVENT, INSERT_PLAYER, INSERT_GENERAL_EVENT, INSERT_PLAYER_UPDATE_NEW, INSERT_PLAYER_TROOP_RATIO_CHANGE, UPSERT_COMPLETED_ANALYSIS, INSERT_PLAYER_UPDATE_NEW_PACKED, INSERT_DISPLAY_EVENT_PACKED, INSERT_CONSTRUCTION_EVENT } from "./Sql";
+import { INSERT_SPAWN_LOCATIONS, INSERT_DISPLAY_EVENT, INSERT_PLAYER, INSERT_GENERAL_EVENT, INSERT_PLAYER_UPDATE_NEW, INSERT_PLAYER_TROOP_RATIO_CHANGE, UPSERT_COMPLETED_ANALYSIS, INSERT_PLAYER_UPDATE_NEW_PACKED, INSERT_DISPLAY_EVENT_PACKED, INSERT_CONSTRUCTION_EVENT, INSERT_GENERAL_EVENT_PACKED } from "./Sql";
 
 export async function load_map_data(
     maps_path: string,
@@ -191,8 +191,15 @@ export async function finalize_and_insert_analysis(
     start_time = performance.now();
     console.log(`Finished inserting players for game ${gameId} in ${(time_taken / 1000).toFixed(1)}s.`);
     console.log("Inserting general events for game", gameId);
-    for (const general_event of analysis.ins_general_event) {
-        await pool.query(INSERT_GENERAL_EVENT, general_event);
+    for (let i = 0; i < analysis.ins_general_event.length; i += INSERT_SIZE) {
+        const rows = analysis.ins_general_event.slice(i, i + INSERT_SIZE);
+        const query_string = format(INSERT_GENERAL_EVENT_PACKED, rows);
+        const res = await pool.query(query_string);
+        if (res.rowCount !== rows.length) {
+            console.error(
+                `Error inserting general events for game ${gameId}: expected ${rows.length} rows, got ${res.rowCount}`,
+            );
+        }
     }
 
     time_taken = performance.now() - start_time;
