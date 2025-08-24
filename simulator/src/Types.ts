@@ -57,11 +57,17 @@ export type MapData = {
     manifest: any;
 };
 
+export type PlayerSpawnLocation = {
+    turn: number;
+    x: number;
+    y: number;
+};
+
 export type PlayerSpawn = {
     turn: number;
     x: number;
     y: number;
-    previous_spawns: PlayerSpawn[];
+    previous_spawns: PlayerSpawnLocation[];
 };
 
 export type Analysis = {
@@ -74,6 +80,7 @@ export type Analysis = {
     ins_display_event: any[][];
     ins_player: any[][];
     ins_player_update: any[][];
+    ins_construction: any[][];
 };
 
 export type ExtraData = {
@@ -81,4 +88,6 @@ export type ExtraData = {
     players_disconnected_on_turn: Record<string, number>;
     players_troop_ratio: Record<string, number>;
     last_tick_update_time: number;
+    players_structures_owned: Record<string, any>;
+    players_units_owned: Record<string, any>;
 };
