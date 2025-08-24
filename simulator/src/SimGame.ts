@@ -520,12 +520,13 @@ async function process_player_updates(
 
         let last_troop_ratio = extra_data.players_troop_ratio?.[update.id];
         if(update.targetTroopRatio !== last_troop_ratio && update.playerType === PlayerType.Human) {
-            analysis.ins_troop_ratio.push([
-                game_id,
-                update.smallID,
-                update.clientID,
-                update.targetTroopRatio,
-            ]);
+            // They removed troops ratio
+            //analysis.ins_troop_ratio.push([
+                //game_id,
+                //update.smallID,
+                //update.clientID,
+                //update.targetTroopRatio,
+            //]);
             extra_data.players_troop_ratio[update.id] = update.targetTroopRatio;
         }
     }
