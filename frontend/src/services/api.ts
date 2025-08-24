@@ -1,4 +1,4 @@
-import { Lobby, UserData, UserSummary, UsersResponse } from '../types';
+import { Lobby, UserData, UserSummary, UsersResponse, ConstructionEventsResponse } from '../types';
 
 export interface FetchLobbiesParams {
   completed?: boolean | null;
@@ -78,4 +78,15 @@ export const fetchAllUsers = async (): Promise<UserSummary[]> => {
   }
   
   return [];
+};
+
+export const fetchConstructionEvents = async (gameId: string): Promise<ConstructionEventsResponse> => {
+  const url = new URL(`/api/v1/analysis/${gameId}/get_construction_events`, window.location.origin);
+  const res = await fetch(url.toString());
+  
+  if (!res.ok) {
+    throw new Error(`HTTP error! status: ${res.status}`);
+  }
+  
+  return await res.json();
 };

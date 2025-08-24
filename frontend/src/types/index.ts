@@ -152,6 +152,22 @@ export interface UserData {
   recent_games: RecentGame[];
 }
 
+// Construction Event types
+export interface ConstructionEvent {
+  tick: number;
+  unit_type: string;
+  x: number;
+  y: number;
+  level: number;
+  small_id: number;
+  client_id: string;
+  name: string;
+}
+
+export interface ConstructionEventsResponse {
+  events: ConstructionEvent[];
+}
+
 // Legacy types for backwards compatibility
 export interface UserGameSummary {
   game_id: string;

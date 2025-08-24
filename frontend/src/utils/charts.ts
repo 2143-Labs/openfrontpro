@@ -234,3 +234,30 @@ export const getAllPlayers = (players: any[], metric: string) => {
       return bValue - aValue;
     });
 };
+
+// Convert unit type to human-readable display name
+export const unitTypeDisplay = (unit_type: string): string => {
+  const unitTypeMap: Record<string, string> = {
+    'city': 'City',
+    'City': 'City',
+    'factory': 'Factory',
+    'Factory': 'Factory',
+    'port': 'Port',
+    'Port': 'Port',
+    'defp': 'Defense Post',
+    'Defense Post': 'Defense Post',
+    'silo': 'Missile Silo',
+    'Missile Silo': 'Missile Silo',
+    'saml': 'SAM Launcher',
+    'SAM Launcher': 'SAM Launcher',
+    'wshp': 'Warship',
+    'Warship': 'Warship',
+  };
+  
+  return unitTypeMap[unit_type] || unit_type;
+};
+
+// Get player by client_id
+export const getPlayerById = (players: GamePlayer[], clientId: string): GamePlayer | undefined => {
+  return players.find(player => player.client_id === clientId || player.id === clientId);
+};

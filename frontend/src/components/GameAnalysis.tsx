@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import LineChart from './LineChart';
+import ConstructionEventLog from './ConstructionEventLog';
 import { 
   formatPlayerStatsForChart, 
   calculateGameSummary,
@@ -13,6 +14,8 @@ import {
   GamePlayer,
   DurationFilter
 } from '../utils/charts';
+import { ConstructionEvent } from '../types';
+import { fetchConstructionEvents } from '../services/api';
 
 interface GameAnalysisProps {
   gameId: string;
@@ -25,6 +28,7 @@ const GameAnalysis: React.FC<GameAnalysisProps> = ({ gameId, players: propPlayer
   const [statsData, setStatsData] = useState<PlayerStatsOverGame | null>(null);
   const [generalEvents, setGeneralEvents] = useState<GeneralEvent[]>([]);
   const [displayEvents, setDisplayEvents] = useState<DisplayEvent[]>([]);
+  const [constructionEvents, setConstructionEvents] = useState<ConstructionEvent[]>([]);
   const [players, setPlayers] = useState<GamePlayer[]>([]);
   const [selectedMetric, setSelectedMetric] = useState<'troops' | 'gold' | 'workers' | 'tiles_owned'>('tiles_owned');
   const [selectedDuration, setSelectedDuration] = useState<DurationFilter>('all');
@@ -95,6 +99,15 @@ const GameAnalysis: React.FC<GameAnalysisProps> = ({ gameId, players: propPlayer
         setPlayers(propPlayers);
       } else {
         setPlayers(playersData?.players || []);
+      }
+
+      // Fetch construction events separately (to avoid blocking if this endpoint fails)
+      try {
+        const constructionResponse = await fetchConstructionEvents(gameId);
+        setConstructionEvents(constructionResponse.events || []);
+      } catch (constructionError) {
+        console.warn('Failed to fetch construction events:', constructionError);
+        setConstructionEvents([]); // Set empty array on failure but don't fail the whole component
       }
 
     } catch (err) {
@@ -325,6 +338,17 @@ const GameAnalysis: React.FC<GameAnalysisProps> = ({ gameId, players: propPlayer
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Construction Event Log */}
+      <div style={{ marginBottom: '30px' }}>
+        <h3>Construction Event Log</h3>
+        <ConstructionEventLog
+          events={constructionEvents}
+          players={players}
+          mapWidth={2000}  // Default World map dimensions
+          mapHeight={1000}
+        />
       </div>
 
       {/* Recent Events */}
