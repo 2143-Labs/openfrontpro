@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            ce.tick,\n            ce.unit_type,\n            ce.x,\n            ce.y,\n            ce.level,\n            ce.small_id as \"small_id: i16\",\n            ply.client_id,\n            ply.name\n        FROM\n            analysis_1.construction_events ce\n            JOIN analysis_1.players ply\n                ON ce.game_id = ply.game_id\n                AND ce.small_id = ply.small_id\n        WHERE\n            ce.game_id = $1::char(8)\n        ORDER BY ce.tick ASC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tick",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 1,
+        "name": "unit_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "x",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "y",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "level",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 5,
+        "name": "small_id: i16",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 6,
+        "name": "client_id",
+        "type_info": "Bpchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "name",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Bpchar"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "5e956a6e49dc931c5a4ae1468d6c2b0603cf7f1f610a8fd4c3c346383e95233a"
+}

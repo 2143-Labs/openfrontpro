@@ -344,6 +344,23 @@ pub struct DisplayEvent {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
+pub struct ResConstructionEventsOverGame {
+    pub events: Vec<ConstructionEvent>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
+pub struct ConstructionEvent {
+    pub tick: u16,
+    pub unit_type: String,
+    pub x: i32,
+    pub y: i32,
+    pub level: u16,
+    pub small_id: u16,
+    pub client_id: Option<String>,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, JsonSchema)]
 pub struct ResPlayer {
     players: Vec<GamePlayer>,
 }
@@ -383,6 +400,59 @@ struct SpawnInfo {
     x: i32,
     y: i32,
     previous_spawns: serde_json::Value, // JSONB
+}
+
+pub async fn get_construction_events_over_game(
+    db: PgPool,
+    game_id: &str,
+) -> anyhow::Result<ResConstructionEventsOverGame> {
+    // Ensure gameid is 8 chars and alphanumeric
+    if game_id.len() != 8 || !game_id.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return Err(anyhow::anyhow!("Invalid game_id: {}", game_id));
+    }
+
+    let mut res = sqlx::query!(
+        r#"
+        SELECT
+            ce.tick,
+            ce.unit_type,
+            ce.x,
+            ce.y,
+            ce.level,
+            ce.small_id as "small_id: i16",
+            ply.client_id,
+            ply.name
+        FROM
+            analysis_1.construction_events ce
+            JOIN analysis_1.players ply
+                ON ce.game_id = ply.game_id
+                AND ce.small_id = ply.small_id
+        WHERE
+            ce.game_id = $1::char(8)
+        ORDER BY ce.tick ASC
+        "#,
+        game_id
+    )
+    .fetch(&db);
+
+    let mut events = Vec::new();
+
+    while let Some(row) = res.next().await {
+        let row = row?;
+        let event = ConstructionEvent {
+            tick: row.tick as u16,
+            unit_type: row.unit_type,
+            x: row.x,
+            y: row.y,
+            level: row.level as u16,
+            small_id: row.small_id as u16,
+            client_id: row.client_id,
+            name: row.name,
+        };
+        events.push(event);
+    }
+
+    Ok(ResConstructionEventsOverGame { events })
 }
 
 // This is going to return both the players and their spawn locations

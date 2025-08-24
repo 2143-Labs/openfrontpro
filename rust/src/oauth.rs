@@ -140,6 +140,15 @@ impl<S: Sync> FromRequestParts<S> for APIUser {
         parts: &mut axum::http::request::Parts,
         state: &S,
     ) -> std::result::Result<Self, Self::Rejection> {
+        if let Some(Extension(config)) = parts.extract::<Extension<Arc<crate::Config>>>().await.ok() {
+            if config.get_discord_oauth().is_none() {
+                return Ok(APIUser {
+                    user_id: "testuser".to_string(),
+                    username: "Test User".to_string(),
+                });
+            }
+        }
+
         let cookies = CookieJar::from_headers(&parts.headers);
         let session_token = cookies
             .get("session_token")

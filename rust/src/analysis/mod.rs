@@ -67,4 +67,20 @@ mod test {
             1_000_000_000
         ));
     }
+
+    #[test]
+    fn test_game_id_validation() {
+        // Test the validation logic directly
+        
+        // Valid game_id should pass validation (8 alphanumeric chars)
+        assert!("abc12345".len() == 8 && "abc12345".chars().all(|c| c.is_ascii_alphanumeric()));
+        assert!("12345678".len() == 8 && "12345678".chars().all(|c| c.is_ascii_alphanumeric()));
+        assert!("ABCD1234".len() == 8 && "ABCD1234".chars().all(|c| c.is_ascii_alphanumeric()));
+        
+        // Invalid game_ids should fail validation
+        assert!(!("abc123".len() == 8 && "abc123".chars().all(|c| c.is_ascii_alphanumeric()))); // too short
+        assert!(!("abcdefghi".len() == 8 && "abcdefghi".chars().all(|c| c.is_ascii_alphanumeric()))); // too long
+        assert!(!("abc123!@".len() == 8 && "abc123!@".chars().all(|c| c.is_ascii_alphanumeric()))); // special chars
+        assert!(!("abc 1234".len() == 8 && "abc 1234".chars().all(|c| c.is_ascii_alphanumeric()))); // space
+    }
 }

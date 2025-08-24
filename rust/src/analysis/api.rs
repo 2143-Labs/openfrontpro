@@ -59,10 +59,22 @@ async fn players_handler(
     Ok(Json(res))
 }
 
+async fn construction_events_handler(
+    Extension(db): Extension<PgPool>,
+    Path(game_id): Path<String>,
+) -> axum::response::Result<Json<super::methods::ResConstructionEventsOverGame>> {
+    let res = super::methods::get_construction_events_over_game(db, &game_id)
+        .await
+        .map_err(|e| error_response(500, &format!("Failed to get construction events: {}", e)))?;
+
+    Ok(Json(res))
+}
+
 pub fn analysis_api_router() -> ApiRouter {
     ApiRouter::new()
         .route("/{game_id}/get_player_stats", get(player_stats_handler))
         .route("/{game_id}/get_general_events", get(general_events_handler))
         .route("/{game_id}/get_display_events", get(display_events_handler))
+        .route("/{game_id}/get_construction_events", get(construction_events_handler))
         .route("/{game_id}/players", get(players_handler))
 }

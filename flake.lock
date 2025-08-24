@@ -177,16 +177,16 @@
     "openfrontio_cur": {
       "flake": false,
       "locked": {
-        "lastModified": 1754943326,
-        "narHash": "sha256-Shy7gkU2e0mSx9rJeaSyzu8mbFfqgZGngMksa2OWOHk=",
+        "lastModified": 1755814051,
+        "narHash": "sha256-cegCuJ4neovw03aGCM0qKn2dXyz8r5NQnbKHcGKrNHU=",
         "owner": "OpenFrontIO",
         "repo": "OpenFrontIO",
-        "rev": "c7fb5790256814340ed0bb590489eb97198b21c3",
+        "rev": "3fc34c931eacc9bf8747794078b4f529c3ea5ba2",
         "type": "github"
       },
       "original": {
         "owner": "OpenFrontIO",
-        "ref": "v0.24.13",
+        "ref": "v0.25.3",
         "repo": "OpenFrontIO",
         "type": "github"
       }
