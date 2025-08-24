@@ -514,7 +514,7 @@ async function process_player_updates(
             is_connected_bit,
             compress_value_for_db(update.tilesOwned),
             compress_value_for_db(update.gold),
-            compress_value_for_db(update.workers),
+            compress_value_for_db(12), // they removed workers
             compress_value_for_db(update.troops),
         ]);
 
