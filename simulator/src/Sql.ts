@@ -126,6 +126,7 @@ export async function cleanup_previous_analysis(
         "spawn_locations",
         "packed_player_updates",
         "troop_ratio_change",
+        "construction_events",
     ];
 
     for (const tableName of tableNames) {

@@ -204,8 +204,7 @@ async function analyze_intents(
         console.log(`Player ${client_id} spawned at (${x}, ${y})`);
 
         // TODO fix this
-        const prev_spawns = analysis.spawns[client_id] ? analysis.spawns[client_id].previous_spawns : [];
-        prev_spawns.push({x, y, turn: turn.turnNumber});
+        const prev_spawns = [...(analysis.spawns[client_id]?.previous_spawns || []), {x, y, turn: turn.turnNumber}];
         console.log(`Previous spawns: ${prev_spawns.length}`);
         console.log(analysis.spawns[client_id]);
 
@@ -515,18 +514,19 @@ async function process_player_updates(
             is_connected_bit,
             compress_value_for_db(update.tilesOwned),
             compress_value_for_db(update.gold),
-            compress_value_for_db(update.workers),
+            compress_value_for_db(12), // they removed workers
             compress_value_for_db(update.troops),
         ]);
 
         let last_troop_ratio = extra_data.players_troop_ratio?.[update.id];
         if(update.targetTroopRatio !== last_troop_ratio && update.playerType === PlayerType.Human) {
-            analysis.ins_troop_ratio.push([
-                game_id,
-                update.smallID,
-                update.clientID,
-                update.targetTroopRatio,
-            ]);
+            // They removed troops ratio
+            //analysis.ins_troop_ratio.push([
+                //game_id,
+                //update.smallID,
+                //update.clientID,
+                //update.targetTroopRatio,
+            //]);
             extra_data.players_troop_ratio[update.id] = update.targetTroopRatio;
         }
     }

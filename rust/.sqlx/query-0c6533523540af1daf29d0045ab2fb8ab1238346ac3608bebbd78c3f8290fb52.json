@@ -32,7 +32,8 @@
                 "Hash",
                 "UnitIncoming",
                 "BonusEvent",
-                "RailroadEvent"
+                "RailroadEvent",
+                "EmbargoEvent"
               ]
             }
           }
