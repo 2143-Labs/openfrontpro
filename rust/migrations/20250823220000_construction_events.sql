@@ -19,5 +19,5 @@ CREATE TABLE IF NOT EXISTS analysis_1.construction_events (
     unit_type TEXT NOT NULL,
     x INTEGER NOT NULL,
     y INTEGER NOT NULL,
-    level SMALLINT NOT NULL,
+    level SMALLINT NOT NULL
 );
