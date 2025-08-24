@@ -39,7 +39,7 @@ import format from "pg-format";
 import { on } from "events";
 
 import { DATABASE_URL, MapData, Analysis } from "./Types";
-import { INSERT_SPAWN_LOCATIONS, INSERT_DISPLAY_EVENT, INSERT_PLAYER, INSERT_GENERAL_EVENT, INSERT_PLAYER_UPDATE_NEW, INSERT_PLAYER_TROOP_RATIO_CHANGE, UPSERT_COMPLETED_ANALYSIS, INSERT_PLAYER_UPDATE_NEW_PACKED, INSERT_DISPLAY_EVENT_PACKED } from "./Sql";
+import { INSERT_SPAWN_LOCATIONS, INSERT_DISPLAY_EVENT, INSERT_PLAYER, INSERT_GENERAL_EVENT, INSERT_PLAYER_UPDATE_NEW, INSERT_PLAYER_TROOP_RATIO_CHANGE, UPSERT_COMPLETED_ANALYSIS, INSERT_PLAYER_UPDATE_NEW_PACKED, INSERT_DISPLAY_EVENT_PACKED, INSERT_CONSTRUCTION_EVENT } from "./Sql";
 
 export async function load_map_data(
     maps_path: string,
@@ -213,6 +213,14 @@ export async function finalize_and_insert_analysis(
     time_taken = performance.now() - start_time;
     start_time = performance.now();
     console.log(`Finished inserting player updates for game ${gameId} in ${(time_taken / 1000).toFixed(1)}s.`);
+    console.log("Inserting constructions for", gameId);
+    for (const construction_event of analysis.ins_construction) {
+        await pool.query(INSERT_CONSTRUCTION_EVENT, construction_event);
+    }
+
+    time_taken = performance.now() - start_time;
+    start_time = performance.now();
+    console.log(`Finished inserting construction events for game ${gameId} in ${(time_taken / 1000).toFixed(1)}s.`);
     console.log("Inserting troop ratio changes for game", gameId);
     for (const troop_ratio of analysis.ins_troop_ratio) {
         await pool.query(INSERT_PLAYER_TROOP_RATIO_CHANGE, troop_ratio);

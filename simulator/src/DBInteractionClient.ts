@@ -295,3 +295,16 @@ export async function db_sim_client(analysis_endpoint: string): Promise<any | vo
         );
     }
 }
+
+export async function db_sim_single_game(game_id: string): Promise<void> {
+    let game_info = await fetch(`https://api.openfront.io/game/${game_id}`);
+    if (!game_info.ok) {
+        throw new Error(`Failed to fetch game info for ${game_id}: ${game_info.status} ${game_info.statusText}`);
+    }
+
+    let r: GameRecord = await game_info.json();
+    const record = decompressGameRecord(r);
+
+    const analysis = await simgame(game_id, record);
+
+}

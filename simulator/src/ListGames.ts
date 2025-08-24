@@ -41,7 +41,7 @@ import { finalize_and_insert_analysis, load_map_data, setup } from "./Util";
 import { cleanup_previous_analysis, INSERT_DISPLAY_EVENT, INSERT_GENERAL_EVENT, INSERT_PLAYER, INSERT_PLAYER_TROOP_RATIO_CHANGE, INSERT_PLAYER_UPDATE_NEW, INSERT_SPAWN_LOCATIONS, SELECT_AND_UPDATE_JOB, UPDATE_ANALYSIS_QUEUE_STATUS, UPSERT_COMPLETED_ANALYSIS } from "./Sql";
 import { simgame } from "./SimGame";
 import { db_interaction_server } from "./DBInteractionServer";
-import { db_sim_client } from "./DBInteractionClient";
+import { db_sim_client, db_sim_single_game } from "./DBInteractionClient";
 import { test_ply } from "./TestFucns";
 
 
@@ -108,6 +108,12 @@ async function main(database: Pool): Promise<void> {
         await new Promise((resolve) => setTimeout(resolve, 5000));
     }
 
+}
+
+if(process.env.SIM_GAME) {
+    console.log("Running simulation for game: ", process.env.SIM_GAME);
+    await db_sim_single_game(process.env.SIM_GAME);
+    process.exit(0);
 }
 
 if(process.env.RUN_CLIENT) {
