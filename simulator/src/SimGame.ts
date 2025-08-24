@@ -204,8 +204,7 @@ async function analyze_intents(
         console.log(`Player ${client_id} spawned at (${x}, ${y})`);
 
         // TODO fix this
-        const prev_spawns = analysis.spawns[client_id] ? analysis.spawns[client_id].previous_spawns : [];
-        prev_spawns.push({x, y, turn: turn.turnNumber});
+        const prev_spawns = [...(analysis.spawns[client_id]?.previous_spawns || []), {x, y, turn: turn.turnNumber}];
         console.log(`Previous spawns: ${prev_spawns.length}`);
         console.log(analysis.spawns[client_id]);
 
