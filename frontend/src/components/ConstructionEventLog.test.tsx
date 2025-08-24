@@ -59,7 +59,8 @@ describe('ConstructionEventLog', () => {
     events: mockConstructionEvents,
     players: mockPlayers,
     mapWidth: 2000,
-    mapHeight: 1000
+    mapHeight: 1000,
+    statsData: null // Default to null stats data for most tests
   };
 
   it('renders without crashing', () => {
@@ -165,5 +166,98 @@ describe('ConstructionEventLog', () => {
     
     // Should fall back to the name from the event
     expect(screen.getByText('Mystery Player')).toBeInTheDocument();
+  });
+
+  it('displays construction costs when statsData is available', () => {
+    const mockStatsData = {
+      player_stats_ticks: {
+        400: [
+          { client_id: 'player1', name: 'Player One', gold: 800, troops: 0, workers: 0, tiles_owned: 0 },
+          { client_id: 'player2', name: 'Player Two', gold: 1000, troops: 0, workers: 0, tiles_owned: 0 }
+        ],
+        600: [
+          { client_id: 'player1', name: 'Player One', gold: 700, troops: 0, workers: 0, tiles_owned: 0 },
+          { client_id: 'player2', name: 'Player Two', gold: 750, troops: 0, workers: 0, tiles_owned: 0 }
+        ], // player2 spent 250 gold (1000 -> 750)
+        900: [
+          { client_id: 'player1', name: 'Player One', gold: 800, troops: 0, workers: 0, tiles_owned: 0 },
+          { client_id: 'player2', name: 'Player Two', gold: 600, troops: 0, workers: 0, tiles_owned: 0 }
+        ],
+        1100: [
+          { client_id: 'player1', name: 'Player One', gold: 650, troops: 0, workers: 0, tiles_owned: 0 },
+          { client_id: 'player2', name: 'Player Two', gold: 550, troops: 0, workers: 0, tiles_owned: 0 }
+        ], // player1 spent 150 gold (800 -> 650)
+      }
+    };
+
+    render(<ConstructionEventLog {...defaultProps} statsData={mockStatsData} />);
+    
+    // Should show calculated costs for events where data is available
+    // Factory at tick 500 should show cost of 250 (1000 -> 750) rounded to nearest 125K multiple = 125K
+    // City at tick 1000 should show cost of 150 (800 -> 650) rounded to nearest 125K multiple = 125K
+    // Both should show 125K since that's the closest valid cost
+    expect(screen.getAllByText('💰125.0K')).toHaveLength(2);
+  });
+
+  it('shows N/A for cost when statsData is not available', () => {
+    render(<ConstructionEventLog {...defaultProps} statsData={null} />);
+    
+    // Should show N/A for all costs since no statsData provided
+    const naCosts = screen.getAllByText('N/A');
+    expect(naCosts).toHaveLength(3); // One for each construction event
+  });
+
+  it('displays "Captured" for constructions with zero or negative cost', () => {
+    const mockStatsData = {
+      player_stats_ticks: {
+        400: [
+          { client_id: 'player1', name: 'Player One', gold: 500, troops: 0, workers: 0, tiles_owned: 0 }
+        ],
+        600: [
+          { client_id: 'player1', name: 'Player One', gold: 500, troops: 0, workers: 0, tiles_owned: 0 }
+        ], // Gold stayed the same (captured)
+        900: [
+          { client_id: 'player1', name: 'Player One', gold: 600, troops: 0, workers: 0, tiles_owned: 0 }
+        ],
+        1100: [
+          { client_id: 'player1', name: 'Player One', gold: 700, troops: 0, workers: 0, tiles_owned: 0 }
+        ], // Gold increased (captured)
+      }
+    };
+
+    const capturedEvents: ConstructionEvent[] = [
+      {
+        tick: 500,
+        unit_type: 'City',
+        x: 100,
+        y: 200,
+        level: 1,
+        small_id: 1,
+        client_id: 'player1',
+        name: 'Player One'
+      },
+      {
+        tick: 1000,
+        unit_type: 'Factory',
+        x: 300,
+        y: 400,
+        level: 2,
+        small_id: 2,
+        client_id: 'player1',
+        name: 'Player One'
+      }
+    ];
+
+    render(
+      <ConstructionEventLog 
+        {...defaultProps} 
+        events={capturedEvents}
+        statsData={mockStatsData}
+      />
+    );
+    
+    // Should show "Captured" for both events since gold didn't decrease
+    const capturedLabels = screen.getAllByText('🏴 Captured');
+    expect(capturedLabels).toHaveLength(2);
   });
 });

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { UserData } from '../types';
 import { 
   formatISODate, 
@@ -11,49 +12,225 @@ import {
   getTimeAgo
 } from '../utils';
 import { LoadingSpinner, ErrorMessage } from './';
-import { Link } from 'react-router-dom';
+import { 
+  fetchUser, 
+  fetchAnalysisQueue, 
+  markGameForAnalysis, 
+  unmarkGameForAnalysis,
+  fetchUserIfNeeded,
+  fetchUsersBatch,
+  cacheUser
+} from '../services/api';
+import { getAnalysisStatus } from '../utils/analysis';
+import { AnalysisQueueEntry } from '../types';
+import AnalysisStatusBadge from './AnalysisStatusBadge';
+
+// Type for tracking friend loading state
+type FriendMeta = {
+  loading: boolean;
+  error?: string;
+  data?: UserData;
+};
 
 function UserDetail() {
   const { userID } = useParams<{ userID: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Friends lazy loading state
+  const [friends, setFriends] = useState<Record<string, FriendMeta>>({});
+  
+  // Analysis queue state
+  const [analysisQueue, setAnalysisQueue] = useState<AnalysisQueueEntry[]>([]);
+  const [queueLoading, setQueueLoading] = useState(true);
+  const [queueError, setQueueError] = useState<string | null>(null);
+  const [pendingOperations, setPendingOperations] = useState<Set<string>>(new Set());
 
+  // Check for pre-loaded user data and fetch user data and analysis queue
   useEffect(() => {
-    const fetchUserDetails = async () => {
+    const preloadedUser = location.state?.userData as UserData | undefined;
+    if (preloadedUser && preloadedUser.user_id === userID) {
+      console.log('Using pre-loaded user data for instant navigation');
+      setUser(preloadedUser);
+      cacheUser(preloadedUser); // Ensure it's cached
+      setLoading(false);
+      
+      // Still need to fetch analysis queue
+      const fetchQueue = async () => {
+        try {
+          setQueueLoading(true);
+          setQueueError(null);
+          const queueData = await fetchAnalysisQueue();
+          setAnalysisQueue(queueData);
+        } catch (err) {
+          console.error('Error fetching analysis queue:', err);
+          setQueueError(err instanceof Error ? err.message : 'Failed to fetch analysis queue');
+        } finally {
+          setQueueLoading(false);
+        }
+      };
+      fetchQueue();
+      return;
+    }
+
+    const fetchData = async () => {
       if (!userID) return;
       
       try {
         setLoading(true);
+        setQueueLoading(true);
         setError(null);
+        setQueueError(null);
         
-        const response = await fetch(`/api/v1/users/${userID}`);
+        const [userData, queueData] = await Promise.all([
+          fetchUserIfNeeded(userID),
+          fetchAnalysisQueue()
+        ]);
         
-        if (response.status === 404) {
-          setError('User not found.');
-          return;
-        }
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch user details: ${response.status}`);
-        }
-        
-        const userData = await response.json();
         setUser(userData);
+        setAnalysisQueue(queueData);
       } catch (err) {
-        console.error('Error fetching user details:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch user details');
+        if (err instanceof Error) {
+          console.error('Error fetching data:', err);
+          if (err.message.includes('analysis_queue')) {
+            setQueueError(err.message);
+          } else {
+            setError(err.message);
+          }
+        } else {
+          setError('Failed to fetch user data');
+        }
       } finally {
         setLoading(false);
+        setQueueLoading(false);
       }
     };
 
-    fetchUserDetails();
-  }, [userID]);
+    fetchData();
+  }, [userID, location.state]);
+
+  // Lazy load friend data after user is loaded
+  useEffect(() => {
+    if (!user || !user.friends || user.friends.length === 0) return;
+
+    console.log('Starting lazy load of friend data for', user.friends.length, 'friends');
+    
+    // Reset friends state for new user
+    setFriends({});
+
+    // Set all friends to loading state
+    const friendIds = user.friends;
+    const initialFriends: Record<string, FriendMeta> = {};
+    friendIds.forEach(id => {
+      initialFriends[id] = { loading: true };
+    });
+    setFriends(initialFriends);
+
+    // Fetch friend data in batches
+    fetchUsersBatch(friendIds)
+      .then(results => {
+        console.log('Friend batch loading completed:', results);
+        setFriends(prevFriends => {
+          const newFriends = { ...prevFriends };
+          for (const [id, result] of Object.entries(results)) {
+            if (result instanceof Error) {
+              newFriends[id] = { loading: false, error: result.message };
+            } else {
+              newFriends[id] = { loading: false, data: result };
+            }
+          }
+          return newFriends;
+        });
+      })
+      .catch(err => {
+        console.error('Error loading friend data:', err);
+        // Set all friends to error state
+        setFriends(prevFriends => {
+          const newFriends = { ...prevFriends };
+          for (const id of friendIds) {
+            newFriends[id] = { loading: false, error: 'Failed to load friend data' };
+          }
+          return newFriends;
+        });
+      });
+  }, [user]);
+
+  // Auto-refresh analysis queue every 15 seconds
+  useEffect(() => {
+    if (!user?.recent_games || user.recent_games.length === 0) return;
+    
+    const interval = setInterval(() => {
+      refreshQueue();
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const refreshQueue = async () => {
+    try {
+      const queueData = await fetchAnalysisQueue();
+      setAnalysisQueue(queueData);
+      setQueueError(null);
+    } catch (err) {
+      console.error('Error refreshing analysis queue:', err);
+      setQueueError(err instanceof Error ? err.message : 'Failed to refresh analysis queue');
+    }
+  };
+
+  const handleStartAnalysis = async (gameId: string) => {
+    setPendingOperations(prev => new Set(prev).add(gameId));
+    
+    try {
+      await markGameForAnalysis(gameId);
+      await refreshQueue();
+    } catch (err) {
+      console.error('Error starting analysis:', err);
+      setQueueError(err instanceof Error ? err.message : 'Failed to start analysis');
+    } finally {
+      setPendingOperations(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(gameId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleCancelAnalysis = async (gameId: string) => {
+    setPendingOperations(prev => new Set(prev).add(gameId));
+    
+    try {
+      await unmarkGameForAnalysis(gameId);
+      await refreshQueue();
+    } catch (err) {
+      console.error('Error canceling analysis:', err);
+      setQueueError(err instanceof Error ? err.message : 'Failed to cancel analysis');
+    } finally {
+      setPendingOperations(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(gameId);
+        return newSet;
+      });
+    }
+  };
 
   const handleBackToLobbies = () => {
     navigate('/');
+  };
+
+  const handleViewFriend = (friendId: string) => {
+    const meta = friends[friendId];
+    if (meta?.data) {
+      // Use pre-loaded friend data for instant navigation
+      navigate(`/user/${friendId}`, { 
+        state: { userData: meta.data }
+      });
+    } else {
+      // Fall back to normal navigation if data isn't available
+      navigate(`/user/${friendId}`);
+    }
   };
 
   if (loading) {
@@ -197,31 +374,122 @@ function UserDetail() {
                 flexDirection: 'column',
                 gap: '5px'
               }}>
-                {user.friends.map((friendId, index) => (
-                  <div key={friendId} style={{ 
-                    padding: '8px', 
-                    backgroundColor: index % 2 === 0 ? '#f8f9fa' : 'transparent',
-                    borderRadius: '4px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <code style={{ fontSize: '0.9em' }}>{friendId}</code>
-                    <Link 
-                      to={`/user/${friendId}`}
-                      style={{ 
-                        color: '#007bff', 
-                        textDecoration: 'none', 
-                        fontSize: '0.8em',
-                        padding: '2px 6px',
-                        borderRadius: '3px',
-                        border: '1px solid #007bff'
-                      }}
-                    >
-                      View
-                    </Link>
-                  </div>
-                ))}
+                {user.friends.map((friendId, index) => {
+                  const meta = friends[friendId];
+                  const isLoading = meta?.loading || false;
+                  const hasError = meta?.error;
+                  const friendData = meta?.data;
+                  const displayName = friendData?.username || friendId;
+                  const isPreLoaded = friendData && !isLoading;
+                  
+                  return (
+                    <div key={friendId} style={{ 
+                      padding: '8px', 
+                      backgroundColor: index % 2 === 0 ? '#f8f9fa' : 'transparent',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      minHeight: '32px'
+                    }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '8px',
+                        flex: 1,
+                        minWidth: 0 // Allow text truncation
+                      }}>
+                        {isLoading ? (
+                          <>
+                            <div 
+                              style={{
+                                width: '16px',
+                                height: '16px',
+                                border: '2px solid #f3f3f3',
+                                borderTop: '2px solid #007bff',
+                                borderRadius: '50%',
+                                animation: 'spin 1s linear infinite'
+                              }}
+                              aria-label={`Loading friend ${friendId}`}
+                            />
+                            <span style={{ 
+                              fontSize: '0.9em',
+                              color: '#6c757d',
+                              fontFamily: 'monospace'
+                            }}>
+                              {friendId}
+                            </span>
+                          </>
+                        ) : hasError ? (
+                          <>
+                            <span 
+                              style={{ 
+                                color: '#dc3545',
+                                fontSize: '1.1em',
+                                cursor: 'help'
+                              }}
+                              title={`Error loading friend: ${hasError}`}
+                              aria-label={`Error loading friend: ${hasError}`}
+                            >
+                              ⚠️
+                            </span>
+                            <span style={{ 
+                              fontSize: '0.9em',
+                              color: '#dc3545',
+                              fontFamily: 'monospace'
+                            }}>
+                              {friendId}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            {isPreLoaded && (
+                              <span 
+                                style={{ 
+                                  color: '#28a745',
+                                  fontSize: '0.8em',
+                                  cursor: 'help'
+                                }}
+                                title="Friend data pre-loaded for instant navigation"
+                                aria-label="Pre-loaded"
+                              >
+                                ✓
+                              </span>
+                            )}
+                            <span style={{ 
+                              fontSize: '0.9em',
+                              fontWeight: friendData ? 'normal' : 'normal',
+                              color: friendData ? '#212529' : '#6c757d',
+                              fontFamily: friendData ? 'inherit' : 'monospace'
+                            }}>
+                              {displayName}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      
+                      <button
+                        onClick={() => handleViewFriend(friendId)}
+                        disabled={isLoading || hasError}
+                        style={{ 
+                          color: (isLoading || hasError) ? '#6c757d' : '#007bff',
+                          backgroundColor: 'transparent',
+                          textDecoration: 'none', 
+                          fontSize: '0.8em',
+                          padding: '2px 6px',
+                          borderRadius: '3px',
+                          border: `1px solid ${(isLoading || hasError) ? '#6c757d' : '#007bff'}`,
+                          cursor: (isLoading || hasError) ? 'not-allowed' : 'pointer',
+                          opacity: (isLoading || hasError) ? 0.6 : 1,
+                          transition: 'all 0.2s ease'
+                        }}
+                        aria-label={`View ${displayName}'s profile`}
+                      >
+                        View
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </section>
           )}
@@ -371,23 +639,34 @@ function UserDetail() {
                           {game.name_in_that_game || <em>Unknown</em>}
                         </td>
                         <td style={{ padding: '8px', borderBottom: '1px solid #dee2e6' }}>
-                          {game.analysis_complete_time ? (
+                          {queueLoading ? (
+                            <AnalysisStatusBadge
+                              status={{
+                                state: 'none',
+                                statusText: 'Loading...',
+                                badgeColor: { background: '#f8f9fa', color: '#6c757d' }
+                              }}
+                              gameId={game.game_id}
+                              isLoading={true}
+                            />
+                          ) : queueError ? (
                             <span style={{ 
-                              color: '#28a745',
+                              color: '#dc3545',
                               fontSize: '0.8em',
                               padding: '2px 6px',
-                              backgroundColor: '#d4edda',
+                              backgroundColor: '#f8d7da',
                               borderRadius: '3px'
                             }}>
-                              ✓ Analyzed {getTimeAgo(game.analysis_complete_time)}
+                              Queue Error
                             </span>
                           ) : (
-                            <span style={{ 
-                              color: '#6c757d',
-                              fontSize: '0.8em'
-                            }}>
-                              Pending
-                            </span>
+                            <AnalysisStatusBadge
+                              status={getAnalysisStatus(game.game_id, game, analysisQueue)}
+                              gameId={game.game_id}
+                              isLoading={pendingOperations.has(game.game_id)}
+                              onStartAnalysis={handleStartAnalysis}
+                              onCancelAnalysis={handleCancelAnalysis}
+                            />
                           )}
                         </td>
                       </tr>

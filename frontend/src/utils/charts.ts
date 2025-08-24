@@ -1,4 +1,5 @@
 // Chart utilities for processing and formatting game analysis data
+import { GamePlayer } from '../types';
 
 // Duration filter type - 'all' for no filtering, or number of minutes
 export type DurationFilter = 'all' | 1 | 3 | 10 | 30;
@@ -30,51 +31,76 @@ export interface DisplayEvent {
   gold_amount?: number;
 }
 
-export interface GamePlayer {
-  id: string;
-  client_id?: string;
-  small_id: number;
-  player_type: string;
-  name: string;
-  flag?: string;
-  team?: number;
-  spawn_info?: {
-    tick: number;
-    x: number;
-    y: number;
-    previous_spawns: any;
-  };
+// Event type from formatEventsForTimeline utility
+export interface TimelineEvent {
+  tick: number;
+  type: 'general' | 'display';
+  category: string;
+  message: string;
+  playerId?: number;
+  goldAmount?: number;
+  data?: any;
 }
 
-// Generate a consistent color for each player
+// Type for consistent color mapping across components
+export type PlayerColorMap = Map<string, string>;
+
+// Color palette for players
+const PLAYER_COLORS = [
+  '#1f77b4', // blue
+  '#ff7f0e', // orange
+  '#2ca02c', // green
+  '#d62728', // red
+  '#9467bd', // purple
+  '#8c564b', // brown
+  '#e377c2', // pink
+  '#7f7f7f', // gray
+  '#bcbd22', // olive
+  '#17becf', // cyan
+  '#ff9896', // light red
+  '#98df8a', // light green
+  '#c5b0d5', // light purple
+  '#f7b6d3', // light pink
+  '#c7c7c7', // light gray
+  '#dbdb8d', // light olive
+  '#9edae5', // light cyan
+];
+
+// Generate a consistent color for each player by index
 export const getPlayerColor = (playerIndex: number): string => {
-  const colors = [
-    '#1f77b4', // blue
-    '#ff7f0e', // orange
-    '#2ca02c', // green
-    '#d62728', // red
-    '#9467bd', // purple
-    '#8c564b', // brown
-    '#e377c2', // pink
-    '#7f7f7f', // gray
-    '#bcbd22', // olive
-    '#17becf', // cyan
-    '#ff9896', // light red
-    '#98df8a', // light green
-    '#c5b0d5', // light purple
-    '#f7b6d3', // light pink
-    '#c7c7c7', // light gray
-    '#dbdb8d', // light olive
-    '#9edae5', // light cyan
-  ];
+  return PLAYER_COLORS[playerIndex % PLAYER_COLORS.length];
+};
+
+// Create a consistent color mapping for a list of players
+// This ensures the same player always gets the same color across components
+export const createPlayerColorMap = (players: GamePlayer[]): Map<string, string> => {
+  const colorMap = new Map<string, string>();
   
-  return colors[playerIndex % colors.length];
+  // Sort players by client_id to ensure consistent ordering
+  const sortedPlayers = players
+    .filter(player => player.client_id) // Only players with client_id
+    .sort((a, b) => (a.client_id || '').localeCompare(b.client_id || ''));
+  
+  sortedPlayers.forEach((player, index) => {
+    if (player.client_id) {
+      colorMap.set(player.client_id, getPlayerColor(index));
+    }
+  });
+  
+  return colorMap;
+};
+
+// Get consistent color for a player by client_id using a color map
+export const getPlayerColorById = (colorMap: Map<string, string>, clientId: string): string => {
+  return colorMap.get(clientId) || '#cccccc'; // fallback gray
 };
 
 // Convert player stats data into D3-friendly format
+// Now accepts colorMap parameter to ensure consistent coloring
 export const formatPlayerStatsForChart = (
   statsData: PlayerStatsOverGame,
-  metric: 'troops' | 'gold' | 'workers' | 'tiles_owned'
+  metric: 'troops' | 'gold' | 'workers' | 'tiles_owned',
+  colorMap: Map<string, string>
 ) => {
   const ticks = Object.keys(statsData.player_stats_ticks)
     .map(Number)
@@ -90,11 +116,11 @@ export const formatPlayerStatsForChart = (
     });
   });
 
-  // Format data for each player
-  const playerLines = Array.from(allPlayers.entries()).map(([clientId, name], index) => ({
+  // Format data for each player using consistent color mapping
+  const playerLines = Array.from(allPlayers.entries()).map(([clientId, name]) => ({
     id: clientId,
     name,
-    color: getPlayerColor(index),
+    color: getPlayerColorById(colorMap, clientId),
     data: ticks.map(tick => {
       const tickData = statsData.player_stats_ticks[tick];
       const playerData = tickData?.find(p => p.client_id === clientId);
@@ -214,6 +240,10 @@ export const tickToTime = (tick: number): string => {
 };
 
 // Format large numbers with units
+export const truncate = (str: string, maxLen: number = 120): string => {
+  return str.length > maxLen ? str.slice(0, maxLen - 1) + '…' : str;
+};
+
 export const formatNumber = (num: number): string => {
   if (num >= 1000000) {
     return `${(num / 1000000).toFixed(1)}M`;
@@ -260,4 +290,87 @@ export const unitTypeDisplay = (unit_type: string): string => {
 // Get player by client_id
 export const getPlayerById = (players: GamePlayer[], clientId: string): GamePlayer | undefined => {
   return players.find(player => player.client_id === clientId || player.id === clientId);
+};
+
+// Round to the nearest valid construction cost based on 125k * 2^k formula
+const roundToNearestConstructionCost = (rawCost: number): number => {
+  if (rawCost <= 0) {
+    return 0; // Will be handled as "Captured" later
+  }
+
+  // Base cost is 125k (125,000)
+  const baseCost = 125000;
+  
+  // Find the closest multiple of baseCost * 2^k
+  let bestCost = baseCost;
+  let bestDifference = Math.abs(rawCost - bestCost);
+  
+  // Check up to 2^10 (about 128M, which should cover all reasonable costs)
+  for (let k = 1; k <= 10; k++) {
+    const cost = baseCost * Math.pow(2, k);
+    const difference = Math.abs(rawCost - cost);
+    
+    if (difference < bestDifference) {
+      bestCost = cost;
+      bestDifference = difference;
+    }
+    
+    // If we're getting farther away, we can stop
+    if (difference > bestDifference * 2) {
+      break;
+    }
+  }
+  
+  return bestCost;
+};
+
+// Calculate construction cost by finding gold difference before and after the event
+export const calculateConstructionCost = (
+  constructionTick: number,
+  clientId: string,
+  statsData: PlayerStatsOverGame | null
+): number | null => {
+  if (!statsData || !statsData.player_stats_ticks) {
+    return null;
+  }
+
+  // Get all ticks and sort them
+  const allTicks = Object.keys(statsData.player_stats_ticks)
+    .map(Number)
+    .sort((a, b) => a - b);
+
+  // Find the tick right before the construction
+  const beforeTick = allTicks
+    .filter(tick => tick < constructionTick)
+    .pop(); // Get the latest tick before construction
+
+  // Find the tick right after the construction (could be the construction tick itself or later)
+  const afterTick = allTicks
+    .find(tick => tick >= constructionTick);
+
+  if (beforeTick === undefined || !afterTick) {
+    return null; // Can't calculate if we don't have before/after data
+  }
+
+  // Get player stats for before and after ticks
+  const beforeStats = statsData.player_stats_ticks[beforeTick];
+  const afterStats = statsData.player_stats_ticks[afterTick];
+
+  if (!beforeStats || !afterStats) {
+    return null;
+  }
+
+  // Find the specific player in both tick data
+  const playerBefore = beforeStats.find(p => p.client_id === clientId);
+  const playerAfter = afterStats.find(p => p.client_id === clientId);
+
+  if (!playerBefore || !playerAfter) {
+    return null; // Player not found in stats
+  }
+
+  // Calculate the raw gold difference (cost is the decrease in gold)
+  const rawGoldDifference = playerBefore.gold - playerAfter.gold;
+  
+  // Round to the nearest valid construction cost
+  return roundToNearestConstructionCost(rawGoldDifference);
 };

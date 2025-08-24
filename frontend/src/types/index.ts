@@ -152,6 +152,23 @@ export interface UserData {
   recent_games: RecentGame[];
 }
 
+// Analysis API types - GamePlayer matching backend schema
+export interface GamePlayer {
+  id: string;
+  client_id?: string;
+  small_id: number;
+  player_type: string;
+  name: string;
+  flag?: string;
+  team?: number;
+  spawn_info?: {
+    tick: number;
+    x: number;
+    y: number;
+    previous_spawns: any;
+  };
+}
+
 // Construction Event types
 export interface ConstructionEvent {
   tick: number;
@@ -166,6 +183,14 @@ export interface ConstructionEvent {
 
 export interface ConstructionEventsResponse {
   events: ConstructionEvent[];
+}
+
+// Analysis Queue types
+export interface AnalysisQueueEntry {
+  game_id: string;
+  status: string;
+  queued_for_sec: number;
+  started_at_unix_sec?: number | null;
 }
 
 // Legacy types for backwards compatibility

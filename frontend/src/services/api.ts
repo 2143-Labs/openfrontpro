@@ -1,4 +1,10 @@
-import { Lobby, UserData, UserSummary, UsersResponse, ConstructionEventsResponse } from '../types';
+import { Lobby, UserData, UserSummary, UsersResponse, ConstructionEventsResponse, AnalysisQueueEntry } from '../types';
+
+// In-memory user cache for session-based caching
+const userCache = new Map<string, { data: UserData; fetchedAt: number }>();
+
+// Cache TTL in milliseconds (10 minutes)
+const CACHE_TTL = 10 * 60 * 1000;
 
 export interface FetchLobbiesParams {
   completed?: boolean | null;
@@ -80,6 +86,14 @@ export const fetchAllUsers = async (): Promise<UserSummary[]> => {
   return [];
 };
 
+export const fetchAnalysisQueue = async (): Promise<AnalysisQueueEntry[]> => {
+  const res = await fetch('/api/v1/analysis_queue');
+  if (!res.ok) {
+    throw new Error(`HTTP error! status: ${res.status}`);
+  }
+  return await res.json();
+};
+
 export const fetchConstructionEvents = async (gameId: string): Promise<ConstructionEventsResponse> => {
   const url = new URL(`/api/v1/analysis/${gameId}/get_construction_events`, window.location.origin);
   const res = await fetch(url.toString());
@@ -90,3 +104,54 @@ export const fetchConstructionEvents = async (gameId: string): Promise<Construct
   
   return await res.json();
 };
+
+// User cache helper functions
+export const getCachedUser = (id: string): UserData | null => {
+  const cached = userCache.get(id);
+  if (!cached) return null;
+  
+  // Check if cache entry is expired
+  if (Date.now() - cached.fetchedAt > CACHE_TTL) {
+    userCache.delete(id);
+    return null;
+  }
+  
+  return cached.data;
+};
+
+export const cacheUser = (data: UserData): void => {
+  userCache.set(data.user_id, { data, fetchedAt: Date.now() });
+};
+
+export const clearUserCache = (): void => {
+  userCache.clear();
+};
+
+// Enhanced user fetching with caching
+export const fetchUserIfNeeded = async (id: string): Promise<UserData> => {
+  const cached = getCachedUser(id);
+  if (cached) return cached;
+  
+  const data = await fetchUser(id);
+  cacheUser(data);
+  return data;
+};
+
+// Batch fetch multiple users with caching and parallel loading
+export const fetchUsersBatch = async (ids: string[]): Promise<Record<string, UserData | Error>> => {
+  const promises = ids.map(id =>
+    fetchUserIfNeeded(id)
+      .then(data => ({ id, data }))
+      .catch(error => ({ id, error }))
+  );
+  
+  const settled = await Promise.all(promises);
+  
+  return Object.fromEntries(
+    settled.map(result => [
+      result.id, 
+      'error' in result ? result.error : result.data
+    ])
+  );
+};
+

@@ -1,33 +1,7 @@
 import React from 'react';
-import { tickToTime } from '../utils/charts';
+import { TimelineEvent, GamePlayer, tickToTime } from '../utils/charts';
+import { getCategoryColor, getCategoryIcon, formatEventTypeLabel } from '../utils/eventDisplay';
 
-// Event type from formatEventsForTimeline utility
-interface TimelineEvent {
-  tick: number;
-  type: 'general' | 'display';
-  category: string;
-  message: string;
-  playerId?: number;
-  goldAmount?: number;
-  data?: any;
-}
-
-// Player type from charts utils
-interface GamePlayer {
-  id: string;
-  client_id?: string;
-  small_id: number;
-  player_type: string;
-  name: string;
-  flag?: string;
-  team?: number;
-  spawn_info?: {
-    tick: number;
-    x: number;
-    y: number;
-    previous_spawns: any;
-  };
-}
 
 interface EventsTimelineProps {
   events: TimelineEvent[];
@@ -55,35 +29,6 @@ const EventsTimeline: React.FC<EventsTimelineProps> = ({
     return player ? player.name : `Player ${playerId}`;
   };
 
-  const getCategoryColor = (type: 'general' | 'display'): string => {
-    return type === 'general' ? '#007bff' : '#28a745'; // Blue for general, green for display
-  };
-
-  const getCategoryIcon = (category: string, type: 'general' | 'display'): string => {
-    // Icons for different event types for quick visual parsing
-    const iconMap: Record<string, string> = {
-      // General events
-      'player_spawn': '👤',
-      'player_death': '💀',
-      'game_start': '🎮',
-      'game_end': '🏁',
-      'unit_created': '⚔️',
-      'building_constructed': '🏗️',
-      'resource_gathered': '💰',
-      'battle': '⚡',
-      'trade': '🤝',
-      
-      // Display events
-      'chat': '💬',
-      'system': '🔧',
-      'notification': '📢',
-      'warning': '⚠️',
-      'error': '❌',
-      'info': 'ℹ️',
-    };
-
-    return iconMap[category.toLowerCase()] || (type === 'general' ? '📊' : '📝');
-  };
 
   const formatEventDetails = (event: TimelineEvent): string => {
     let details = event.message;
@@ -232,7 +177,7 @@ const EventsTimeline: React.FC<EventsTimelineProps> = ({
                     textOverflow: 'ellipsis',
                     maxWidth: '70px'
                   }}>
-                    {event.type === 'general' ? 'GEN' : 'DIS'}
+                    {formatEventTypeLabel(event.type)}
                   </span>
                 </div>
               </div>

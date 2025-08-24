@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterStatsByDuration, PlayerStatsOverGame, PlayerStatsOnTick, DurationFilter } from './charts';
+import { filterStatsByDuration, PlayerStatsOverGame, PlayerStatsOnTick, DurationFilter, calculateConstructionCost } from './charts';
 
 describe('filterStatsByDuration', () => {
   // Sample test data
@@ -181,5 +181,150 @@ describe('filterStatsByDuration', () => {
     const testData2 = createTestData([5000, 5200, 5500, 5700]);
     const result2 = filterStatsByDuration(testData2, 1); // threshold = 5000 + 600 = 5600
     expect(Object.keys(result2.player_stats_ticks).map(Number).sort((a, b) => a - b)).toEqual([5000, 5200, 5500]);
+  });
+});
+
+describe('calculateConstructionCost', () => {
+  const mockStatsData: PlayerStatsOverGame = {
+    player_stats_ticks: {
+      100: [
+        { client_id: 'player1', name: 'Player One', gold: 1000, troops: 0, workers: 0, tiles_owned: 0 },
+        { client_id: 'player2', name: 'Player Two', gold: 500, troops: 0, workers: 0, tiles_owned: 0 }
+      ],
+      200: [
+        { client_id: 'player1', name: 'Player One', gold: 850, troops: 0, workers: 0, tiles_owned: 0 },
+        { client_id: 'player2', name: 'Player Two', gold: 300, troops: 0, workers: 0, tiles_owned: 0 }
+      ],
+      300: [
+        { client_id: 'player1', name: 'Player One', gold: 700, troops: 0, workers: 0, tiles_owned: 0 },
+        { client_id: 'player2', name: 'Player Two', gold: 100, troops: 0, workers: 0, tiles_owned: 0 }
+      ]
+    }
+  };
+
+  it('calculates cost correctly when gold decreases between ticks', () => {
+    // Player 1: 1000 -> 850, so cost = 150
+    const cost = calculateConstructionCost(200, 'player1', mockStatsData);
+    expect(cost).toBe(150);
+  });
+
+  it('calculates cost correctly for different player', () => {
+    // Player 2: 500 -> 300, so cost = 200
+    const cost = calculateConstructionCost(200, 'player2', mockStatsData);
+    expect(cost).toBe(200);
+  });
+
+  it('returns null when player is not found in before tick', () => {
+    const cost = calculateConstructionCost(200, 'unknown_player', mockStatsData);
+    expect(cost).toBeNull();
+  });
+
+  it('returns null when player is not found in after tick', () => {
+    // Add a scenario where player exists in before tick but not after
+    const limitedStatsData: PlayerStatsOverGame = {
+      player_stats_ticks: {
+        100: [{ client_id: 'player1', name: 'Player One', gold: 1000, troops: 0, workers: 0, tiles_owned: 0 }],
+        200: [{ client_id: 'player2', name: 'Player Two', gold: 300, troops: 0, workers: 0, tiles_owned: 0 }] // player1 missing
+      }
+    };
+    
+    const cost = calculateConstructionCost(200, 'player1', limitedStatsData);
+    expect(cost).toBeNull();
+  });
+
+  it('returns null when before tick does not exist', () => {
+    const cost = calculateConstructionCost(50, 'player1', mockStatsData); // Tick 50 doesn't exist
+    expect(cost).toBeNull();
+  });
+
+  it('returns null when after tick does not exist', () => {
+    const cost = calculateConstructionCost(400, 'player1', mockStatsData); // Tick 400 doesn't exist
+    expect(cost).toBeNull();
+  });
+
+  it('handles case when gold increases (returns 0)', () => {
+    // Create scenario where gold increases instead of decreases
+    const increasingGoldData: PlayerStatsOverGame = {
+      player_stats_ticks: {
+        100: [{ client_id: 'player1', name: 'Player One', gold: 500, troops: 0, workers: 0, tiles_owned: 0 }],
+        200: [{ client_id: 'player1', name: 'Player One', gold: 800, troops: 0, workers: 0, tiles_owned: 0 }] // Gold increased
+      }
+    };
+    
+    const cost = calculateConstructionCost(200, 'player1', increasingGoldData);
+    expect(cost).toBe(0); // Cost can't be negative
+  });
+
+  it('handles case when gold stays the same (returns 0)', () => {
+    // Create scenario where gold stays the same
+    const sameGoldData: PlayerStatsOverGame = {
+      player_stats_ticks: {
+        100: [{ client_id: 'player1', name: 'Player One', gold: 500, troops: 0, workers: 0, tiles_owned: 0 }],
+        200: [{ client_id: 'player1', name: 'Player One', gold: 500, troops: 0, workers: 0, tiles_owned: 0 }] // Same gold
+      }
+    };
+    
+    const cost = calculateConstructionCost(200, 'player1', sameGoldData);
+    expect(cost).toBe(0);
+  });
+
+  it('calculates multiple construction costs for same player correctly', () => {
+    // Test consecutive construction events
+    const cost1 = calculateConstructionCost(200, 'player1', mockStatsData); // 1000 -> 850 = 150
+    const cost2 = calculateConstructionCost(300, 'player1', mockStatsData); // 850 -> 700 = 150
+    
+    expect(cost1).toBe(150);
+    expect(cost2).toBe(150);
+  });
+
+  it('works with edge case of tick 0 and later tick', () => {
+    const edgeCaseData: PlayerStatsOverGame = {
+      player_stats_ticks: {
+        0: [{ client_id: 'player1', name: 'Player One', gold: 1000, troops: 0, workers: 0, tiles_owned: 0 }],
+        100: [{ client_id: 'player1', name: 'Player One', gold: 750, troops: 0, workers: 0, tiles_owned: 0 }]
+      }
+    };
+    
+    const cost = calculateConstructionCost(100, 'player1', edgeCaseData);
+    expect(cost).toBe(250);
+  });
+
+  it('handles large tick numbers correctly', () => {
+    const largeTickData: PlayerStatsOverGame = {
+      player_stats_ticks: {
+        9900: [{ client_id: 'player1', name: 'Player One', gold: 2000, troops: 0, workers: 0, tiles_owned: 0 }],
+        10000: [{ client_id: 'player1', name: 'Player One', gold: 1500, troops: 0, workers: 0, tiles_owned: 0 }]
+      }
+    };
+    
+    const cost = calculateConstructionCost(10000, 'player1', largeTickData);
+    expect(cost).toBe(500);
+  });
+
+  it('finds correct before tick by looking at previous available tick', () => {
+    // Test that it correctly finds the previous tick (not always currentTick - 100)
+    const irregularTickData: PlayerStatsOverGame = {
+      player_stats_ticks: {
+        250: [{ client_id: 'player1', name: 'Player One', gold: 1200, troops: 0, workers: 0, tiles_owned: 0 }],
+        800: [{ client_id: 'player1', name: 'Player One', gold: 900, troops: 0, workers: 0, tiles_owned: 0 }]
+      }
+    };
+    
+    const cost = calculateConstructionCost(800, 'player1', irregularTickData);
+    expect(cost).toBe(300); // 1200 -> 900 = 300
+  });
+
+  it('handles multiple players in same tick correctly', () => {
+    // Verify it picks the right player from the array
+    const cost1 = calculateConstructionCost(200, 'player1', mockStatsData);
+    const cost2 = calculateConstructionCost(200, 'player2', mockStatsData);
+    
+    expect(cost1).toBe(150); // player1: 1000 -> 850
+    expect(cost2).toBe(200); // player2: 500 -> 300
+  });
+
+  it('returns null when statsData is null', () => {
+    const cost = calculateConstructionCost(200, 'player1', null);
+    expect(cost).toBeNull();
   });
 });

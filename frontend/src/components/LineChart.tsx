@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
-import { formatNumber, tickToTime } from '../utils/charts';
+import { formatNumber, tickToTime, unitTypeDisplay } from '../utils/charts';
+import { ConstructionEvent } from '../types';
 
 interface DataPoint {
   tick: number;
@@ -20,6 +21,7 @@ interface LineChartProps {
   height?: number;
   title: string;
   yAxisLabel: string;
+  constructionEvents?: ConstructionEvent[];
 }
 
 const LineChart: React.FC<LineChartProps> = ({
@@ -28,6 +30,7 @@ const LineChart: React.FC<LineChartProps> = ({
   height = 400,
   title,
   yAxisLabel,
+  constructionEvents = [],
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -134,16 +137,61 @@ const LineChart: React.FC<LineChartProps> = ({
         .attr('stroke-width', 2)
         .attr('d', line);
 
-      // Add dots for data points
-      g.selectAll(`.dot-${player.id}`)
-        .data(player.data.filter((_, i) => i % Math.max(1, Math.floor(player.data.length / 20)) === 0)) // Sample points for performance
-        .enter().append('circle')
-        .attr('class', `dot-${player.id}`)
-        .attr('cx', d => xScale(d.tick))
-        .attr('cy', d => yScale(d.value))
-        .attr('r', 3)
-        .attr('fill', player.color)
-        .style('opacity', 0.7);
+      // Add dots for construction events
+      const playerConstructionEvents = constructionEvents.filter(event => event.client_id === player.id);
+      
+      playerConstructionEvents.forEach(event => {
+        // Find the corresponding y-value by interpolating between data points
+        const closestDataPoint = player.data.reduce((prev, curr) => 
+          Math.abs(curr.tick - event.tick) < Math.abs(prev.tick - event.tick) ? curr : prev
+        );
+        
+        if (Math.abs(closestDataPoint.tick - event.tick) < 1000) { // Only show if within reasonable range
+          // Create construction dot with tooltip
+          const dot = g.append('circle')
+            .attr('class', `construction-dot-${player.id}`)
+            .attr('cx', xScale(event.tick))
+            .attr('cy', yScale(closestDataPoint.value))
+            .attr('r', 4)
+            .attr('fill', player.color)
+            .attr('stroke', 'white')
+            .attr('stroke-width', 1.5)
+            .style('opacity', 0.9)
+            .style('cursor', 'pointer');
+          
+          // Add hover effects for construction dots
+          dot.on('mouseenter', function(d3Event) {
+            d3.select(this)
+              .transition()
+              .duration(150)
+              .attr('r', 6)
+              .style('opacity', 1);
+            
+            const tooltipContent = `
+              <div><strong>${unitTypeDisplay(event.unit_type)} (Level ${event.level})</strong></div>
+              <div>Player: ${event.name}</div>
+              <div>Location: (${event.x}, ${event.y})</div>
+              <div>Time: ${tickToTime(event.tick)}</div>
+              <div style="color: ${player.color}">${yAxisLabel}: ${formatNumber(closestDataPoint.value)}</div>
+            `;
+            
+            tooltip
+              .style('opacity', 1)
+              .html(tooltipContent)
+              .style('left', (d3Event.pageX + 10) + 'px')
+              .style('top', (d3Event.pageY - 28) + 'px');
+          })
+          .on('mouseleave', function() {
+            d3.select(this)
+              .transition()
+              .duration(150)
+              .attr('r', 4)
+              .style('opacity', 0.9);
+            
+            tooltip.style('opacity', 0);
+          });
+        }
+      });
     });
 
     // Add legend
@@ -222,7 +270,7 @@ const LineChart: React.FC<LineChartProps> = ({
       tooltip.remove();
     };
 
-  }, [data, width, height, title, yAxisLabel]);
+  }, [data, width, height, title, yAxisLabel, constructionEvents]);
 
   return (
     <div className="line-chart">

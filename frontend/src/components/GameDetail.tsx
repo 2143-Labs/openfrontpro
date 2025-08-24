@@ -4,8 +4,10 @@ import { Lobby } from '../types';
 import { getPlayerTeams, formatPlayerTeams } from '../utils/teams';
 import { getGameStatus, getTimeAgo } from '../utils';
 import GameAnalysis from './GameAnalysis';
-import { GamePlayer, getAllPlayers } from '../utils/charts';
+import { getAllPlayers } from '../utils/charts';
+import { GamePlayer } from '../types';
 import SpawnLocationGrid from './SpawnLocationGrid';
+import MapOverTime from './MapOverTime';
 import { humansOnly } from '../utils/players';
 
 // Static map dimensions data
@@ -101,11 +103,8 @@ function GameDetail() {
 
   // Fetch map manifest and players when gameID or game map changes
   useEffect(() => {
-    console.log('Debug: useEffect triggered, gameID =', gameID, ', game =', !!game);
     const fetchMapAndPlayers = async () => {
-      console.log('Debug: fetchMapAndPlayers called, gameID =', gameID, ', game =', !!game);
       if (!gameID || !game) {
-        console.log('Debug: Early return - gameID or game is missing');
         return;
       }
       
@@ -116,47 +115,33 @@ function GameDetail() {
         // Get map dimensions from static lookup
         let mapFetchFailed = false;
         const mapName = game.info?.config?.gameMap || game.game_map;
-        console.log('Debug: mapName =', mapName);
-        console.log('Debug: MAP_DIMENSIONS has mapName =', mapName && MAP_DIMENSIONS[mapName]);
         if (mapName && MAP_DIMENSIONS[mapName]) {
           setMapDims(MAP_DIMENSIONS[mapName]);
-          console.log('Debug: Set mapDims to', MAP_DIMENSIONS[mapName]);
         } else {
           setMapDims(null);
           mapFetchFailed = true;
-          console.log('Debug: mapFetchFailed = true, mapName =', mapName);
         }
         
         // Fetch players data
         const playersResponse = await fetch(`/api/v1/analysis/${gameID}/players`);
         let playersFetchFailed = false;
-        console.log('Debug: playersResponse.ok =', playersResponse.ok);
-        console.log('Debug: playersResponse.status =', playersResponse.status);
         if (playersResponse.ok) {
           const playersData = await playersResponse.json();
-          console.log('Debug: playersData.players length =', playersData?.players?.length);
-          console.log('Debug: playersData.players isArray =', Array.isArray(playersData?.players));
           if (playersData?.players && Array.isArray(playersData.players)) {
-            setSpawnPlayers(playersData.players);
-            console.log('Debug: Set spawnPlayers to', playersData.players.length, 'players');
+            const filteredSpawnPlayers = humansOnly(playersData.players);
+            setSpawnPlayers(filteredSpawnPlayers);
           } else {
             setSpawnPlayers(null);
             playersFetchFailed = true;
-            console.log('Debug: playersFetchFailed = true, invalid data structure');
           }
         } else {
           setSpawnPlayers(null);
           playersFetchFailed = true;
-          console.log('Debug: playersFetchFailed = true, response not ok');
         }
         
         // Set error state if either fetch failed
-        console.log('Debug: mapFetchFailed =', mapFetchFailed, ', playersFetchFailed =', playersFetchFailed);
         if (mapFetchFailed || playersFetchFailed) {
           setSpawnDataError(true);
-          console.log('Debug: Setting spawnDataError = true');
-        } else {
-          console.log('Debug: Both fetches succeeded');
         }
       } catch (err) {
         console.error('Error fetching map manifest or players:', err);
@@ -601,6 +586,29 @@ function GameDetail() {
             )}
           </section>
 
+          {/* Map Over Time */}
+          {gameCompleted && mapDims && (
+            <section style={{
+              backgroundColor: 'white',
+              padding: '20px',
+              borderRadius: '8px',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+              gridColumn: 'span 2' // Take up more space for the interactive map
+            }}>
+              <h2>🗺️ Map Over Time</h2>
+              <p style={{ marginBottom: '15px', color: '#666', fontSize: '14px' }}>
+                Watch construction events unfold over the course of the game. Use the slider or play button to see how players built their empires.
+              </p>
+              <MapOverTime
+                gameId={gameID!}
+                players={spawnPlayers}
+                mapWidth={mapDims.width}
+                mapHeight={mapDims.height}
+                maxRenderWidth={500}
+              />
+            </section>
+          )}
+
           {/* Team Structure Details */}
           <section style={{
             backgroundColor: 'white',
@@ -629,7 +637,7 @@ function GameDetail() {
         
         {/* Game Analysis Section */}
         {gameCompleted && (
-          <GameAnalysis gameId={gameID!} />
+          <GameAnalysis gameId={gameID!} players={spawnPlayers} />
         )}
         
         {!gameCompleted && (

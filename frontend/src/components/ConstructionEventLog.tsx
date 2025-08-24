@@ -1,6 +1,6 @@
 import React from 'react';
 import { ConstructionEvent } from '../types';
-import { GamePlayer, tickToTime, unitTypeDisplay, getPlayerById, getPlayerColor } from '../utils/charts';
+import { GamePlayer, tickToTime, unitTypeDisplay, getPlayerById, PlayerStatsOverGame, formatNumber, calculateConstructionCost, getPlayerColorById, PlayerColorMap } from '../utils/charts';
 import MiniMapSpot from './MiniMapSpot';
 
 interface ConstructionEventLogProps {
@@ -8,6 +8,8 @@ interface ConstructionEventLogProps {
   players: GamePlayer[];
   mapWidth: number;
   mapHeight: number;
+  statsData?: PlayerStatsOverGame | null;
+  colorMap: PlayerColorMap;
 }
 
 const ConstructionEventLog: React.FC<ConstructionEventLogProps> = ({
@@ -15,22 +17,13 @@ const ConstructionEventLog: React.FC<ConstructionEventLogProps> = ({
   players,
   mapWidth,
   mapHeight,
+  statsData,
+  colorMap,
 }) => {
   // Sort events by tick ascending (chronological order)
   const sortedEvents = [...events].sort((a, b) => a.tick - b.tick);
 
-  // Create a mapping of client_id to player color index for consistency
-  const playerColorMap = new Map<string, number>();
-  players.forEach((player, index) => {
-    if (player.client_id) {
-      playerColorMap.set(player.client_id, index);
-    }
-  });
-
-  const getPlayerColor_ByClientId = (clientId: string): string => {
-    const colorIndex = playerColorMap.get(clientId) ?? 0;
-    return getPlayerColor(colorIndex);
-  };
+  // Use the shared color mapping for consistent colors across components
 
   if (sortedEvents.length === 0) {
     return (
@@ -61,7 +54,7 @@ const ConstructionEventLog: React.FC<ConstructionEventLogProps> = ({
         borderBottom: '1px solid #dee2e6',
         fontWeight: 'bold',
         display: 'grid',
-        gridTemplateColumns: '80px 120px 180px 100px 60px 50px',
+        gridTemplateColumns: '80px 120px 180px 100px 60px 70px 50px',
         gap: '15px',
         fontSize: '14px',
         color: '#495057'
@@ -71,6 +64,7 @@ const ConstructionEventLog: React.FC<ConstructionEventLogProps> = ({
         <div>Owner</div>
         <div>Location</div>
         <div>Level</div>
+        <div>Cost</div>
         <div>Map</div>
       </div>
 
@@ -81,8 +75,11 @@ const ConstructionEventLog: React.FC<ConstructionEventLogProps> = ({
       }}>
         {sortedEvents.map((event, index) => {
           const player = getPlayerById(players, event.client_id);
-          const playerColor = getPlayerColor_ByClientId(event.client_id);
+          const playerColor = getPlayerColorById(colorMap, event.client_id);
           const playerName = player?.name || event.name || 'Unknown';
+          
+          // Calculate construction cost
+          const constructionCost = statsData ? calculateConstructionCost(event.tick, event.client_id, statsData) : null;
 
           return (
             <div 
@@ -92,7 +89,7 @@ const ConstructionEventLog: React.FC<ConstructionEventLogProps> = ({
                 borderBottom: index < sortedEvents.length - 1 ? '1px solid #f1f3f4' : 'none',
                 backgroundColor: index % 2 === 0 ? 'white' : '#fafbfc',
                 display: 'grid',
-                gridTemplateColumns: '80px 120px 180px 100px 60px 50px',
+                gridTemplateColumns: '80px 120px 180px 100px 60px 70px 50px',
                 gap: '15px',
                 alignItems: 'center',
                 fontSize: '13px'
@@ -160,6 +157,39 @@ const ConstructionEventLog: React.FC<ConstructionEventLogProps> = ({
                 </span>
               </div>
 
+              {/* Construction Cost */}
+              <div style={{ 
+                color: constructionCost === 0 ? '#dc3545' : '#28a745',
+                fontFamily: 'monospace',
+                fontWeight: '500',
+                fontSize: '12px'
+              }}>
+                {constructionCost !== null ? (
+                  constructionCost === 0 ? (
+                    <span style={{ 
+                      backgroundColor: '#f8d7da',
+                      color: '#721c24',
+                      padding: '2px 5px',
+                      borderRadius: '4px',
+                      border: '1px solid #f5c6cb'
+                    }}>
+                      🏴 Captured
+                    </span>
+                  ) : (
+                    <span style={{ 
+                      backgroundColor: '#f8f9fa',
+                      padding: '2px 5px',
+                      borderRadius: '4px',
+                      border: '1px solid #dee2e6'
+                    }}>
+                      💰{formatNumber(constructionCost)}
+                    </span>
+                  )
+                ) : (
+                  <span style={{ color: '#6c757d', fontSize: '11px' }}>N/A</span>
+                )}
+              </div>
+
               {/* MiniMap Spot */}
               <div>
                 <MiniMapSpot
@@ -169,6 +199,10 @@ const ConstructionEventLog: React.FC<ConstructionEventLogProps> = ({
                   y={event.y}
                   color={playerColor}
                   size={30}
+                  unitType={unitTypeDisplay(event.unit_type)}
+                  playerName={playerName}
+                  level={event.level}
+                  tick={event.tick}
                 />
               </div>
             </div>

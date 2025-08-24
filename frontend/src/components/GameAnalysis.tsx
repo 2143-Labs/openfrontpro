@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import LineChart from './LineChart';
 import ConstructionEventLog from './ConstructionEventLog';
+import EventLog from './EventLog';
 import { 
   formatPlayerStatsForChart, 
   calculateGameSummary,
@@ -12,10 +13,14 @@ import {
   GeneralEvent,
   DisplayEvent,
   GamePlayer,
-  DurationFilter
+  DurationFilter,
+  createPlayerColorMap,
+  getPlayerColorById,
+  PlayerColorMap
 } from '../utils/charts';
 import { ConstructionEvent } from '../types';
 import { fetchConstructionEvents } from '../services/api';
+import { getPlayerTypeLabel, humansOnly } from '../utils/players';
 
 interface GameAnalysisProps {
   gameId: string;
@@ -32,6 +37,7 @@ const GameAnalysis: React.FC<GameAnalysisProps> = ({ gameId, players: propPlayer
   const [players, setPlayers] = useState<GamePlayer[]>([]);
   const [selectedMetric, setSelectedMetric] = useState<'troops' | 'gold' | 'workers' | 'tiles_owned'>('tiles_owned');
   const [selectedDuration, setSelectedDuration] = useState<DurationFilter>('all');
+  const [colorMap, setColorMap] = useState<PlayerColorMap>(new Map());
 
   const durationOptions = [
     {label: '1 m', value: 1},
@@ -95,11 +101,13 @@ const GameAnalysis: React.FC<GameAnalysisProps> = ({ gameId, players: propPlayer
       setDisplayEvents(displayEventsData.events || []);
       
       // Use prop players if provided, otherwise use fetched players
-      if (propPlayers) {
-        setPlayers(propPlayers);
-      } else {
-        setPlayers(playersData?.players || []);
-      }
+      // Always filter out bots regardless of source
+      const filteredPlayers = propPlayers ? humansOnly(propPlayers) : humansOnly(playersData?.players || []);
+      setPlayers(filteredPlayers);
+      
+      // Create consistent color mapping for all components
+      const newColorMap = createPlayerColorMap(filteredPlayers);
+      setColorMap(newColorMap);
 
       // Fetch construction events separately (to avoid blocking if this endpoint fails)
       try {
@@ -157,8 +165,24 @@ const GameAnalysis: React.FC<GameAnalysisProps> = ({ gameId, players: propPlayer
   }
 
   const effectiveStats = filterStatsByDuration(statsData, selectedDuration);
+  
+  // Filter construction events by the same duration filter
+  const filterConstructionEventsByDuration = (events: ConstructionEvent[], duration: DurationFilter) => {
+    if (duration === 'all') return events;
+    
+    // Get min tick from stats data to establish game start time
+    const ticks = Object.keys(statsData.player_stats_ticks).map(Number);
+    if (ticks.length === 0) return events;
+    
+    const minTick = Math.min(...ticks);
+    const threshold = minTick + duration * 60 * 10; // 10 ticks per second
+    
+    return events.filter(event => event.tick <= threshold);
+  };
+  
+  const filteredConstructionEvents = filterConstructionEventsByDuration(constructionEvents, selectedDuration);
 
-  const chartData = formatPlayerStatsForChart(effectiveStats, selectedMetric);
+  const chartData = formatPlayerStatsForChart(effectiveStats, selectedMetric, colorMap);
   const summary = calculateGameSummary(statsData, players);
   const events = formatEventsForTimeline(generalEvents, displayEvents);
 
@@ -289,6 +313,7 @@ const GameAnalysis: React.FC<GameAnalysisProps> = ({ gameId, players: propPlayer
           yAxisLabel={metricLabels[selectedMetric]}
           width={Math.min(900, window.innerWidth - 60)}
           height={400}
+          constructionEvents={filteredConstructionEvents}
         />
       </div>
 
@@ -316,7 +341,7 @@ const GameAnalysis: React.FC<GameAnalysisProps> = ({ gameId, players: propPlayer
                   style={{
                     width: '12px',
                     height: '12px',
-                    backgroundColor: chartData.find(p => p.id === player.client_id)?.color || '#ccc',
+                    backgroundColor: player.client_id ? getPlayerColorById(colorMap, player.client_id) : '#cccccc',
                     borderRadius: '50%',
                     marginRight: '8px'
                   }}
@@ -324,7 +349,7 @@ const GameAnalysis: React.FC<GameAnalysisProps> = ({ gameId, players: propPlayer
                 <h4 style={{ margin: 0, fontSize: '16px' }}>{player.name}</h4>
               </div>
               <div style={{ fontSize: '14px', color: '#6c757d' }}>
-                <div><strong>Type:</strong> {player.player_type}</div>
+                <div><strong>Type:</strong> {getPlayerTypeLabel(player.player_type)}</div>
                 {player.team !== null && player.team !== undefined && (
                   <div><strong>Team:</strong> {player.team}</div>
                 )}
@@ -348,58 +373,20 @@ const GameAnalysis: React.FC<GameAnalysisProps> = ({ gameId, players: propPlayer
           players={players}
           mapWidth={2000}  // Default World map dimensions
           mapHeight={1000}
+          statsData={statsData}
+          colorMap={colorMap}
         />
       </div>
 
-      {/* Recent Events */}
+      {/* Events */}
       <div>
-        <h3>Recent Events</h3>
-        <div 
-          style={{
-            backgroundColor: 'white',
-            border: '1px solid #dee2e6',
-            borderRadius: '8px',
-            maxHeight: '300px',
-            overflowY: 'auto'
-          }}
-        >
-          {events.slice(-20).reverse().map((event, index) => (
-            <div 
-              key={index}
-              style={{
-                padding: '10px 15px',
-                borderBottom: index < 19 ? '1px solid #f1f3f4' : 'none',
-                fontSize: '14px'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <span style={{ 
-                    color: event.type === 'general' ? '#007bff' : '#28a745',
-                    fontWeight: 'bold',
-                    marginRight: '8px'
-                  }}>
-                    [{event.category}]
-                  </span>
-                  <span>{event.message}</span>
-                </div>
-                <span style={{ 
-                  color: '#6c757d', 
-                  fontSize: '12px',
-                  minWidth: '60px',
-                  textAlign: 'right'
-                }}>
-                  {tickToTime(event.tick)}
-                </span>
-              </div>
-            </div>
-          ))}
-          {events.length === 0 && (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#6c757d' }}>
-              No events available
-            </div>
-          )}
-        </div>
+        <h3>Events</h3>
+        <EventLog
+          events={events}
+          players={players}
+          colorMap={colorMap}
+          height={400}
+        />
       </div>
     </div>
   );

@@ -1,4 +1,6 @@
 import React from 'react';
+import { showTooltip, moveTooltip, hideTooltip } from '../utils/tooltip';
+import { tickToTime } from '../utils/charts';
 
 interface MiniMapSpotProps {
   mapWidth: number;
@@ -7,6 +9,11 @@ interface MiniMapSpotProps {
   y: number;
   color: string;
   size?: number;
+  // Optional tooltip data
+  unitType?: string;
+  playerName?: string;
+  level?: number;
+  tick?: number;
 }
 
 const MiniMapSpot: React.FC<MiniMapSpotProps> = ({
@@ -16,6 +23,10 @@ const MiniMapSpot: React.FC<MiniMapSpotProps> = ({
   y,
   color,
   size = 40,
+  unitType,
+  playerName,
+  level,
+  tick,
 }) => {
   // Handle invalid or missing map dimensions
   if (!mapWidth || !mapHeight || mapWidth <= 0 || mapHeight <= 0) {
@@ -56,8 +67,96 @@ const MiniMapSpot: React.FC<MiniMapSpotProps> = ({
   const spotX = (x / mapWidth) * viewWidth;
   const spotY = (y / mapHeight) * viewHeight;
 
+  // Generate enlarged SVG for tooltip (4x larger)
+  const generateEnlargedSVG = (): string => {
+    const enlargedSize = 160;
+    const enlargedAspectRatio = mapWidth / mapHeight;
+    let enlargedViewWidth = enlargedSize;
+    let enlargedViewHeight = enlargedSize;
+    
+    // Maintain aspect ratio while staying within bounds
+    if (enlargedAspectRatio > 1) {
+      enlargedViewHeight = enlargedSize / enlargedAspectRatio;
+    } else {
+      enlargedViewWidth = enlargedSize * enlargedAspectRatio;
+    }
+    
+    const enlargedSpotX = (x / mapWidth) * enlargedViewWidth;
+    const enlargedSpotY = (y / mapHeight) * enlargedViewHeight;
+    const enlargedSpotRadius = Math.max(2, Math.min(enlargedViewWidth, enlargedViewHeight) / 15);
+    
+    return `
+      <svg
+        width="${enlargedViewWidth}"
+        height="${enlargedViewHeight}"
+        viewBox="0 0 ${enlargedViewWidth} ${enlargedViewHeight}"
+        style="
+          border: 1px solid #dee2e6;
+          border-radius: 4px;
+          background-color: #f8f9fa;
+          display: block;
+        "
+      >
+        <circle
+          cx="${enlargedSpotX}"
+          cy="${enlargedSpotY}"
+          r="${enlargedSpotRadius}"
+          fill="${color}"
+          stroke="white"
+          stroke-width="1"
+          opacity="0.9"
+        />
+      </svg>
+    `;
+  };
+
+  // Generate tooltip content
+  const generateTooltipContent = (): string => {
+    const hasTooltipData = unitType || playerName || level !== undefined;
+    
+    if (!hasTooltipData) {
+      return `
+        <div style="font-size: 12px; margin-bottom: 8px;">
+          <strong>Construction Location</strong><br/>
+          Coordinates: (${x}, ${y})
+        </div>
+        ${generateEnlargedSVG()}
+      `;
+    }
+    
+    return `
+      <div style="font-size: 12px; margin-bottom: 8px; line-height: 1.4;">
+        ${unitType ? `<strong>${unitType}</strong><br/>` : ''}
+        ${playerName ? `Player: ${playerName}<br/>` : ''}
+        Coordinates: (${x}, ${y})${level !== undefined ? ` Level ${level}` : ''}
+        ${tick !== undefined ? `<br/>Time: ${tickToTime(tick)}` : ''}
+      </div>
+      ${generateEnlargedSVG()}
+    `;
+  };
+
+  // Event handlers
+  const handleMouseEnter = (event: React.MouseEvent) => {
+    const tooltipContent = generateTooltipContent();
+    showTooltip(tooltipContent, event.nativeEvent);
+  };
+
+  const handleMouseMove = (event: React.MouseEvent) => {
+    moveTooltip(event.nativeEvent);
+  };
+
+  const handleMouseLeave = () => {
+    hideTooltip();
+  };
+
   return (
-    <div style={{ display: 'inline-block' }}>
+    <div 
+      style={{ display: 'inline-block', cursor: 'pointer' }}
+      onMouseEnter={handleMouseEnter}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      aria-describedby={unitType ? `minimap-${x}-${y}` : undefined}
+    >
       <svg
         width={viewWidth}
         height={viewHeight}
