@@ -57,11 +57,17 @@ export type MapData = {
     manifest: any;
 };
 
+export type PlayerSpawnLocation = {
+    turn: number;
+    x: number;
+    y: number;
+};
+
 export type PlayerSpawn = {
     turn: number;
     x: number;
     y: number;
-    previous_spawns: PlayerSpawn[];
+    previous_spawns: PlayerSpawnLocation[];
 };
 
 export type Analysis = {

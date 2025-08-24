@@ -204,7 +204,8 @@ async function analyze_intents(
         console.log(`Player ${client_id} spawned at (${x}, ${y})`);
 
         // TODO fix this
-        const prev_spawns = analysis.spawns[client_id] ? analysis.spawns[client_id].previous_spawns: [];
+        const prev_spawns = analysis.spawns[client_id] ? analysis.spawns[client_id].previous_spawns : [];
+        prev_spawns.push({x, y, turn: turn.turnNumber});
         console.log(`Previous spawns: ${prev_spawns.length}`);
         console.log(analysis.spawns[client_id]);
 
@@ -343,6 +344,17 @@ async function handle_game_update(
                         const x = game.map().x(Number(tile));
                         const y = game.map().y(Number(tile));
                         console.log(`Player ${ply.clientID()} built ${UnitType[unit_type as unknown as UnitType]}(level ${level}) at (${x}, ${y}) on turn ${gu.tick}`);
+
+                        analysis.ins_construction.push([
+                            game_id,
+                            ply.clientID()!,
+                            ply.smallID(),
+                            gu.tick,
+                            unit_type as unknown as UnitType,
+                            x,
+                            y,
+                            level,
+                        ]);
                     }
                 }
             }

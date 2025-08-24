@@ -98,6 +98,15 @@ export const INSERT_PLAYER_TROOP_RATIO_CHANGE = format_sql`
     VALUES ($1, $2, $3, $4)
 `;
 
+
+export const INSERT_CONSTRUCTION_EVENT = format_sql`
+    INSERT INTO
+        analysis_1.construction_events (game_id, client_id, small_id, tick, unit_type, x, y, level)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+`;
+
+
+
 // ===== Database cleanup helpers =====
 export async function cleanup_previous_analysis(
     pool: Pool,
