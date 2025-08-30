@@ -57,6 +57,10 @@ const AnalysisQueue: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Calculate queue counts
+  const pendingCount = queueData.filter(q => q.status.toLowerCase() === 'pending').length;
+  const runningCount = queueData.filter(q => q.status.toLowerCase() === 'running').length;
+
   const renderContent = () => {
     if (loading) {
       return <LoadingSpinner />;
@@ -201,19 +205,29 @@ const AnalysisQueue: React.FC = () => {
         </h3>
         <div style={{
           display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+          gap: '4px',
           fontSize: '12px',
           color: '#6c757d'
         }}>
-          <span>Auto-refresh: 15s</span>
           <div style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: loading ? '#ffc107' : '#28a745',
-            animation: loading ? 'pulse 1.5s ease-in-out infinite' : 'none'
-          }} />
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span>Auto-refresh: 15s</span>
+            <div style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: loading ? '#ffc107' : '#28a745',
+              animation: loading ? 'pulse 1.5s ease-in-out infinite' : 'none'
+            }} />
+          </div>
+          <div>
+            Queue — Pending: {pendingCount} • Running: {runningCount}
+          </div>
         </div>
       </div>
       
