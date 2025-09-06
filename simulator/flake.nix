@@ -4,7 +4,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     bun2nix.url = "github:baileyluTCD/bun2nix";
     openfrontio_cur = {
-        url = "github:OpenFrontIO/OpenFrontIO/v0.25.4";
+        url = "github:OpenFrontIO/OpenFrontIO/v0.25.6";
         flake = false;
     };
   };

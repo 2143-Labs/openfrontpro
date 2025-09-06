@@ -299,6 +299,14 @@ async fn callback_api_handler(
         .session_token
         .expect("How is is possible to not have a session token?");
 
+    // Determine if we're in production based on redirect URI
+    let is_production = cfg.redirect_uri.starts_with("https://");
+    let cookie_attributes = if is_production {
+        "; Secure; SameSite=Lax"
+    } else {
+        "; SameSite=Lax"
+    };
+
     let res = Response::builder()
         .status(axum::http::StatusCode::FOUND)
         .header(axum::http::header::CONTENT_TYPE, "text/plain")
@@ -311,25 +319,17 @@ async fn callback_api_handler(
         .header(
             axum::http::header::SET_COOKIE,
             format!(
-                "discord_user_id={}; Path=/; HttpOnly{}; SameSite=Lax",
+                "discord_user_id={}; Path=/; HttpOnly{}",
                 user.id,
-                if cfg.redirect_uri.starts_with("https://") {
-                    "; Secure"
-                } else {
-                    ""
-                }
+                cookie_attributes
             ),
         )
         .header(
             axum::http::header::SET_COOKIE,
             format!(
-                "session_token={}; Path=/; HttpOnly{}; SameSite=Lax",
+                "session_token={}; Path=/; HttpOnly{}",
                 api_token,
-                if cfg.redirect_uri.starts_with("https://") {
-                    "; Secure"
-                } else {
-                    ""
-                }
+                cookie_attributes
             ),
         )
         .body(axum::body::Body::from(format!(

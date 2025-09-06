@@ -470,6 +470,8 @@ async fn get_users_handler(
                     tpig.game_id = ca.game_id
             WHERE
                 openfront_player_id = $1
+            ORDER BY
+                ca.inserted_at_unix_sec DESC NULLS LAST
             "#,
             ofpid
         )
