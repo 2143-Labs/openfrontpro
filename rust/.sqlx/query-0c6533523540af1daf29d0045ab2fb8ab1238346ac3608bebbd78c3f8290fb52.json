@@ -33,7 +33,8 @@
                 "UnitIncoming",
                 "BonusEvent",
                 "RailroadEvent",
-                "EmbargoEvent"
+                "EmbargoEvent",
+                "ConquestEvent"
               ]
             }
           }
