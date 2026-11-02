@@ -29,6 +29,12 @@ jobs:
         run: |
           nix build .#container
 
+      - name: Push to Attic
+        run: |
+          set -euo pipefail
+          command -v attic >/dev/null || { echo "attic not installed; skipping"; exit 0; }
+          XDG_CONFIG_HOME=/etc attic push 2143nix ./result || echo "::warning::attic push failed"
+
       - name: Push with skopeo
         run: |
           skopeo login --username ${{ github.actor }} --password "${{ secrets.PAT_PACKAGES }}" ghcr.io
@@ -59,6 +65,12 @@ jobs:
       - name: Building sim package
         run: |
           nix build .#container-sim
+
+      - name: Push to Attic
+        run: |
+          set -euo pipefail
+          command -v attic >/dev/null || { echo "attic not installed; skipping"; exit 0; }
+          XDG_CONFIG_HOME=/etc attic push 2143nix ./result || echo "::warning::attic push failed"
 
       - name: Push sim with skopeo
         run: |
